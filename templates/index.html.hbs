@@ -7,10 +7,10 @@
         <meta name="author" content="Lukas Pustina">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ project.name }}</title>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-beta.30/css/uikit.min.css" />
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-beta.30/js/uikit.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-beta.30/js/uikit-icons.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.23.13/css/uikit.min.css" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.23.13/js/uikit.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.23.13/js/uikit-icons.min.js"></script>
         <script>
             var get_ifconfig_json = function(url, selector) {
                 $.ajax({
@@ -57,7 +57,7 @@
     </head>
     <body>
         <div class="uk-container">
-            <h1 class="uk-heading-primary uk-heading-line" id="heading-project"><span>{{ project.name }}</span></h1>
+            <h1 class="uk-heading-medium uk-heading-line" id="heading-project"><span>{{ project.name }}</span></h1>
             {{#with ifconfig}}
             <div class="uk-child-width-expand@s uk-grid-match" uk-grid>
                 <div class="uk-width-1-1@s">
@@ -89,7 +89,7 @@
         {{/with}}
                 <div class="uk-width-1-1@s" uk-height-viewport="expand: true">
                 <div>
-                    <ul uk-accordion="multiple: true">
+                    <ul class="uk-accordion-default" uk-accordion="multiple: true">
                         <li>
                             <h3 class="uk-accordion-title"><span class="uk-label">API</span></h3>
                             <div class="uk-accordion-content">
@@ -422,7 +422,7 @@
                     Rust</a> (hence the .rs top-level domain) using the
                     <a href="https://rocket.rs">Rocket</a> web framework and includes GeoLite2 data
                     created by MaxMind, available from
-                    <a href="http://www.maxmind.com">http://www.maxmind.com</a>. The UI is made with
+                    <a href="https://www.maxmind.com">maxmind.com</a>. The UI is made with
                     <a href="https://getuikit.com">uikit</a>. Feel free to use it as much as you
                     like, to query it automatically, and to clone and to fork it. Please mind that rate limiting may be
                     applied. If you like to get in touch, you can contact <a href="https://lukas.pustina.de">me</a> on
