@@ -239,6 +239,37 @@ handler!(user_agent, ifconfig, { ifconfig.user_agent }, Option<UserAgent>, {
     )
 });
 
+pub mod headers {
+    use crate::format::OutputFormat;
+    use crate::guards::RequestHeaders;
+    use serde_json::Value as JsonValue;
+    use std::collections::BTreeMap;
+
+    pub fn to_plain(req_headers: &RequestHeaders) -> String {
+        req_headers
+            .headers
+            .iter()
+            .map(|(name, value)| format!("{}: {}", name, value))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n"
+    }
+
+    pub fn to_json_value(req_headers: &RequestHeaders) -> JsonValue {
+        let map: BTreeMap<&str, &str> = req_headers
+            .headers
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_str()))
+            .collect();
+        serde_json::to_value(map).unwrap_or(JsonValue::Null)
+    }
+
+    pub fn formatted(format: &OutputFormat, req_headers: &RequestHeaders) -> Option<String> {
+        let json_val = to_json_value(req_headers);
+        format.serialize_body(&json_val)
+    }
+}
+
 pub mod ip_version {
     use crate::backend::*;
     use crate::format::OutputFormat;

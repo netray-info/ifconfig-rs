@@ -660,78 +660,61 @@ ip_version_route!(ipv6, "6", "/ipv6", "/ipv6/json", "/ipv6/<fmt>");
 pub mod headers {
     use crate::format::OutputFormat;
     use crate::guards::*;
+    use crate::handlers;
     use crate::rate_limiter::RateLimited;
     use rocket::http::ContentType;
     use rocket::serde::json::Json;
     use serde_json::Value as JsonValue;
-    use std::collections::BTreeMap;
-
-    fn to_plain(req_headers: &RequestHeaders) -> String {
-        req_headers
-            .headers
-            .iter()
-            .map(|(name, value)| format!("{}: {}", name, value))
-            .collect::<Vec<_>>()
-            .join("\n")
-            + "\n"
-    }
-
-    fn to_json_value(req_headers: &RequestHeaders) -> JsonValue {
-        let map: BTreeMap<&str, &str> = req_headers
-            .headers
-            .iter()
-            .map(|(name, value)| (name.as_str(), value.as_str()))
-            .collect();
-        serde_json::to_value(map).unwrap_or(JsonValue::Null)
-    }
-
-    fn to_json(req_headers: &RequestHeaders) -> Json<JsonValue> {
-        Json(to_json_value(req_headers))
-    }
-
-    fn formatted(format: OutputFormat, req_headers: &RequestHeaders) -> Option<(ContentType, String)> {
-        let json_val = to_json_value(req_headers);
-        format.serialize(&json_val)
-    }
 
     #[rocket::get("/headers", rank = 1)]
     pub(crate) fn plain_cli(_rate_limited: RateLimited, _cli_req: CliClientRequest, req_headers: RequestHeaders) -> String {
-        to_plain(&req_headers)
+        handlers::headers::to_plain(&req_headers)
     }
 
     #[rocket::get("/headers", format = "application/json", rank = 2)]
     pub(crate) fn json(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Json<JsonValue> {
-        to_json(&req_headers)
+        Json(handlers::headers::to_json_value(&req_headers))
     }
 
     #[rocket::get("/headers", format = "application/yaml", rank = 3)]
     pub(crate) fn yaml(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Option<(ContentType, String)> {
-        formatted(OutputFormat::Yaml, &req_headers)
+        let fmt = OutputFormat::Yaml;
+        let body = handlers::headers::formatted(&fmt, &req_headers)?;
+        let (top, sub) = fmt.mime_type();
+        Some((ContentType::new(top, sub), body))
     }
 
     #[rocket::get("/headers", format = "application/toml", rank = 4)]
     pub(crate) fn toml_accept(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Option<(ContentType, String)> {
-        formatted(OutputFormat::Toml, &req_headers)
+        let fmt = OutputFormat::Toml;
+        let body = handlers::headers::formatted(&fmt, &req_headers)?;
+        let (top, sub) = fmt.mime_type();
+        Some((ContentType::new(top, sub), body))
     }
 
     #[rocket::get("/headers", format = "text/csv", rank = 5)]
     pub(crate) fn csv(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Option<(ContentType, String)> {
-        formatted(OutputFormat::Csv, &req_headers)
+        let fmt = OutputFormat::Csv;
+        let body = handlers::headers::formatted(&fmt, &req_headers)?;
+        let (top, sub) = fmt.mime_type();
+        Some((ContentType::new(top, sub), body))
     }
 
     #[rocket::get("/headers", rank = 6)]
     pub(crate) fn plain(_rate_limited: RateLimited, req_headers: RequestHeaders) -> String {
-        to_plain(&req_headers)
+        handlers::headers::to_plain(&req_headers)
     }
 
     #[rocket::get("/headers/json")]
     pub(crate) fn json_json(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Json<JsonValue> {
-        to_json(&req_headers)
+        Json(handlers::headers::to_json_value(&req_headers))
     }
 
     #[rocket::get("/headers/<fmt>")]
     pub(crate) fn format_suffix(_rate_limited: RateLimited, fmt: OutputFormat, req_headers: RequestHeaders) -> Option<(ContentType, String)> {
-        formatted(fmt, &req_headers)
+        let body = handlers::headers::formatted(&fmt, &req_headers)?;
+        let (top, sub) = fmt.mime_type();
+        Some((ContentType::new(top, sub), body))
     }
 }
 
