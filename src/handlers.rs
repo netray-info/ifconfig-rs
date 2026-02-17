@@ -7,6 +7,24 @@ use serde_json::Value as JsonValue;
 
 pub(crate) static UNKNOWN_STR: &str = "unknown";
 
+pub(crate) fn make_ifconfig<'a>(
+    req_info: &'a RequesterInfo<'a>,
+    user_agent_parser: &'a UserAgentParser,
+    geoip_city_db: &'a GeoIpCityDb,
+    geoip_asn_db: &'a GeoIpAsnDb,
+    tor_exit_nodes: &'a TorExitNodes,
+) -> Ifconfig<'a> {
+    let param = IfconfigParam {
+        remote: &req_info.remote,
+        user_agent_header: &req_info.user_agent,
+        user_agent_parser,
+        geoip_city_db,
+        geoip_asn_db,
+        tor_exit_nodes,
+    };
+    get_ifconfig(&param)
+}
+
 #[derive(Serialize)]
 pub struct RootHtmlContext {
     pub ifconfig: JsonValue,
@@ -22,15 +40,7 @@ pub fn root_html(
     geoip_asn_db: &GeoIpAsnDb,
     tor_exit_nodes: &TorExitNodes,
 ) -> RootHtmlContext {
-    let ifconfig_param = IfconfigParam {
-        remote: &req_info.remote,
-        user_agent_header: &req_info.user_agent,
-        user_agent_parser,
-        geoip_city_db,
-        geoip_asn_db,
-        tor_exit_nodes,
-    };
-    let ifconfig = get_ifconfig(&ifconfig_param);
+    let ifconfig = make_ifconfig(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes);
 
     RootHtmlContext {
         ifconfig: serde_json::to_value(&ifconfig).unwrap_or_default(),
@@ -47,6 +57,7 @@ macro_rules! handler {
             use crate::guards::*;
             #[allow(unused_imports)]
             use crate::handlers::UNKNOWN_STR;
+            use crate::handlers::make_ifconfig;
             use serde_json::Value as JsonValue;
 
             fn to_json($ifconfig: Ifconfig) -> $ty {
@@ -60,19 +71,8 @@ macro_rules! handler {
                 geoip_asn_db: &GeoIpAsnDb,
                 tor_exit_nodes: &TorExitNodes,
             ) -> Option<JsonValue> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-
-                let value = to_json(ifconfig);
-
-                serde_json::to_value(value).ok()
+                let ifconfig = make_ifconfig(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes);
+                serde_json::to_value(to_json(ifconfig)).ok()
             }
 
             fn to_plain($ifconfig: Ifconfig) -> String {
@@ -86,19 +86,8 @@ macro_rules! handler {
                 geoip_asn_db: &GeoIpAsnDb,
                 tor_exit_nodes: &TorExitNodes,
             ) -> Option<String> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-
-                let value = to_plain(ifconfig);
-
-                Some(value)
+                let ifconfig = make_ifconfig(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes);
+                Some(to_plain(ifconfig))
             }
 
             pub fn formatted(
@@ -109,17 +98,8 @@ macro_rules! handler {
                 geoip_asn_db: &GeoIpAsnDb,
                 tor_exit_nodes: &TorExitNodes,
             ) -> Option<String> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-                let value = to_json(ifconfig);
-                let json_val = serde_json::to_value(value).ok()?;
+                let ifconfig = make_ifconfig(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes);
+                let json_val = serde_json::to_value(to_json(ifconfig)).ok()?;
                 format.serialize_body(&json_val)
             }
         }
@@ -274,7 +254,23 @@ pub mod ip_version {
     use crate::backend::*;
     use crate::format::OutputFormat;
     use crate::guards::*;
+    use crate::handlers::make_ifconfig;
     use serde_json::Value as JsonValue;
+
+    fn lookup_ip<'a>(
+        version: &str,
+        req_info: &'a RequesterInfo<'a>,
+        user_agent_parser: &'a UserAgentParser,
+        geoip_city_db: &'a GeoIpCityDb,
+        geoip_asn_db: &'a GeoIpAsnDb,
+        tor_exit_nodes: &'a TorExitNodes,
+    ) -> Option<Ip<'a>> {
+        let ifconfig = make_ifconfig(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes);
+        if ifconfig.ip.version != version {
+            return None;
+        }
+        Some(ifconfig.ip)
+    }
 
     pub fn json(
         version: &str,
@@ -284,19 +280,8 @@ pub mod ip_version {
         geoip_asn_db: &GeoIpAsnDb,
         tor_exit_nodes: &TorExitNodes,
     ) -> Option<JsonValue> {
-        let ifconfig_param = IfconfigParam {
-            remote: &req_info.remote,
-            user_agent_header: &req_info.user_agent,
-            user_agent_parser,
-            geoip_city_db,
-            geoip_asn_db,
-            tor_exit_nodes,
-        };
-        let ifconfig = get_ifconfig(&ifconfig_param);
-        if ifconfig.ip.version != version {
-            return None;
-        }
-        serde_json::to_value(&ifconfig.ip).ok()
+        let ip = lookup_ip(version, req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+        serde_json::to_value(&ip).ok()
     }
 
     pub fn plain(
@@ -307,19 +292,8 @@ pub mod ip_version {
         geoip_asn_db: &GeoIpAsnDb,
         tor_exit_nodes: &TorExitNodes,
     ) -> Option<String> {
-        let ifconfig_param = IfconfigParam {
-            remote: &req_info.remote,
-            user_agent_header: &req_info.user_agent,
-            user_agent_parser,
-            geoip_city_db,
-            geoip_asn_db,
-            tor_exit_nodes,
-        };
-        let ifconfig = get_ifconfig(&ifconfig_param);
-        if ifconfig.ip.version != version {
-            return None;
-        }
-        Some(format!("{}\n", ifconfig.ip.addr))
+        let ip = lookup_ip(version, req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+        Some(format!("{}\n", ip.addr))
     }
 
     pub fn formatted(
@@ -331,19 +305,8 @@ pub mod ip_version {
         geoip_asn_db: &GeoIpAsnDb,
         tor_exit_nodes: &TorExitNodes,
     ) -> Option<String> {
-        let ifconfig_param = IfconfigParam {
-            remote: &req_info.remote,
-            user_agent_header: &req_info.user_agent,
-            user_agent_parser,
-            geoip_city_db,
-            geoip_asn_db,
-            tor_exit_nodes,
-        };
-        let ifconfig = get_ifconfig(&ifconfig_param);
-        if ifconfig.ip.version != version {
-            return None;
-        }
-        let json_val = serde_json::to_value(&ifconfig.ip).ok()?;
+        let ip = lookup_ip(version, req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+        let json_val = serde_json::to_value(&ip).ok()?;
         format.serialize_body(&json_val)
     }
 }

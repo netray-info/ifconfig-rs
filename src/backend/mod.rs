@@ -103,7 +103,7 @@ pub struct IfconfigParam<'a> {
     pub tor_exit_nodes: &'a TorExitNodes,
 }
 
-pub fn get_ifconfig<'a>(param: &'a IfconfigParam<'a>) -> Ifconfig<'a> {
+pub fn get_ifconfig<'a>(param: &IfconfigParam<'a>) -> Ifconfig<'a> {
     let host = dns_lookup::lookup_addr(&param.remote.ip())
         .ok()
         .map(|h| Host { name: h });
