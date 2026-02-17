@@ -16,17 +16,20 @@ struct WindowCounter {
 pub struct RateLimiter {
     requests_per_window: u32,
     window_duration: Duration,
+    max_entries: usize,
     counters: Mutex<HashMap<IpAddr, WindowCounter>>,
     call_counter: AtomicU32,
 }
 
 const CLEANUP_INTERVAL: u32 = 1000;
+const DEFAULT_MAX_ENTRIES: usize = 100_000;
 
 impl RateLimiter {
     pub fn new(requests_per_window: u32, window_duration: Duration) -> Self {
         RateLimiter {
             requests_per_window,
             window_duration,
+            max_entries: DEFAULT_MAX_ENTRIES,
             counters: Mutex::new(HashMap::new()),
             call_counter: AtomicU32::new(0),
         }
@@ -38,7 +41,16 @@ impl RateLimiter {
         }
 
         let now = Instant::now();
-        let mut counters = self.counters.lock().unwrap();
+        let Ok(mut counters) = self.counters.lock() else {
+            return true;
+        };
+
+        if counters.len() >= self.max_entries && !counters.contains_key(&ip) {
+            counters.retain(|_, v| now.duration_since(v.window_start) < self.window_duration);
+            if counters.len() >= self.max_entries {
+                return false;
+            }
+        }
 
         let counter = counters.entry(ip).or_insert(WindowCounter {
             count: 0,
@@ -55,7 +67,7 @@ impl RateLimiter {
 
         drop(counters);
 
-        if self.call_counter.fetch_add(1, Ordering::Relaxed).is_multiple_of(CLEANUP_INTERVAL) {
+        if self.call_counter.fetch_add(1, Ordering::Relaxed) % CLEANUP_INTERVAL == 0 {
             self.cleanup_expired(now);
         }
 
@@ -63,7 +75,9 @@ impl RateLimiter {
     }
 
     fn cleanup_expired(&self, now: Instant) {
-        let mut counters = self.counters.lock().unwrap();
+        let Ok(mut counters) = self.counters.lock() else {
+            return;
+        };
         counters.retain(|_, v| now.duration_since(v.window_start) < self.window_duration);
     }
 }
@@ -184,5 +198,41 @@ mod tests {
 
         let counters = rl.counters.lock().unwrap();
         assert!(counters.is_empty());
+    }
+
+    #[test]
+    fn max_entries_rejects_new_ips_when_full() {
+        let mut rl = RateLimiter::new(10, Duration::from_secs(60));
+        rl.max_entries = 3;
+
+        assert!(rl.check_rate_limit(test_ip(1)));
+        assert!(rl.check_rate_limit(test_ip(2)));
+        assert!(rl.check_rate_limit(test_ip(3)));
+        assert!(!rl.check_rate_limit(test_ip(4)));
+    }
+
+    #[test]
+    fn max_entries_allows_existing_ips() {
+        let mut rl = RateLimiter::new(10, Duration::from_secs(60));
+        rl.max_entries = 2;
+
+        assert!(rl.check_rate_limit(test_ip(1)));
+        assert!(rl.check_rate_limit(test_ip(2)));
+        // Existing IP still allowed even at capacity
+        assert!(rl.check_rate_limit(test_ip(1)));
+    }
+
+    #[test]
+    fn max_entries_evicts_expired_to_make_room() {
+        let mut rl = RateLimiter::new(10, Duration::from_millis(50));
+        rl.max_entries = 2;
+
+        assert!(rl.check_rate_limit(test_ip(1)));
+        assert!(rl.check_rate_limit(test_ip(2)));
+
+        std::thread::sleep(Duration::from_millis(60));
+
+        // Expired entries are cleaned up to make room
+        assert!(rl.check_rate_limit(test_ip(3)));
     }
 }
