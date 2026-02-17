@@ -162,3 +162,52 @@ pub fn get_ifconfig<'a>(param: &'a IfconfigParam<'a>) -> Ifconfig<'a> {
         user_agent_header: *param.user_agent_header,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tor_exit_nodes_empty_returns_none() {
+        let nodes = TorExitNodes::empty();
+        let addr: IpAddr = "1.2.3.4".parse().unwrap();
+        assert_eq!(nodes.lookup(&addr), None);
+    }
+
+    #[test]
+    fn tor_exit_nodes_from_file_missing_returns_none() {
+        let nodes = TorExitNodes::from_file("/nonexistent/path/tor_exit_nodes.txt");
+        let addr: IpAddr = "1.2.3.4".parse().unwrap();
+        assert_eq!(nodes.lookup(&addr), None);
+    }
+
+    #[test]
+    fn tor_exit_nodes_lookup_found() {
+        let mut set = HashSet::new();
+        set.insert("198.51.100.1".parse::<IpAddr>().unwrap());
+        set.insert("203.0.113.5".parse::<IpAddr>().unwrap());
+        let nodes = TorExitNodes(Some(set));
+
+        assert_eq!(nodes.lookup(&"198.51.100.1".parse().unwrap()), Some(true));
+        assert_eq!(nodes.lookup(&"203.0.113.5".parse().unwrap()), Some(true));
+    }
+
+    #[test]
+    fn tor_exit_nodes_lookup_not_found() {
+        let mut set = HashSet::new();
+        set.insert("198.51.100.1".parse::<IpAddr>().unwrap());
+        let nodes = TorExitNodes(Some(set));
+
+        assert_eq!(nodes.lookup(&"10.0.0.1".parse().unwrap()), Some(false));
+    }
+
+    #[test]
+    fn tor_exit_nodes_lookup_ipv6() {
+        let mut set = HashSet::new();
+        set.insert("2001:db8::1".parse::<IpAddr>().unwrap());
+        let nodes = TorExitNodes(Some(set));
+
+        assert_eq!(nodes.lookup(&"2001:db8::1".parse().unwrap()), Some(true));
+        assert_eq!(nodes.lookup(&"2001:db8::2".parse().unwrap()), Some(false));
+    }
+}
