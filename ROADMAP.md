@@ -14,6 +14,18 @@
 
 ~~Let users see exactly what headers their client is sending.~~ New `/headers` endpoint with full content negotiation (CLI, JSON, plain text, `/headers/json`). Uses a `RequestHeaders` guard. Plain text returns `Header: value` lines; JSON returns a sorted object.
 
+### 6. Copy-to-clipboard on the frontend
+
+~~Add a small clipboard button next to the IP address in the HTML UI. Table-stakes UX for this type of tool. Pure JS, no dependencies needed.~~ Added a copy button inline with the IP address using UIkit's `copy` icon and `navigator.clipboard.writeText()`. Visual feedback turns the button green briefly after copying. Works on both desktop and touch layouts.
+
+### 7. Dark mode
+
+~~Add `prefers-color-scheme: dark` media query support or a toggle.~~ Added automatic dark mode via `@media (prefers-color-scheme: dark)` with a deep navy palette. Covers all UI elements including tabs, code blocks, accordion, and GitHub corner. No toggle — follows OS preference.
+
+### 8. `/health` endpoint
+
+~~A proper health check endpoint that verifies GeoIP databases are loaded and the service is functional.~~ `GET /health` returns `200 {"status": "ok"}` when both GeoIP databases are loaded, or `503 {"status": "unhealthy", "reason": "..."}` when databases are missing. JSON-only, no content negotiation.
+
 ---
 
 ## Planned
@@ -42,18 +54,6 @@ Popular on similar services for quick diagnostic scripts.
 ### 5. IPv4/IPv6 awareness
 
 Add `/ipv4` and `/ipv6` sub-endpoints or surface the protocol version more prominently. Network engineers in dual-stack environments need to verify which protocol path their traffic takes. The IP version field exists but isn't shown in the plain-text root response.
-
-### 6. Copy-to-clipboard on the frontend
-
-Add a small clipboard button next to the IP address in the HTML UI. Table-stakes UX for this type of tool. Pure JS, no dependencies needed.
-
-### 7. Dark mode
-
-Add `prefers-color-scheme: dark` media query support or a toggle. The UIkit-based frontend is light-only. Most developers (the primary audience) use dark mode.
-
-### 8. `/health` endpoint
-
-A proper health check endpoint that verifies GeoIP databases are loaded and the service is functional. Useful for Docker health checks, Kubernetes probes, and monitoring for self-hosters.
 
 ### 10. Response caching headers
 
