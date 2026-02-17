@@ -147,6 +147,6 @@ handler!(user_agent, ifconfig, { ifconfig.user_agent }, Option<UserAgent>, {
                 "{}, {}, {}, {}",
                 ua.browser.family, ua.browser.version, ua.os.family, ua.os.version
             ))
-            .unwrap()
+            .unwrap_or_else(|| UNKNOWN_STR.to_string())
     )
 });

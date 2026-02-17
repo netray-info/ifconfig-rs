@@ -1,4 +1,5 @@
-#![allow(dead_code)] // for clippy
+// Rocket's proc-macro routes appear dead to static analysis but are invoked at runtime.
+#![allow(dead_code)]
 
 use crate::backend::user_agent::UserAgentParser;
 use crate::backend::*;

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::convert::From;
+
+const MAX_USER_AGENT_LENGTH: usize = 2000;
 
 pub struct UserAgentParser {
     parser: uaparser::UserAgentParser,
@@ -17,7 +18,8 @@ impl UserAgentParser {
     }
     pub fn parse(&self, user_agent_header: &'_ str) -> UserAgent {
         use uaparser::Parser;
-        self.parser.parse(user_agent_header).into()
+        let truncated = &user_agent_header[..user_agent_header.len().min(MAX_USER_AGENT_LENGTH)];
+        self.parser.parse(truncated).into()
     }
 }
 
@@ -67,15 +69,16 @@ pub struct OS {
 
 impl From<uaparser::OS<'_>> for OS {
     fn from(value: uaparser::OS<'_>) -> Self {
-        let major = value.major.as_ref().map(|s| s.as_ref());
-        let minor = value.minor.as_ref().map(|s| s.as_ref());
-        let patch = value.patch.as_ref().map(|s| s.as_ref());
-        let patch_minor = value.patch_minor.as_ref().map(|s| s.as_ref());
-        let version: String = vec![major, minor, patch, patch_minor]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>()
-            .join(".");
+        let version: String = [
+            value.major.as_deref(),
+            value.minor.as_deref(),
+            value.patch.as_deref(),
+            value.patch_minor.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(".");
 
         Self {
             family: value.family.to_string(),
@@ -97,12 +100,9 @@ pub struct Browser {
     pub version: String,
 }
 
-impl<'a> From<uaparser::UserAgent<'a>> for Browser {
-    fn from(value: uaparser::UserAgent<'a>) -> Self {
-        let major = value.major.as_ref().map(|s| s.as_ref());
-        let minor = value.minor.as_ref().map(|s| s.as_ref());
-        let patch = value.patch.as_ref().map(|s| s.as_ref());
-        let version: String = vec![major, minor, patch]
+impl From<uaparser::UserAgent<'_>> for Browser {
+    fn from(value: uaparser::UserAgent<'_>) -> Self {
+        let version: String = [value.major.as_deref(), value.minor.as_deref(), value.patch.as_deref()]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>()

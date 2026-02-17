@@ -99,7 +99,8 @@ pub fn rocket() -> Rocket<Build> {
                 files
             ],
         )
-        .attach(Template::fairing());
+        .attach(Template::fairing())
+        .attach(SecurityHeaders);
 
     let config: Config = rocket.figment().extract().expect("config");
 

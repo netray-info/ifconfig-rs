@@ -28,7 +28,7 @@
 
 **ifconfig-rs** is a "what's my IP" web service written in Rust, powering **ip.pdt.sh**. Returns IP address, hostname, geolocation, ISP, and user agent info as plain text, JSON, or HTML depending on the client.
 
-- **Author**: Lukas Pustina | **License**: MIT | **Edition**: 2018
+- **Author**: Lukas Pustina | **License**: MIT | **Edition**: 2021
 - **Repository**: https://github.com/lukaspustina/ifconfig-rs
 
 ## Build & Test
@@ -67,7 +67,7 @@ Key modules:
 - `src/routes.rs` — Macro-generated routes with ranked content negotiation (CLI → JSON → plain → HTML)
 - `src/handlers.rs` — Macro-generated response formatters for each content type
 - `src/guards.rs` — `RequesterInfo` (IP, UA, URI extraction) + `CliClientRequest` (curl/httpie/wget detection)
-- `src/fairings.rs` — `XForwardedFor` middleware for load balancer environments
+- `src/fairings.rs` — `XForwardedFor` middleware for load balancer environments + `SecurityHeaders` response fairing
 
 **Content negotiation rank order**: CLI detection (rank 1) → JSON Accept header (rank 2) → plain text (rank 3) → HTML default (rank 4).
 
