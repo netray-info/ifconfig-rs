@@ -1,6 +1,3 @@
-// Rocket's proc-macro routes appear dead to static analysis but are invoked at runtime.
-#![allow(dead_code)]
-
 use crate::backend::user_agent::UserAgentParser;
 use crate::backend::*;
 use crate::format::OutputFormat;
@@ -17,7 +14,7 @@ use serde_json::Value as JsonValue;
 use std::path::{Path, PathBuf};
 
 #[rocket::get("/", rank = 1)]
-pub(crate) async fn root_plain_cli(
+pub(crate) fn root_plain_cli(
     _rate_limited: RateLimited,
     req_info: RequesterInfo<'_>,
     _cli_req: CliClientRequest<'_>,
@@ -363,8 +360,6 @@ macro_rules! route {
         }
     };
 }
-
-route!(root, "/", "/json", "/<fmt>");
 
 route!(ip, "/ip", "/ip/json", "/ip/<fmt>");
 

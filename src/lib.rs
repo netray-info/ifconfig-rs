@@ -18,10 +18,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Deserialize)]
 pub enum Runtime {
     #[serde(rename = "xforwarded")]
-    XFORWARDED,
+    XForwarded,
     #[default]
     #[serde(rename = "local")]
-    LOCAL,
+    Local,
 }
 
 #[derive(Deserialize)]
@@ -192,8 +192,8 @@ pub fn rocket() -> Rocket<Build> {
     rocket = rocket.manage(rate_limiter);
 
     rocket = match config.runtime {
-        Runtime::XFORWARDED => rocket.attach(XForwardedFor),
-        _ => rocket,
+        Runtime::XForwarded => rocket.attach(XForwardedFor),
+        Runtime::Local => rocket,
     };
 
     let project_info = ProjectInfo::from(&config);

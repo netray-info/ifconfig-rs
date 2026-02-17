@@ -108,7 +108,7 @@ pub fn get_ifconfig<'a>(param: &'a IfconfigParam<'a>) -> Ifconfig<'a> {
         .ok()
         .map(|h| Host { name: h });
 
-    let ip_addr = format!("{}", param.remote.ip());
+    let ip_addr = param.remote.ip().to_string();
     let ip_version = if param.remote.is_ipv4() { "4" } else { "6" };
     let ip = Ip {
         addr: ip_addr,
