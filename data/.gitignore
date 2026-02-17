@@ -1,2 +1,3 @@
 *.mmdb
 regexes.yaml
+tor_exit_nodes.txt

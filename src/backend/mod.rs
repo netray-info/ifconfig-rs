@@ -3,7 +3,8 @@ pub use user_agent::*;
 
 use maxminddb::{self, geoip2};
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
+use std::collections::HashSet;
+use std::net::{IpAddr, SocketAddr};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Host {
@@ -37,6 +38,32 @@ impl GeoIpAsnDb {
     }
 }
 
+pub struct TorExitNodes(Option<HashSet<IpAddr>>);
+
+impl TorExitNodes {
+    pub fn from_file(path: &str) -> Self {
+        let set = std::fs::read_to_string(path)
+            .ok()
+            .map(|contents| {
+                contents
+                    .lines()
+                    .filter(|line| !line.is_empty() && !line.starts_with('#'))
+                    .filter_map(|line| line.trim().parse().ok())
+                    .collect::<HashSet<IpAddr>>()
+            })
+            .filter(|set| !set.is_empty());
+        TorExitNodes(set)
+    }
+
+    pub fn empty() -> Self {
+        TorExitNodes(None)
+    }
+
+    pub fn lookup(&self, addr: &IpAddr) -> Option<bool> {
+        self.0.as_ref().map(|set| set.contains(addr))
+    }
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Location<'a> {
     pub city: Option<&'a str>,
@@ -62,6 +89,7 @@ pub struct Ifconfig<'a> {
     pub tcp: Tcp,
     pub location: Option<Location<'a>>,
     pub isp: Option<Isp<'a>>,
+    pub is_tor: Option<bool>,
     pub user_agent: Option<UserAgent>,
     pub user_agent_header: Option<&'a str>,
 }
@@ -72,6 +100,7 @@ pub struct IfconfigParam<'a> {
     pub user_agent_parser: &'a UserAgentParser,
     pub geoip_city_db: &'a GeoIpCityDb,
     pub geoip_asn_db: &'a GeoIpAsnDb,
+    pub tor_exit_nodes: &'a TorExitNodes,
 }
 
 pub fn get_ifconfig<'a>(param: &'a IfconfigParam<'a>) -> Ifconfig<'a> {
@@ -118,6 +147,8 @@ pub fn get_ifconfig<'a>(param: &'a IfconfigParam<'a>) -> Ifconfig<'a> {
         asn: isp.autonomous_system_number,
     });
 
+    let is_tor = param.tor_exit_nodes.lookup(&param.remote.ip());
+
     let user_agent = param.user_agent_header.map(|s| param.user_agent_parser.parse(s));
 
     Ifconfig {
@@ -126,6 +157,7 @@ pub fn get_ifconfig<'a>(param: &'a IfconfigParam<'a>) -> Ifconfig<'a> {
         tcp,
         location,
         isp,
+        is_tor,
         user_agent,
         user_agent_header: *param.user_agent_header,
     }

@@ -241,6 +241,10 @@
                     <span class="mono uk-text-break">{{#if location.continent}}{{ location.continent }}{{else}}Unknown{{/if}}{{#if location.timezone}} &middot; {{ location.timezone }}{{/if}}</span>
                     <br>
                     <span class="mono uk-text-break">{{#if isp.name }}{{ isp.name }}{{else}}Unknown{{/if}}{{#if isp.asn}} (AS{{ isp.asn }}){{/if}}</span>
+                    {{#if is_tor}}
+                    <br>
+                    <span class="mono uk-text-break"><span uk-icon="icon:warning"></span> Tor exit node</span>
+                    {{/if}}
                 </div>
                 <div>
                     <h4>User Agent</h4>

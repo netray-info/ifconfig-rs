@@ -817,6 +817,34 @@ fn handle_all_json_json() {
 }
 
 #[test]
+fn handle_root_json_has_is_tor_null() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::JSON)
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    let body = response.into_string().unwrap();
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["is_tor"], serde_json::Value::Null);
+}
+
+#[test]
+fn handle_all_plain_omits_tor_when_no_list() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/all")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Any)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    let body = response.into_string().unwrap();
+    assert!(!body.contains("tor:"));
+}
+
+#[test]
 fn cache_control_plain_text() {
     let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
     let response = client

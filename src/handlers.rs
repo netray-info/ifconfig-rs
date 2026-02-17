@@ -14,6 +14,7 @@ pub fn root_html(
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
     geoip_asn_db: &State<GeoIpAsnDb>,
+    tor_exit_nodes: &State<TorExitNodes>,
 ) -> Template {
     let ifconfig_param = IfconfigParam {
         remote: &req_info.remote,
@@ -21,6 +22,7 @@ pub fn root_html(
         user_agent_parser,
         geoip_city_db,
         geoip_asn_db,
+        tor_exit_nodes,
     };
     let ifconfig = get_ifconfig(&ifconfig_param);
 
@@ -59,6 +61,7 @@ macro_rules! handler {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<Json<JsonValue>> {
                 let ifconfig_param = IfconfigParam {
                     remote: &req_info.remote,
@@ -66,6 +69,7 @@ macro_rules! handler {
                     user_agent_parser: &user_agent_parser,
                     geoip_city_db: &geoip_city_db,
                     geoip_asn_db: &geoip_asn_db,
+                    tor_exit_nodes: &tor_exit_nodes,
                 };
                 let ifconfig = get_ifconfig(&ifconfig_param);
 
@@ -87,6 +91,7 @@ macro_rules! handler {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<String> {
                 let ifconfig_param = IfconfigParam {
                     remote: &req_info.remote,
@@ -94,6 +99,7 @@ macro_rules! handler {
                     user_agent_parser: &user_agent_parser,
                     geoip_city_db: &geoip_city_db,
                     geoip_asn_db: &geoip_asn_db,
+                    tor_exit_nodes: &tor_exit_nodes,
                 };
                 let ifconfig = get_ifconfig(&ifconfig_param);
 
@@ -193,6 +199,9 @@ handler!(all, ifconfig, { ifconfig }, Ifconfig, {
         if let Some(asn) = isp.asn {
             lines.push(format!("asn:        AS{}", asn));
         }
+    }
+    if let Some(is_tor) = ifconfig.is_tor {
+        lines.push(format!("tor:        {}", is_tor));
     }
     lines.push(format!("port:       {}", ifconfig.tcp.port));
     if let Some(ref ua) = ifconfig.user_agent {

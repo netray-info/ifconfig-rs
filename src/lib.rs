@@ -33,6 +33,7 @@ pub struct Config {
     geoip_city_db: Option<String>,
     geoip_asn_db: Option<String>,
     user_agent_regexes: Option<String>,
+    tor_exit_nodes: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -143,6 +144,13 @@ pub fn rocket() -> Rocket<Build> {
         Some(db) => rocket.manage(init_geoip_asn_db(db)),
         _ => rocket,
     };
+
+    let tor_exit_nodes = config
+        .tor_exit_nodes
+        .as_deref()
+        .map(backend::TorExitNodes::from_file)
+        .unwrap_or_else(backend::TorExitNodes::empty);
+    rocket = rocket.manage(tor_exit_nodes);
 
     rocket
 }

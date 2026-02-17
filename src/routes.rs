@@ -20,8 +20,9 @@ pub(crate) async fn root_plain_cli(
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
     geoip_asn_db: &State<GeoIpAsnDb>,
+    tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<String> {
-    handlers::root::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+    handlers::root::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
 }
 
 #[rocket::get("/", format = "text/plain", rank = 2)]
@@ -30,8 +31,9 @@ pub(crate) fn root_plain(
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
     geoip_asn_db: &State<GeoIpAsnDb>,
+    tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<String> {
-    handlers::root::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+    handlers::root::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
 }
 
 #[rocket::get("/", format = "application/json", rank = 3)]
@@ -40,8 +42,9 @@ pub(crate) fn root_json(
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
     geoip_asn_db: &State<GeoIpAsnDb>,
+    tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<Json<JsonValue>> {
-    handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+    handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
 }
 
 #[rocket::get("/", rank = 4)]
@@ -51,8 +54,16 @@ pub(crate) fn root_html(
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
     geoip_asn_db: &State<GeoIpAsnDb>,
+    tor_exit_nodes: &State<TorExitNodes>,
 ) -> Template {
-    handlers::root_html(project_info, req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+    handlers::root_html(
+        project_info,
+        req_info,
+        user_agent_parser,
+        geoip_city_db,
+        geoip_asn_db,
+        tor_exit_nodes,
+    )
 }
 
 #[rocket::get("/json")]
@@ -61,8 +72,9 @@ pub(crate) fn root_json_json(
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
     geoip_asn_db: &State<GeoIpAsnDb>,
+    tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<Json<JsonValue>> {
-    handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+    handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
 }
 
 #[rocket::catch(404)]
@@ -88,8 +100,15 @@ macro_rules! route {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<String> {
-                handlers::$name::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+                handlers::$name::plain(
+                    req_info,
+                    user_agent_parser,
+                    geoip_city_db,
+                    geoip_asn_db,
+                    tor_exit_nodes,
+                )
             }
 
             #[rocket::get($route, format = "application/json", rank = 2)]
@@ -98,8 +117,15 @@ macro_rules! route {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<Json<JsonValue>> {
-                handlers::$name::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+                handlers::$name::json(
+                    req_info,
+                    user_agent_parser,
+                    geoip_city_db,
+                    geoip_asn_db,
+                    tor_exit_nodes,
+                )
             }
 
             #[rocket::get($route, rank = 3)]
@@ -108,8 +134,15 @@ macro_rules! route {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<String> {
-                handlers::$name::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+                handlers::$name::plain(
+                    req_info,
+                    user_agent_parser,
+                    geoip_city_db,
+                    geoip_asn_db,
+                    tor_exit_nodes,
+                )
             }
 
             #[rocket::get($route_json)]
@@ -118,8 +151,15 @@ macro_rules! route {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<Json<JsonValue>> {
-                handlers::$name::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+                handlers::$name::json(
+                    req_info,
+                    user_agent_parser,
+                    geoip_city_db,
+                    geoip_asn_db,
+                    tor_exit_nodes,
+                )
             }
         }
     };
@@ -155,8 +195,9 @@ pub mod all {
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
         geoip_asn_db: &State<GeoIpAsnDb>,
+        tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<String> {
-        handlers::all::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+        handlers::all::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
     }
 
     #[rocket::get("/all", format = "application/json", rank = 2)]
@@ -165,8 +206,9 @@ pub mod all {
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
         geoip_asn_db: &State<GeoIpAsnDb>,
+        tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<Json<JsonValue>> {
-        handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+        handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
     }
 
     #[rocket::get("/all", rank = 3)]
@@ -175,8 +217,9 @@ pub mod all {
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
         geoip_asn_db: &State<GeoIpAsnDb>,
+        tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<String> {
-        handlers::all::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+        handlers::all::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
     }
 
     #[rocket::get("/all/json")]
@@ -185,8 +228,9 @@ pub mod all {
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
         geoip_asn_db: &State<GeoIpAsnDb>,
+        tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<Json<JsonValue>> {
-        handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db)
+        handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
     }
 }
 
@@ -207,6 +251,7 @@ macro_rules! ip_version_route {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<String> {
                 let ifconfig_param = IfconfigParam {
                     remote: &req_info.remote,
@@ -214,6 +259,7 @@ macro_rules! ip_version_route {
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
+                    tor_exit_nodes: &tor_exit_nodes,
                 };
                 let ifconfig = get_ifconfig(&ifconfig_param);
                 if ifconfig.ip.version != $version {
@@ -228,6 +274,7 @@ macro_rules! ip_version_route {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<Json<JsonValue>> {
                 let ifconfig_param = IfconfigParam {
                     remote: &req_info.remote,
@@ -235,6 +282,7 @@ macro_rules! ip_version_route {
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
+                    tor_exit_nodes: &tor_exit_nodes,
                 };
                 let ifconfig = get_ifconfig(&ifconfig_param);
                 if ifconfig.ip.version != $version {
@@ -249,6 +297,7 @@ macro_rules! ip_version_route {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<String> {
                 let ifconfig_param = IfconfigParam {
                     remote: &req_info.remote,
@@ -256,6 +305,7 @@ macro_rules! ip_version_route {
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
+                    tor_exit_nodes: &tor_exit_nodes,
                 };
                 let ifconfig = get_ifconfig(&ifconfig_param);
                 if ifconfig.ip.version != $version {
@@ -270,6 +320,7 @@ macro_rules! ip_version_route {
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
                 geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<Json<JsonValue>> {
                 let ifconfig_param = IfconfigParam {
                     remote: &req_info.remote,
@@ -277,6 +328,7 @@ macro_rules! ip_version_route {
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
+                    tor_exit_nodes: &tor_exit_nodes,
                 };
                 let ifconfig = get_ifconfig(&ifconfig_param);
                 if ifconfig.ip.version != $version {

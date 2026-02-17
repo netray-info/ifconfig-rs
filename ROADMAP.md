@@ -38,13 +38,13 @@
 
 ~~Add `/ipv4` and `/ipv6` sub-endpoints.~~ New `/ipv4` and `/ipv6` endpoints return the client IP only when the connection matches the requested protocol version, otherwise 404. Full content negotiation (CLI, JSON, plain text, `/ipv4/json`, `/ipv6/json`). Uses a new `ip_version_route!` macro.
 
+### 11. Tor exit node detection
+
+~~A boolean `is_tor` field indicating whether the requesting IP is a known Tor exit node.~~ Added `is_tor: Option<bool>` to the `Ifconfig` struct. Loads a local plain-text exit node list (one IP per line) at startup via `TorExitNodes` backed by `HashSet<IpAddr>`. When no list is configured, `is_tor` is `null` in JSON and omitted from `/all` plain text. Appears in all JSON responses and the `/all` plain-text dump. HTML template shows a warning indicator when `is_tor` is true.
+
 ---
 
 ## Planned
-
-### 11. Tor/VPN/proxy detection
-
-A boolean `is_tor` or `is_proxy` field. Tor exit node lists are publicly available and could be loaded similarly to the GeoIP databases. Useful for security-conscious API consumers.
 
 ### 14. Configurable output format (`?format=yaml|toml|csv`)
 
