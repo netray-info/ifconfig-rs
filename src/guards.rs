@@ -6,6 +6,24 @@ use rocket::Request;
 use std::net::SocketAddr;
 use std::sync::LazyLock;
 
+pub struct RequestHeaders {
+    pub headers: Vec<(String, String)>,
+}
+
+#[rocket::async_trait]
+impl<'a> FromRequest<'a> for RequestHeaders {
+    type Error = ();
+
+    async fn from_request(req: &'a Request<'_>) -> request::Outcome<Self, Self::Error> {
+        let headers = req
+            .headers()
+            .iter()
+            .map(|h| (h.name().to_string(), h.value().to_string()))
+            .collect();
+        Outcome::Success(RequestHeaders { headers })
+    }
+}
+
 pub struct RequesterInfo<'a> {
     pub remote: SocketAddr,
     pub user_agent: Option<&'a str>,

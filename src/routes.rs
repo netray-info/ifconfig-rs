@@ -139,6 +139,52 @@ route!(location, "/location", "/location/json");
 
 route!(user_agent, "/user_agent", "/user_agent/json");
 
+pub mod headers {
+    use crate::guards::*;
+    use rocket::serde::json::Json;
+    use serde_json::Value as JsonValue;
+    use std::collections::BTreeMap;
+
+    fn to_plain(req_headers: RequestHeaders) -> String {
+        req_headers
+            .headers
+            .iter()
+            .map(|(name, value)| format!("{}: {}", name, value))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n"
+    }
+
+    fn to_json(req_headers: RequestHeaders) -> Json<JsonValue> {
+        let map: BTreeMap<&str, &str> = req_headers
+            .headers
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_str()))
+            .collect();
+        Json(serde_json::to_value(map).unwrap_or(JsonValue::Null))
+    }
+
+    #[rocket::get("/headers", rank = 1)]
+    pub(crate) fn plain_cli(_cli_req: CliClientRequest, req_headers: RequestHeaders) -> String {
+        to_plain(req_headers)
+    }
+
+    #[rocket::get("/headers", format = "application/json", rank = 2)]
+    pub(crate) fn json(req_headers: RequestHeaders) -> Json<JsonValue> {
+        to_json(req_headers)
+    }
+
+    #[rocket::get("/headers", rank = 3)]
+    pub(crate) fn plain(req_headers: RequestHeaders) -> String {
+        to_plain(req_headers)
+    }
+
+    #[rocket::get("/headers/json")]
+    pub(crate) fn json_json(req_headers: RequestHeaders) -> Json<JsonValue> {
+        to_json(req_headers)
+    }
+}
+
 #[rocket::get("/<file..>", rank = 5)]
 pub(crate) async fn files(file: PathBuf) -> Option<NamedFile> {
     NamedFile::open(Path::new("htdocs/").join(file)).await.ok()

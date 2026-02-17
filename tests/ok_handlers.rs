@@ -576,3 +576,73 @@ fn handle_user_agent_json_json() {
     let expected = r#"{"browser":{"family":"Safari","major":"10","minor":"1","patch":"2","version":"10.1.2"},"device":{"brand":"Apple","family":"Mac","model":"Mac"},"os":{"family":"Mac OS X","major":"10","minor":"12","patch":"6","patch_minor":null,"version":"10.12.6"}}"#;
     assert_eq!(response.into_string(), Some(expected.into()));
 }
+
+#[test]
+fn handle_headers_plain_cli() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/headers")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Any)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .header(Header::new("X-Custom-Test", "hello"))
+        .dispatch();
+    eprintln!("{:?}", response);
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::Plain));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("user-agent: curl/7.54.0"));
+    assert!(body.contains("X-Custom-Test: hello"));
+}
+
+#[test]
+fn handle_headers_json() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/headers")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::JSON)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .header(Header::new("X-Custom-Test", "hello"))
+        .dispatch();
+    eprintln!("{:?}", response);
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::JSON));
+    let body = response.into_string().unwrap();
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["user-agent"], "curl/7.54.0");
+    assert_eq!(json["X-Custom-Test"], "hello");
+}
+
+#[test]
+fn handle_headers_plain() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/headers")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Plain)
+        .header(Header::new("X-Forwarded-For", "10.0.0.1"))
+        .dispatch();
+    eprintln!("{:?}", response);
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::Plain));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("X-Forwarded-For: 10.0.0.1"));
+}
+
+#[test]
+fn handle_headers_json_json() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/headers/json")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .header(Header::new("X-Custom-Test", "world"))
+        .dispatch();
+    eprintln!("{:?}", response);
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::JSON));
+    let body = response.into_string().unwrap();
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["X-Custom-Test"], "world");
+}

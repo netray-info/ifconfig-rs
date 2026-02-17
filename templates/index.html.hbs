@@ -168,6 +168,7 @@
                                                 <li><a href="#"><span class="mono">/location</span></a></li>
                                                 <li><a href="#"><span class="mono">/isp</span></a></li>
                                                 <li><a href="#"><span class="mono">/user_agent</span></a></li>
+                                                <li><a href="#"><span class="mono">/headers</span></a></li>
                                             </ul>
                                             <ul class="uk-switcher uk-margin">
                                                 <li>
@@ -320,6 +321,28 @@
                                                                     $(document).ready(get_ifconfig_json("/user_agent", "#api-json-user_agent"));
                                                                 </script>
                                                                 <dd><pre id="api-json-user_agent" class="mono"></pre></dd>
+                                                            </dl>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                                <li>
+                                                    <ul class="uk-list uk-list-bullet">
+                                                        <li>
+                                                            <dl class="uk-description-list">
+                                                                <dt>Plain</dt>
+                                                                <script>
+                                                                    $(document).ready(get_ifconfig_plain("/headers", "#api-plain-headers"));
+                                                                </script>
+                                                                <dd><pre id="api-plain-headers" class="mono"></pre></dd>
+                                                            </dl>
+                                                        </li>
+                                                        <li>
+                                                            <dl class="uk-description-list">
+                                                                <dt>JSON</dt>
+                                                                <script>
+                                                                    $(document).ready(get_ifconfig_json("/headers", "#api-json-headers"));
+                                                                </script>
+                                                                <dd><pre id="api-json-headers" class="mono"></pre></dd>
                                                             </dl>
                                                         </li>
                                                     </ul>

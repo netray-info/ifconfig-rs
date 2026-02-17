@@ -96,6 +96,10 @@ pub fn rocket() -> Rocket<Build> {
                 user_agent::json,
                 user_agent::plain,
                 user_agent::json_json,
+                headers::plain_cli,
+                headers::json,
+                headers::plain,
+                headers::json_json,
                 files
             ],
         )
