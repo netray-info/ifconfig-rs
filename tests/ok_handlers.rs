@@ -646,3 +646,62 @@ fn handle_headers_json_json() {
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(json["X-Custom-Test"], "world");
 }
+
+#[test]
+fn cache_control_plain_text() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ip")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Plain)
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(
+        response.headers().get_one("Cache-Control"),
+        Some("private, max-age=60")
+    );
+    assert_eq!(
+        response.headers().get_one("Vary"),
+        Some("Accept, User-Agent")
+    );
+}
+
+#[test]
+fn cache_control_json() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ip")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::JSON)
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(
+        response.headers().get_one("Cache-Control"),
+        Some("private, max-age=60")
+    );
+}
+
+#[test]
+fn cache_control_html() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::HTML)
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(
+        response.headers().get_one("Cache-Control"),
+        Some("no-cache")
+    );
+}
+
+#[test]
+fn cache_control_health() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client.get("/health").dispatch();
+    assert_eq!(
+        response.headers().get_one("Cache-Control"),
+        Some("no-cache")
+    );
+}

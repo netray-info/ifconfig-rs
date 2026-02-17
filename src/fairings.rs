@@ -41,10 +41,25 @@ impl Fairing for SecurityHeaders {
         }
     }
 
-    async fn on_response<'r>(&self, _req: &'r Request<'_>, res: &mut Response<'r>) {
+    async fn on_response<'r>(&self, req: &'r Request<'_>, res: &mut Response<'r>) {
         res.set_header(Header::new("X-Content-Type-Options", "nosniff"));
         res.set_header(Header::new("X-Frame-Options", "DENY"));
         res.set_header(Header::new("Referrer-Policy", "strict-origin-when-cross-origin"));
         res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+
+        let is_error = !res.status().class().is_success();
+        let is_health = req.uri().path() == "/health";
+        let is_html = res
+            .content_type()
+            .map(|ct| ct.is_html())
+            .unwrap_or(false);
+
+        if is_error || is_health || is_html {
+            res.set_header(Header::new("Cache-Control", "no-cache"));
+        } else {
+            res.set_header(Header::new("Cache-Control", "private, max-age=60"));
+        }
+
+        res.set_header(Header::new("Vary", "Accept, User-Agent"));
     }
 }
