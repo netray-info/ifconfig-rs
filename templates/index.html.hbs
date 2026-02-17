@@ -133,9 +133,10 @@
 
             /* Dark mode — automatic via OS/browser preference */
             @media (prefers-color-scheme: dark) {
-                body {
+                html, body {
                     background-color: #1a1a2e;
                     color: #e0e0e0;
+                    min-height: 100vh;
                 }
                 .bigip {
                     color: #e0e0e0;
