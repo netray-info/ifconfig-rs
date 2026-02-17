@@ -279,6 +279,9 @@
                                                 <li><a href="#"><span class="mono">/isp</span></a></li>
                                                 <li><a href="#"><span class="mono">/user_agent</span></a></li>
                                                 <li><a href="#"><span class="mono">/headers</span></a></li>
+                                                <li><a href="#"><span class="mono">/all</span></a></li>
+                                                <li><a href="#"><span class="mono">/ipv4</span></a></li>
+                                                <li><a href="#"><span class="mono">/ipv6</span></a></li>
                                             </ul>
                                             <ul class="uk-switcher uk-margin">
                                                 <li>
@@ -453,6 +456,72 @@
                                                                     $(document).ready(get_ifconfig_json("/headers", "#api-json-headers"));
                                                                 </script>
                                                                 <dd><pre id="api-json-headers" class="mono"></pre></dd>
+                                                            </dl>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                                <li>
+                                                    <ul class="uk-list uk-list-bullet">
+                                                        <li>
+                                                            <dl class="uk-description-list">
+                                                                <dt>Plain</dt>
+                                                                <script>
+                                                                    $(document).ready(get_ifconfig_plain("/all", "#api-plain-all"));
+                                                                </script>
+                                                                <dd><pre id="api-plain-all" class="mono"></pre></dd>
+                                                            </dl>
+                                                        </li>
+                                                        <li>
+                                                            <dl class="uk-description-list">
+                                                                <dt>JSON</dt>
+                                                                <script>
+                                                                    $(document).ready(get_ifconfig_json("/all", "#api-json-all"));
+                                                                </script>
+                                                                <dd><pre id="api-json-all" class="mono"></pre></dd>
+                                                            </dl>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                                <li>
+                                                    <ul class="uk-list uk-list-bullet">
+                                                        <li>
+                                                            <dl class="uk-description-list">
+                                                                <dt>Plain</dt>
+                                                                <script>
+                                                                    $(document).ready(get_ifconfig_plain("/ipv4", "#api-plain-ipv4"));
+                                                                </script>
+                                                                <dd><pre id="api-plain-ipv4" class="mono"></pre></dd>
+                                                            </dl>
+                                                        </li>
+                                                        <li>
+                                                            <dl class="uk-description-list">
+                                                                <dt>JSON</dt>
+                                                                <script>
+                                                                    $(document).ready(get_ifconfig_json("/ipv4", "#api-json-ipv4"));
+                                                                </script>
+                                                                <dd><pre id="api-json-ipv4" class="mono"></pre></dd>
+                                                            </dl>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                                <li>
+                                                    <ul class="uk-list uk-list-bullet">
+                                                        <li>
+                                                            <dl class="uk-description-list">
+                                                                <dt>Plain</dt>
+                                                                <script>
+                                                                    $(document).ready(get_ifconfig_plain("/ipv6", "#api-plain-ipv6"));
+                                                                </script>
+                                                                <dd><pre id="api-plain-ipv6" class="mono"></pre></dd>
+                                                            </dl>
+                                                        </li>
+                                                        <li>
+                                                            <dl class="uk-description-list">
+                                                                <dt>JSON</dt>
+                                                                <script>
+                                                                    $(document).ready(get_ifconfig_json("/ipv6", "#api-json-ipv6"));
+                                                                </script>
+                                                                <dd><pre id="api-json-ipv6" class="mono"></pre></dd>
                                                             </dl>
                                                         </li>
                                                     </ul>
