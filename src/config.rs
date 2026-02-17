@@ -6,6 +6,8 @@ pub struct Config {
     pub server: ServerConfig,
     #[serde(default = "Config::default_base_url")]
     pub base_url: String,
+    /// Display name shown in the UI. Defaults to `base_url` if not set.
+    pub site_name: Option<String>,
     #[serde(default = "Config::default_project_name")]
     pub project_name: String,
     #[serde(default = "Config::default_project_version")]

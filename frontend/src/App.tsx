@@ -14,14 +14,14 @@ export default function App() {
   const [error, setError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(true);
 
-  const siteName = () => meta()?.base_url ?? location.hostname;
+  const siteName = () => meta()?.site_name ?? location.hostname;
 
   onMount(async () => {
     // Fetch meta independently — failure should not block the main data load
     fetchMeta()
       .then((siteMeta) => {
         setMeta(siteMeta);
-        document.title = siteMeta.base_url;
+        document.title = siteMeta.site_name;
       })
       .catch(() => {}); // fall back to location.hostname via siteName()
 

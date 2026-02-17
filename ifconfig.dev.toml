@@ -1,6 +1,7 @@
-# Site name displayed in the frontend UI (header, footer, FAQ).
-# Production: "ip.pdt.sh", dev: "localhost".
+# Base URL / public domain used in curl examples.
 base_url = "localhost"
+# Display name shown in the site header, footer, and FAQ.
+site_name = "ip.pdt.sh"
 project_name = "ifconfig-rs"
 geoip_city_db = "data/GeoLite2-City.mmdb"
 geoip_asn_db = "data/GeoLite2-ASN.mmdb"

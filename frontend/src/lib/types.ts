@@ -2,6 +2,7 @@ export interface SiteMeta {
   name: string;
   version: string;
   base_url: string;
+  site_name: string;
 }
 
 export interface Ifconfig {

@@ -20,6 +20,7 @@ pub struct ProjectInfo {
     pub name: String,
     pub version: String,
     pub base_url: String,
+    pub site_name: String,
 }
 
 impl AppState {
@@ -80,6 +81,10 @@ impl AppState {
             name: config.project_name.clone(),
             version: config.project_version.clone(),
             base_url: config.base_url.clone(),
+            site_name: config
+                .site_name
+                .clone()
+                .unwrap_or_else(|| config.base_url.clone()),
         };
 
         AppState {
@@ -89,6 +94,7 @@ impl AppState {
                     trusted_proxies: config.server.trusted_proxies.clone(),
                 },
                 base_url: config.base_url.clone(),
+                site_name: config.site_name.clone(),
                 project_name: config.project_name.clone(),
                 project_version: config.project_version.clone(),
                 geoip_city_db: config.geoip_city_db.clone(),
