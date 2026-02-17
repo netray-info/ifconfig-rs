@@ -5,7 +5,22 @@ interface Props {
   data: Ifconfig;
 }
 
+/** Treat null, undefined, and "unknown" as missing. */
+function known(v: string | null | undefined): string | null {
+  return v && v !== "unknown" ? v : null;
+}
+
 export default function InfoCards(props: Props) {
+  const loc = () => props.data.location;
+  const isp = () => props.data.isp;
+
+  const mapsUrl = () => {
+    const { city, country, latitude, longitude } = loc();
+    if (latitude == null || longitude == null) return null;
+    const place = [known(city), known(country)].filter(Boolean).join(",");
+    return `https://www.google.com/maps/place/${encodeURIComponent(place)}/@${latitude},${longitude},10z`;
+  };
+
   return (
     <div class="cards">
       {/* Network Card */}
@@ -76,76 +91,55 @@ export default function InfoCards(props: Props) {
         </div>
       </Show>
 
-      {/* Location & ISP Card (merged) */}
-      <div class="card card-wide">
+      {/* Location & ISP Card */}
+      <div class="card">
         <div class="card-title">Location &amp; ISP</div>
-        <div class="card-columns">
-          <div class="card-col">
-            <Show when={props.data.location.city}>
-              <div class="card-row">
-                <span class="card-label">City</span>
-                <span class="card-value">{props.data.location.city}</span>
-              </div>
-            </Show>
-            <Show when={props.data.location.country}>
-              <div class="card-row">
-                <span class="card-label">Country</span>
-                <span class="card-value">
-                  {props.data.location.country}
-                  <Show when={props.data.location.country_iso}>
-                    {" "}({props.data.location.country_iso})
-                  </Show>
-                </span>
-              </div>
-            </Show>
-            <Show when={props.data.location.continent}>
-              <div class="card-row">
-                <span class="card-label">Continent</span>
-                <span class="card-value">{props.data.location.continent}</span>
-              </div>
-            </Show>
-            <Show when={props.data.location.timezone}>
-              <div class="card-row">
-                <span class="card-label">Timezone</span>
-                <span class="card-value">{props.data.location.timezone}</span>
-              </div>
-            </Show>
-            <Show
-              when={
-                props.data.location.latitude != null &&
-                props.data.location.longitude != null
-              }
-            >
-              <div class="card-row">
-                <span class="card-label">Coordinates</span>
-                <span class="card-value">
-                  <a
-                    href={`https://www.google.com/maps/place/${props.data.location.city ? encodeURIComponent(props.data.location.city) + "," : ""}${props.data.location.country ? encodeURIComponent(props.data.location.country) : ""}/@${props.data.location.latitude},${props.data.location.longitude},10z`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Open in Google Maps"
-                  >
-                    {props.data.location.latitude}, {props.data.location.longitude}
-                  </a>
-                </span>
-              </div>
-            </Show>
+        <Show when={known(loc().city)}>
+          <div class="card-row">
+            <span class="card-label">City</span>
+            <span class="card-value">
+              {mapsUrl() ? (
+                <a href={mapsUrl()!} target="_blank" rel="noopener noreferrer" title="Open in Google Maps">
+                  {loc().city}
+                </a>
+              ) : (
+                loc().city
+              )}
+            </span>
           </div>
-          <div class="card-col">
-            <Show when={props.data.isp.name}>
-              <div class="card-row">
-                <span class="card-label">Provider</span>
-                <span class="card-value">{props.data.isp.name}</span>
-              </div>
-            </Show>
-            <Show when={props.data.isp.asn != null}>
-              <div class="card-row">
-                <span class="card-label">ASN</span>
-                <span class="card-value">AS{props.data.isp.asn}</span>
-              </div>
-            </Show>
+        </Show>
+        <Show when={known(loc().country)}>
+          <div class="card-row">
+            <span class="card-label">Country</span>
+            <span class="card-value">
+              {loc().country}
+              <Show when={known(loc().country_iso)}>
+                {" "}({loc().country_iso})
+              </Show>
+              <Show when={known(loc().continent)}>
+                {" · "}{loc().continent}
+              </Show>
+            </span>
           </div>
-        </div>
+        </Show>
+        <Show when={known(loc().timezone)}>
+          <div class="card-row">
+            <span class="card-label">Timezone</span>
+            <span class="card-value">{loc().timezone}</span>
+          </div>
+        </Show>
+        <Show when={known(isp().name)}>
+          <div class="card-row">
+            <span class="card-label">Provider</span>
+            <span class="card-value">{isp().name}</span>
+          </div>
+        </Show>
+        <Show when={isp().asn != null}>
+          <div class="card-row">
+            <span class="card-label">ASN</span>
+            <span class="card-value">AS{isp().asn}</span>
+          </div>
+        </Show>
       </div>
     </div>
   );
