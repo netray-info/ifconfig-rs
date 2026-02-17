@@ -9,38 +9,50 @@ pub enum OutputFormat {
     Csv,
 }
 
+impl OutputFormat {
+    pub fn from_name(s: &str) -> Option<Self> {
+        match s {
+            "json" => Some(OutputFormat::Json),
+            "yaml" => Some(OutputFormat::Yaml),
+            "toml" => Some(OutputFormat::Toml),
+            "csv" => Some(OutputFormat::Csv),
+            _ => None,
+        }
+    }
+
+    pub fn mime_type(&self) -> (&'static str, &'static str) {
+        match self {
+            OutputFormat::Json => ("application", "json"),
+            OutputFormat::Yaml => ("application", "yaml"),
+            OutputFormat::Toml => ("application", "toml"),
+            OutputFormat::Csv => ("text", "csv"),
+        }
+    }
+
+    pub fn serialize_body(&self, value: &Value) -> Option<String> {
+        match self {
+            OutputFormat::Json => serde_json::to_string_pretty(value).ok(),
+            OutputFormat::Yaml => serde_yaml::to_string(value).ok(),
+            OutputFormat::Toml => {
+                let cleaned = strip_nulls(value.clone());
+                toml::to_string_pretty(&cleaned).ok()
+            }
+            OutputFormat::Csv => Some(json_to_csv(value)),
+        }
+    }
+
+    pub fn serialize(&self, value: &Value) -> Option<(ContentType, String)> {
+        let body = self.serialize_body(value)?;
+        let (top, sub) = self.mime_type();
+        Some((ContentType::new(top, sub), body))
+    }
+}
+
 impl<'a> FromParam<'a> for OutputFormat {
     type Error = &'a str;
 
     fn from_param(param: &'a str) -> Result<Self, Self::Error> {
-        match param {
-            "json" => Ok(OutputFormat::Json),
-            "yaml" => Ok(OutputFormat::Yaml),
-            "toml" => Ok(OutputFormat::Toml),
-            "csv" => Ok(OutputFormat::Csv),
-            _ => Err(param),
-        }
-    }
-}
-
-impl OutputFormat {
-    pub fn serialize(&self, value: &Value) -> Option<(ContentType, String)> {
-        match self {
-            OutputFormat::Json => serde_json::to_string_pretty(value).ok().map(|s| (ContentType::JSON, s)),
-            OutputFormat::Yaml => serde_yaml::to_string(value)
-                .ok()
-                .map(|s| (ContentType::new("application", "yaml"), s)),
-            OutputFormat::Toml => {
-                let cleaned = strip_nulls(value.clone());
-                toml::to_string_pretty(&cleaned)
-                    .ok()
-                    .map(|s| (ContentType::new("application", "toml"), s))
-            }
-            OutputFormat::Csv => {
-                let csv = json_to_csv(value);
-                Some((ContentType::new("text", "csv"), csv))
-            }
-        }
+        Self::from_name(param).ok_or(param)
     }
 }
 
@@ -113,6 +125,20 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn from_name_valid() {
+        assert!(OutputFormat::from_name("json").is_some());
+        assert!(OutputFormat::from_name("yaml").is_some());
+        assert!(OutputFormat::from_name("toml").is_some());
+        assert!(OutputFormat::from_name("csv").is_some());
+    }
+
+    #[test]
+    fn from_name_invalid() {
+        assert!(OutputFormat::from_name("xml").is_none());
+        assert!(OutputFormat::from_name("").is_none());
+    }
+
+    #[test]
     fn format_from_param() {
         assert!(OutputFormat::from_param("json").is_ok());
         assert!(OutputFormat::from_param("yaml").is_ok());
@@ -120,6 +146,44 @@ mod tests {
         assert!(OutputFormat::from_param("csv").is_ok());
         assert!(OutputFormat::from_param("xml").is_err());
         assert!(OutputFormat::from_param("").is_err());
+    }
+
+    #[test]
+    fn mime_type_values() {
+        assert_eq!(OutputFormat::Json.mime_type(), ("application", "json"));
+        assert_eq!(OutputFormat::Yaml.mime_type(), ("application", "yaml"));
+        assert_eq!(OutputFormat::Toml.mime_type(), ("application", "toml"));
+        assert_eq!(OutputFormat::Csv.mime_type(), ("text", "csv"));
+    }
+
+    #[test]
+    fn serialize_body_json() {
+        let val = json!({"ip": "1.2.3.4"});
+        let body = OutputFormat::Json.serialize_body(&val).unwrap();
+        assert!(body.contains("1.2.3.4"));
+    }
+
+    #[test]
+    fn serialize_body_yaml() {
+        let val = json!({"ip": "1.2.3.4"});
+        let body = OutputFormat::Yaml.serialize_body(&val).unwrap();
+        assert!(body.contains("ip: 1.2.3.4"));
+    }
+
+    #[test]
+    fn serialize_body_toml_strips_nulls() {
+        let val = json!({"ip": "1.2.3.4", "host": null});
+        let body = OutputFormat::Toml.serialize_body(&val).unwrap();
+        assert!(body.contains("ip"));
+        assert!(!body.contains("host"));
+    }
+
+    #[test]
+    fn serialize_body_csv() {
+        let val = json!({"addr": "1.2.3.4"});
+        let body = OutputFormat::Csv.serialize_body(&val).unwrap();
+        assert!(body.starts_with("key,value\n"));
+        assert!(body.contains("addr,1.2.3.4"));
     }
 
     #[test]
