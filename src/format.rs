@@ -1,5 +1,3 @@
-use rocket::http::ContentType;
-use rocket::request::FromParam;
 use serde_json::Value;
 use std::borrow::Cow;
 
@@ -30,6 +28,15 @@ impl OutputFormat {
         }
     }
 
+    pub fn content_type(&self) -> &'static str {
+        match self {
+            OutputFormat::Json => "application/json",
+            OutputFormat::Yaml => "application/yaml",
+            OutputFormat::Toml => "application/toml",
+            OutputFormat::Csv => "text/csv",
+        }
+    }
+
     pub fn serialize_body(&self, value: &Value) -> Option<String> {
         match self {
             OutputFormat::Json => serde_json::to_string_pretty(value).ok(),
@@ -42,18 +49,9 @@ impl OutputFormat {
         }
     }
 
-    pub fn serialize(&self, value: &Value) -> Option<(ContentType, String)> {
+    pub fn serialize(&self, value: &Value) -> Option<(&'static str, String)> {
         let body = self.serialize_body(value)?;
-        let (top, sub) = self.mime_type();
-        Some((ContentType::new(top, sub), body))
-    }
-}
-
-impl<'a> FromParam<'a> for OutputFormat {
-    type Error = &'a str;
-
-    fn from_param(param: &'a str) -> Result<Self, Self::Error> {
-        Self::from_name(param).ok_or(param)
+        Some((self.content_type(), body))
     }
 }
 
@@ -140,21 +138,19 @@ mod tests {
     }
 
     #[test]
-    fn format_from_param() {
-        assert!(OutputFormat::from_param("json").is_ok());
-        assert!(OutputFormat::from_param("yaml").is_ok());
-        assert!(OutputFormat::from_param("toml").is_ok());
-        assert!(OutputFormat::from_param("csv").is_ok());
-        assert!(OutputFormat::from_param("xml").is_err());
-        assert!(OutputFormat::from_param("").is_err());
-    }
-
-    #[test]
     fn mime_type_values() {
         assert_eq!(OutputFormat::Json.mime_type(), ("application", "json"));
         assert_eq!(OutputFormat::Yaml.mime_type(), ("application", "yaml"));
         assert_eq!(OutputFormat::Toml.mime_type(), ("application", "toml"));
         assert_eq!(OutputFormat::Csv.mime_type(), ("text", "csv"));
+    }
+
+    #[test]
+    fn content_type_values() {
+        assert_eq!(OutputFormat::Json.content_type(), "application/json");
+        assert_eq!(OutputFormat::Yaml.content_type(), "application/yaml");
+        assert_eq!(OutputFormat::Toml.content_type(), "application/toml");
+        assert_eq!(OutputFormat::Csv.content_type(), "text/csv");
     }
 
     #[test]
@@ -191,7 +187,7 @@ mod tests {
     fn serialize_json() {
         let val = json!({"ip": "1.2.3.4"});
         let (ct, body) = OutputFormat::Json.serialize(&val).unwrap();
-        assert_eq!(ct, ContentType::JSON);
+        assert_eq!(ct, "application/json");
         assert!(body.contains("1.2.3.4"));
     }
 
@@ -199,7 +195,7 @@ mod tests {
     fn serialize_yaml() {
         let val = json!({"ip": "1.2.3.4"});
         let (ct, body) = OutputFormat::Yaml.serialize(&val).unwrap();
-        assert_eq!(ct, ContentType::new("application", "yaml"));
+        assert_eq!(ct, "application/yaml");
         assert!(body.contains("ip: 1.2.3.4"));
     }
 
@@ -207,7 +203,7 @@ mod tests {
     fn serialize_toml_strips_nulls() {
         let val = json!({"ip": "1.2.3.4", "host": null});
         let (ct, body) = OutputFormat::Toml.serialize(&val).unwrap();
-        assert_eq!(ct, ContentType::new("application", "toml"));
+        assert_eq!(ct, "application/toml");
         assert!(body.contains("ip"));
         assert!(!body.contains("host"));
     }
@@ -216,7 +212,7 @@ mod tests {
     fn serialize_csv_flat() {
         let val = json!({"addr": "1.2.3.4", "version": "4"});
         let (ct, body) = OutputFormat::Csv.serialize(&val).unwrap();
-        assert_eq!(ct, ContentType::new("text", "csv"));
+        assert_eq!(ct, "text/csv");
         assert!(body.starts_with("key,value\n"));
         assert!(body.contains("addr,1.2.3.4"));
         assert!(body.contains("version,4"));
@@ -226,7 +222,7 @@ mod tests {
     fn serialize_csv_nested() {
         let val = json!({"ip": {"addr": "1.2.3.4", "version": "4"}});
         let (ct, body) = OutputFormat::Csv.serialize(&val).unwrap();
-        assert_eq!(ct, ContentType::new("text", "csv"));
+        assert_eq!(ct, "text/csv");
         assert!(body.contains("ip.addr,1.2.3.4"));
         assert!(body.contains("ip.version,4"));
     }

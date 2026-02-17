@@ -6,7 +6,7 @@ doctoc:
 check:
 	cargo $@
 
-build:
+build: frontend
 	cargo $@
 
 clean:
@@ -20,9 +20,18 @@ clippy:
 
 tests: unit integration acceptance
 
-unit:
+unit: frontend
 	cargo test --lib --no-fail-fast
 	cargo test
+
+frontend:
+	cd frontend && npm ci && npm run build
+
+frontend-dev:
+	cd frontend && npm run dev
+
+dev:
+	cargo run -- ifconfig.toml
 
 integration:
 	$(MAKE) -C tests $@
@@ -39,5 +48,4 @@ push_to_prod:
 	git push
 	git checkout master
 
-.PHONY: tests
-
+.PHONY: tests frontend frontend-dev dev

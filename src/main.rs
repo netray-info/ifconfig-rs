@@ -1,7 +1,34 @@
-use ifconfig_rs::rocket;
+use std::net::SocketAddr;
+use tokio::net::TcpListener;
+use tracing::info;
+use tracing_subscriber::EnvFilter;
 
-#[rocket::main]
-async fn main() -> Result<(), rocket::Error> {
-    let _rocket = rocket().launch().await?;
-    Ok(())
+use ifconfig_rs::{build_app, Config};
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .init();
+
+    let config_path = std::env::args().nth(1);
+    let config = Config::load(config_path.as_deref()).expect("Failed to load config");
+
+    let bind_addr: SocketAddr = config.server.bind.parse().expect("Invalid bind address");
+    info!("Starting server on {}", bind_addr);
+
+    let app = build_app(&config).into_make_service_with_connect_info::<SocketAddr>();
+
+    let listener = TcpListener::bind(bind_addr).await.expect("Failed to bind");
+    info!("Listening on {}", listener.local_addr().unwrap());
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .expect("Server error");
+}
+
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+    info!("Shutting down gracefully...");
 }

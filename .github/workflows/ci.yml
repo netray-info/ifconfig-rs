@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build Frontend
+        run: cd frontend && npm ci && npm run build
       - name: Cargo Check
         run: cargo check --verbose
 
@@ -24,6 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build Frontend
+        run: cd frontend && npm ci && npm run build
       - name: Cargo Clippy
         run: cargo clippy --verbose
 
@@ -40,6 +50,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build Frontend
+        run: cd frontend && npm ci && npm run build
       - name: Cargo Build
         run: cargo build --verbose
       - name: Cargo Unit Test

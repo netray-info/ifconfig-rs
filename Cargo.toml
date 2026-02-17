@@ -13,6 +13,9 @@ include = [
   "LICENSE",
   "**/*.rs",
   "Cargo.toml",
+  "build.rs",
+  "ifconfig.toml",
+  "frontend/dist/**",
 ]
 edition = "2021"
 
@@ -21,17 +24,30 @@ name = "ifconfig-rs"
 path = "src/main.rs"
 
 [dependencies]
+axum = { version = "0.8", features = ["json"] }
+axum-extra = { version = "0.10", features = ["typed-header"] }
+config = "0.15"
 dns-lookup = "3"
+governor = "0.8"
 maxminddb = "0.27"
+mime_guess = "2"
 regex = "1"
-rocket = { version = "0.5", features = ["json"] }
-rocket_dyn_templates = { version = "0.2.0", features = ["handlebars"] }
+rust-embed = "8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
 toml = "0.8"
+tower = { version = "0.5", features = ["limit"] }
+tower-http = { version = "0.6", features = ["cors", "set-header", "trace", "compression-gzip"] }
+tower_governor = "0.5"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uaparser = "0.6"
 
 [dev-dependencies]
+http-body-util = "0.1"
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
 pretty_assertions = "1.4.0"
-
+tower = { version = "0.5", features = ["util"] }

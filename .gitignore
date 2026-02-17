@@ -3,6 +3,7 @@
 .idea/
 ifconfig-rs.iml
 node_modules/
+frontend/dist/
 /test-results/
 /playwright-report/
 /blob-report/

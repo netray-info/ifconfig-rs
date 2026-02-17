@@ -84,10 +84,34 @@ pub struct Location<'a> {
     pub continent_code: Option<&'a str>,
 }
 
+impl Location<'_> {
+    pub fn unknown() -> Self {
+        Location {
+            city: Some("unknown"),
+            country: Some("unknown"),
+            country_iso: Some("unknown"),
+            latitude: None,
+            longitude: None,
+            timezone: Some("unknown"),
+            continent: Some("unknown"),
+            continent_code: Some("unknown"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Isp<'a> {
     pub name: Option<&'a str>,
     pub asn: Option<u32>,
+}
+
+impl Isp<'_> {
+    pub fn unknown() -> Self {
+        Isp {
+            name: Some("unknown"),
+            asn: None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -95,8 +119,8 @@ pub struct Ifconfig<'a> {
     pub host: Option<Host>,
     pub ip: Ip<'a>,
     pub tcp: Tcp,
-    pub location: Option<Location<'a>>,
-    pub isp: Option<Isp<'a>>,
+    pub location: Location<'a>,
+    pub isp: Isp<'a>,
     pub is_tor: Option<bool>,
     pub user_agent: Option<UserAgent>,
     pub user_agent_header: Option<&'a str>,
@@ -127,23 +151,29 @@ pub fn get_ifconfig<'a>(param: &IfconfigParam<'a>) -> Ifconfig<'a> {
         port: param.remote.port(),
     };
 
-    let geo_city = param.geoip_city_db.lookup(param.remote.ip());
-    let location = geo_city.map(|c| Location {
-        city: c.city.names.english,
-        country: c.country.names.english,
-        country_iso: c.country.iso_code,
-        latitude: c.location.latitude,
-        longitude: c.location.longitude,
-        timezone: c.location.time_zone,
-        continent: c.continent.names.english,
-        continent_code: c.continent.code,
-    });
+    let location = param
+        .geoip_city_db
+        .lookup(param.remote.ip())
+        .map(|c| Location {
+            city: c.city.names.english,
+            country: c.country.names.english,
+            country_iso: c.country.iso_code,
+            latitude: c.location.latitude,
+            longitude: c.location.longitude,
+            timezone: c.location.time_zone,
+            continent: c.continent.names.english,
+            continent_code: c.continent.code,
+        })
+        .unwrap_or(Location::unknown());
 
-    let geo_isp = param.geoip_asn_db.lookup(param.remote.ip());
-    let isp = geo_isp.map(|isp| Isp {
-        name: isp.autonomous_system_organization,
-        asn: isp.autonomous_system_number,
-    });
+    let isp = param
+        .geoip_asn_db
+        .lookup(param.remote.ip())
+        .map(|isp| Isp {
+            name: isp.autonomous_system_organization,
+            asn: isp.autonomous_system_number,
+        })
+        .unwrap_or(Isp::unknown());
 
     let is_tor = param.tor_exit_nodes.lookup(&param.remote.ip());
 

@@ -1,11 +1,17 @@
+FROM node:22-alpine AS frontend
+WORKDIR /build/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
+
 FROM ghcr.io/lukaspustina/ifconfig-rs-data:latest AS data
 FROM clux/muslrust:latest AS builder
 WORKDIR /build
-COPY Cargo.toml Cargo.lock .
+COPY Cargo.toml Cargo.lock build.rs ./
 COPY src src/
 COPY tests tests/
-COPY Rocket.toml .
-COPY templates templates/
+COPY ifconfig.toml .
+COPY --from=frontend /build/frontend/dist frontend/dist/
 COPY --from=data /data data/
 RUN cargo test -- --include-ignored
-

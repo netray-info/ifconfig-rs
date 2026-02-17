@@ -1,0 +1,13 @@
+base_url = "localhost"
+project_name = "ifconfig-rs"
+geoip_city_db = "data/GeoLite2-City.mmdb"
+geoip_asn_db = "data/GeoLite2-ASN.mmdb"
+user_agent_regexes = "data/regexes.yaml"
+tor_exit_nodes = "data/tor_exit_nodes.txt"
+
+[server]
+bind = "127.0.0.1:8080"
+
+[rate_limit]
+per_ip_per_minute = 60
+per_ip_burst = 10
