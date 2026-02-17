@@ -11,6 +11,22 @@ use rocket::http::{Accept, ContentType, Header, Status};
 use rocket::local::blocking::Client;
 
 #[test]
+fn cors_header_present() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Any)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(
+        response.headers().get_one("Access-Control-Allow-Origin"),
+        Some("*")
+    );
+}
+
+#[test]
 fn handle_root_plain_cli() {
     let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
     let response = client

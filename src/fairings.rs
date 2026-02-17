@@ -45,5 +45,6 @@ impl Fairing for SecurityHeaders {
         res.set_header(Header::new("X-Content-Type-Options", "nosniff"));
         res.set_header(Header::new("X-Frame-Options", "DENY"));
         res.set_header(Header::new("Referrer-Policy", "strict-origin-when-cross-origin"));
+        res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
     }
 }
