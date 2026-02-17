@@ -887,3 +887,179 @@ fn cache_control_health() {
     let response = client.get("/health").dispatch();
     assert_eq!(response.headers().get_one("Cache-Control"), Some("no-cache"));
 }
+
+// --- YAML format tests ---
+
+#[test]
+fn handle_ip_yaml_accept() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ip")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Header::new("Accept", "application/yaml"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("application", "yaml")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("addr: 192.168.0.101"));
+    assert!(body.contains("version: '4'"));
+}
+
+#[test]
+fn handle_ip_yaml_suffix() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ip/yaml")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("application", "yaml")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("addr: 192.168.0.101"));
+}
+
+// --- TOML format tests ---
+
+#[test]
+fn handle_ip_toml_accept() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ip")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Header::new("Accept", "application/toml"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("application", "toml")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("addr = \"192.168.0.101\""));
+    assert!(body.contains("version = \"4\""));
+}
+
+#[test]
+fn handle_ip_toml_suffix() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ip/toml")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("application", "toml")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("addr = \"192.168.0.101\""));
+}
+
+// --- CSV format tests ---
+
+#[test]
+fn handle_ip_csv_accept() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ip")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Header::new("Accept", "text/csv"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("text", "csv")));
+    let body = response.into_string().unwrap();
+    assert!(body.starts_with("key,value\n"));
+    assert!(body.contains("addr,192.168.0.101"));
+    assert!(body.contains("version,4"));
+}
+
+#[test]
+fn handle_ip_csv_suffix() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ip/csv")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("text", "csv")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("addr,192.168.0.101"));
+}
+
+// --- Root endpoint with nested data ---
+
+#[test]
+fn handle_root_yaml_suffix() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/yaml")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("application", "yaml")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("ip:"));
+    assert!(body.contains("addr: 192.168.0.101"));
+}
+
+#[test]
+fn handle_root_toml_suffix() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/toml")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("application", "toml")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("[ip]"));
+    assert!(body.contains("addr = \"192.168.0.101\""));
+}
+
+#[test]
+fn handle_root_csv_suffix() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/csv")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("text", "csv")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("ip.addr,192.168.0.101"));
+}
+
+// --- Unknown format suffix returns 404 ---
+
+#[test]
+fn handle_ip_unknown_format_suffix_404() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ip/xml")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+}
+
+// --- Headers endpoint format tests ---
+
+#[test]
+fn handle_headers_yaml_suffix() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/headers/yaml")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Header::new("X-Custom-Test", "hello"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("application", "yaml")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("X-Custom-Test: hello"));
+}
+
+#[test]
+fn handle_headers_csv_suffix() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/headers/csv")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Header::new("X-Custom-Test", "hello"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::new("text", "csv")));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("X-Custom-Test,hello"));
+}

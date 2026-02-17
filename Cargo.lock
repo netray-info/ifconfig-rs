@@ -606,6 +606,8 @@ dependencies = [
  "rocket_dyn_templates",
  "serde",
  "serde_json",
+ "serde_yaml",
+ "toml",
  "uaparser",
 ]
 

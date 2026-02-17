@@ -42,13 +42,9 @@
 
 ~~A boolean `is_tor` field indicating whether the requesting IP is a known Tor exit node.~~ Added `is_tor: Option<bool>` to the `Ifconfig` struct. Loads a local plain-text exit node list (one IP per line) at startup via `TorExitNodes` backed by `HashSet<IpAddr>`. When no list is configured, `is_tor` is `null` in JSON and omitted from `/all` plain text. Appears in all JSON responses and the `/all` plain-text dump. HTML template shows a warning indicator when `is_tor` is true.
 
----
+### 14. Configurable output formats (YAML, TOML, CSV)
 
-## Planned
-
-### 14. Configurable output format (`?format=yaml|toml|csv`)
-
-Beyond JSON and plain text, some automation tools prefer YAML or other formats. Low priority but occasionally requested on similar services.
+~~Beyond JSON and plain text, some automation tools prefer YAML or other formats.~~ Added YAML, TOML, and CSV output formats to all endpoints. Formats can be requested via `Accept` header (`application/yaml`, `application/toml`, `text/csv`) or URL suffix (`/ip/yaml`, `/ip/toml`, `/ip/csv`). New `src/format.rs` module handles serialization. TOML output strips null fields (TOML has no null type). CSV output flattens nested JSON into dot-notation `key,value` rows. Content negotiation rank order: CLI(1) > JSON(2) > YAML(3) > TOML(4) > CSV(5) > plain(6) > HTML(7). Dependencies: `serde_yaml`, `toml`.
 
 ---
 

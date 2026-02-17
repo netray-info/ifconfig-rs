@@ -45,9 +45,11 @@ macro_rules! handler {
     ($name:ident, $ifconfig:ident, $json:block, $ty:ty, $plain:block) => {
         pub mod $name {
             use crate::backend::*;
+            use crate::format::OutputFormat;
             use crate::guards::*;
             #[allow(unused_imports)]
             use crate::handlers::UNKNOWN_STR;
+            use rocket::http::ContentType;
             use rocket::serde::json::Json;
             use rocket::State;
             use serde_json::Value as JsonValue;
@@ -106,6 +108,28 @@ macro_rules! handler {
                 let value = to_plain(ifconfig);
 
                 Some(value)
+            }
+
+            pub fn formatted(
+                format: OutputFormat,
+                req_info: RequesterInfo,
+                user_agent_parser: &State<UserAgentParser>,
+                geoip_city_db: &State<GeoIpCityDb>,
+                geoip_asn_db: &State<GeoIpAsnDb>,
+                tor_exit_nodes: &State<TorExitNodes>,
+            ) -> Option<(ContentType, String)> {
+                let ifconfig_param = IfconfigParam {
+                    remote: &req_info.remote,
+                    user_agent_header: &req_info.user_agent,
+                    user_agent_parser: &user_agent_parser,
+                    geoip_city_db: &geoip_city_db,
+                    geoip_asn_db: &geoip_asn_db,
+                    tor_exit_nodes: &tor_exit_nodes,
+                };
+                let ifconfig = get_ifconfig(&ifconfig_param);
+                let value = to_json(ifconfig);
+                let json_val = serde_json::to_value(value).ok()?;
+                format.serialize(&json_val)
             }
         }
     };
