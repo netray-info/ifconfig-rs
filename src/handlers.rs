@@ -238,3 +238,81 @@ handler!(user_agent, ifconfig, { ifconfig.user_agent }, Option<UserAgent>, {
             .unwrap_or_else(|| UNKNOWN_STR.to_string())
     )
 });
+
+pub mod ip_version {
+    use crate::backend::*;
+    use crate::format::OutputFormat;
+    use crate::guards::*;
+    use serde_json::Value as JsonValue;
+
+    pub fn json(
+        version: &str,
+        req_info: &RequesterInfo,
+        user_agent_parser: &UserAgentParser,
+        geoip_city_db: &GeoIpCityDb,
+        geoip_asn_db: &GeoIpAsnDb,
+        tor_exit_nodes: &TorExitNodes,
+    ) -> Option<JsonValue> {
+        let ifconfig_param = IfconfigParam {
+            remote: &req_info.remote,
+            user_agent_header: &req_info.user_agent,
+            user_agent_parser,
+            geoip_city_db,
+            geoip_asn_db,
+            tor_exit_nodes,
+        };
+        let ifconfig = get_ifconfig(&ifconfig_param);
+        if ifconfig.ip.version != version {
+            return None;
+        }
+        serde_json::to_value(&ifconfig.ip).ok()
+    }
+
+    pub fn plain(
+        version: &str,
+        req_info: &RequesterInfo,
+        user_agent_parser: &UserAgentParser,
+        geoip_city_db: &GeoIpCityDb,
+        geoip_asn_db: &GeoIpAsnDb,
+        tor_exit_nodes: &TorExitNodes,
+    ) -> Option<String> {
+        let ifconfig_param = IfconfigParam {
+            remote: &req_info.remote,
+            user_agent_header: &req_info.user_agent,
+            user_agent_parser,
+            geoip_city_db,
+            geoip_asn_db,
+            tor_exit_nodes,
+        };
+        let ifconfig = get_ifconfig(&ifconfig_param);
+        if ifconfig.ip.version != version {
+            return None;
+        }
+        Some(format!("{}\n", ifconfig.ip.addr))
+    }
+
+    pub fn formatted(
+        version: &str,
+        format: &OutputFormat,
+        req_info: &RequesterInfo,
+        user_agent_parser: &UserAgentParser,
+        geoip_city_db: &GeoIpCityDb,
+        geoip_asn_db: &GeoIpAsnDb,
+        tor_exit_nodes: &TorExitNodes,
+    ) -> Option<String> {
+        let ifconfig_param = IfconfigParam {
+            remote: &req_info.remote,
+            user_agent_header: &req_info.user_agent,
+            user_agent_parser,
+            geoip_city_db,
+            geoip_asn_db,
+            tor_exit_nodes,
+        };
+        let ifconfig = get_ifconfig(&ifconfig_param);
+        if ifconfig.ip.version != version {
+            return None;
+        }
+        let json_val = serde_json::to_value(&ifconfig.ip).ok()?;
+        format.serialize_body(&json_val)
+    }
+}

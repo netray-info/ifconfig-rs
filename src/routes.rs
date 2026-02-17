@@ -535,6 +535,7 @@ macro_rules! ip_version_route {
             use crate::backend::*;
             use crate::format::OutputFormat;
             use crate::guards::*;
+            use crate::handlers;
             use crate::rate_limiter::RateLimited;
             use rocket::http::ContentType;
             use rocket::serde::json::Json;
@@ -551,19 +552,7 @@ macro_rules! ip_version_route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<String> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes: &tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-                if ifconfig.ip.version != $version {
-                    return None;
-                }
-                Some(format!("{}\n", ifconfig.ip.addr))
+                handlers::ip_version::plain($version, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
             }
 
             #[rocket::get($route, format = "application/json", rank = 2)]
@@ -575,19 +564,7 @@ macro_rules! ip_version_route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<Json<JsonValue>> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes: &tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-                if ifconfig.ip.version != $version {
-                    return None;
-                }
-                serde_json::to_value(&ifconfig.ip).ok().map(Json)
+                handlers::ip_version::json($version, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
             }
 
             #[rocket::get($route, format = "application/yaml", rank = 3)]
@@ -599,20 +576,10 @@ macro_rules! ip_version_route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<(ContentType, String)> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes: &tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-                if ifconfig.ip.version != $version {
-                    return None;
-                }
-                let json_val = serde_json::to_value(&ifconfig.ip).ok()?;
-                OutputFormat::Yaml.serialize(&json_val)
+                let fmt = OutputFormat::Yaml;
+                let body = handlers::ip_version::formatted($version, &fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+                let (top, sub) = fmt.mime_type();
+                Some((ContentType::new(top, sub), body))
             }
 
             #[rocket::get($route, format = "application/toml", rank = 4)]
@@ -624,20 +591,10 @@ macro_rules! ip_version_route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<(ContentType, String)> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes: &tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-                if ifconfig.ip.version != $version {
-                    return None;
-                }
-                let json_val = serde_json::to_value(&ifconfig.ip).ok()?;
-                OutputFormat::Toml.serialize(&json_val)
+                let fmt = OutputFormat::Toml;
+                let body = handlers::ip_version::formatted($version, &fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+                let (top, sub) = fmt.mime_type();
+                Some((ContentType::new(top, sub), body))
             }
 
             #[rocket::get($route, format = "text/csv", rank = 5)]
@@ -649,20 +606,10 @@ macro_rules! ip_version_route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<(ContentType, String)> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes: &tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-                if ifconfig.ip.version != $version {
-                    return None;
-                }
-                let json_val = serde_json::to_value(&ifconfig.ip).ok()?;
-                OutputFormat::Csv.serialize(&json_val)
+                let fmt = OutputFormat::Csv;
+                let body = handlers::ip_version::formatted($version, &fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+                let (top, sub) = fmt.mime_type();
+                Some((ContentType::new(top, sub), body))
             }
 
             #[rocket::get($route, rank = 6)]
@@ -674,19 +621,7 @@ macro_rules! ip_version_route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<String> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes: &tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-                if ifconfig.ip.version != $version {
-                    return None;
-                }
-                Some(format!("{}\n", ifconfig.ip.addr))
+                handlers::ip_version::plain($version, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
             }
 
             #[rocket::get($route_json)]
@@ -698,19 +633,7 @@ macro_rules! ip_version_route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<Json<JsonValue>> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes: &tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-                if ifconfig.ip.version != $version {
-                    return None;
-                }
-                serde_json::to_value(&ifconfig.ip).ok().map(Json)
+                handlers::ip_version::json($version, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
             }
 
             #[rocket::get($route_fmt)]
@@ -723,20 +646,9 @@ macro_rules! ip_version_route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<(ContentType, String)> {
-                let ifconfig_param = IfconfigParam {
-                    remote: &req_info.remote,
-                    user_agent_header: &req_info.user_agent,
-                    user_agent_parser,
-                    geoip_city_db,
-                    geoip_asn_db,
-                    tor_exit_nodes: &tor_exit_nodes,
-                };
-                let ifconfig = get_ifconfig(&ifconfig_param);
-                if ifconfig.ip.version != $version {
-                    return None;
-                }
-                let json_val = serde_json::to_value(&ifconfig.ip).ok()?;
-                fmt.serialize(&json_val)
+                let body = handlers::ip_version::formatted($version, &fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+                let (top, sub) = fmt.mime_type();
+                Some((ContentType::new(top, sub), body))
             }
         }
     };
