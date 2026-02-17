@@ -750,6 +750,6 @@ pub mod health {
 }
 
 #[rocket::get("/<file..>", rank = 10)]
-pub(crate) async fn files(file: PathBuf) -> Option<NamedFile> {
+pub(crate) async fn files(_rate_limited: RateLimited, file: PathBuf) -> Option<NamedFile> {
     NamedFile::open(Path::new("htdocs/").join(file)).await.ok()
 }

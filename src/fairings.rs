@@ -12,7 +12,7 @@ pub struct XForwardedFor;
 impl Fairing for XForwardedFor {
     fn info(&self) -> Info {
         Info {
-            name: "Set the request remote from left most IP in X-Forwarded-For",
+            name: "Set the request remote from rightmost IP in X-Forwarded-For",
             kind: Kind::Request,
         }
     }
@@ -21,7 +21,7 @@ impl Fairing for XForwardedFor {
         let new_remote = request
             .headers()
             .get_one("X-Forwarded-For")
-            .and_then(|xfr| xfr.split(',').next().map(str::trim))
+            .and_then(|xfr| xfr.split(',').next_back().map(str::trim))
             .and_then(|ip_str| IpAddr::from_str(ip_str).ok())
             .and_then(|ip| request.remote().map(|r| SocketAddr::new(ip, r.port())));
         if let Some(remote) = new_remote {
@@ -45,6 +45,7 @@ impl Fairing for SecurityHeaders {
         res.set_header(Header::new("X-Content-Type-Options", "nosniff"));
         res.set_header(Header::new("X-Frame-Options", "DENY"));
         res.set_header(Header::new("Referrer-Policy", "strict-origin-when-cross-origin"));
+        res.set_header(Header::new("Strict-Transport-Security", "max-age=63072000; includeSubDomains"));
         res.set_header(Header::new("Access-Control-Allow-Origin", "*"));
 
         let is_error = !res.status().class().is_success();
