@@ -3,12 +3,15 @@ pub mod fairings;
 pub mod format;
 pub mod guards;
 pub mod handlers;
+pub mod rate_limiter;
 pub mod routes;
 
 use fairings::*;
+use rate_limiter::RateLimiter;
 use routes::*;
 
 use rocket::{catchers, routes, Build, Rocket};
+use std::time::Duration;
 use rocket_dyn_templates::Template;
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +38,19 @@ pub struct Config {
     geoip_asn_db: Option<String>,
     user_agent_regexes: Option<String>,
     tor_exit_nodes: Option<String>,
+    #[serde(default = "Config::default_rate_limit_requests")]
+    rate_limit_requests: u32,
+    #[serde(default = "Config::default_rate_limit_window")]
+    rate_limit_window: u64,
+}
+
+impl Config {
+    fn default_rate_limit_requests() -> u32 {
+        60
+    }
+    fn default_rate_limit_window() -> u64 {
+        60
+    }
 }
 
 #[derive(Serialize)]
@@ -65,7 +81,7 @@ impl From<&Config> for ProjectInfo {
 
 pub fn rocket() -> Rocket<Build> {
     let mut rocket = rocket::build()
-        .register("/", catchers![not_found])
+        .register("/", catchers![not_found, too_many_requests])
         .mount(
             "/",
             routes![
@@ -168,6 +184,12 @@ pub fn rocket() -> Rocket<Build> {
         .attach(SecurityHeaders);
 
     let config: Config = rocket.figment().extract().expect("config");
+
+    let rate_limiter = RateLimiter::new(
+        config.rate_limit_requests,
+        Duration::from_secs(config.rate_limit_window),
+    );
+    rocket = rocket.manage(rate_limiter);
 
     rocket = match config.runtime {
         Runtime::XFORWARDED => rocket.attach(XForwardedFor),

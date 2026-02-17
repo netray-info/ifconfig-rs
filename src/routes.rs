@@ -6,6 +6,7 @@ use crate::backend::*;
 use crate::format::OutputFormat;
 use crate::guards::*;
 use crate::handlers;
+use crate::rate_limiter::RateLimited;
 use crate::ProjectInfo;
 use rocket::fs::NamedFile;
 use rocket::http::ContentType;
@@ -17,6 +18,7 @@ use std::path::{Path, PathBuf};
 
 #[rocket::get("/", rank = 1)]
 pub(crate) async fn root_plain_cli(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo<'_>,
     _cli_req: CliClientRequest<'_>,
     user_agent_parser: &State<UserAgentParser>,
@@ -29,6 +31,7 @@ pub(crate) async fn root_plain_cli(
 
 #[rocket::get("/", format = "text/plain", rank = 2)]
 pub(crate) fn root_plain(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
@@ -40,6 +43,7 @@ pub(crate) fn root_plain(
 
 #[rocket::get("/", format = "application/json", rank = 3)]
 pub(crate) fn root_json(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
@@ -51,6 +55,7 @@ pub(crate) fn root_json(
 
 #[rocket::get("/", format = "application/yaml", rank = 4)]
 pub(crate) fn root_yaml(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
@@ -69,6 +74,7 @@ pub(crate) fn root_yaml(
 
 #[rocket::get("/", format = "application/toml", rank = 5)]
 pub(crate) fn root_toml(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
@@ -87,6 +93,7 @@ pub(crate) fn root_toml(
 
 #[rocket::get("/", format = "text/csv", rank = 6)]
 pub(crate) fn root_csv(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
@@ -105,6 +112,7 @@ pub(crate) fn root_csv(
 
 #[rocket::get("/", rank = 7)]
 pub(crate) fn root_html(
+    _rate_limited: RateLimited,
     project_info: &State<ProjectInfo>,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
@@ -124,6 +132,7 @@ pub(crate) fn root_html(
 
 #[rocket::get("/json")]
 pub(crate) fn root_json_json(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
@@ -135,6 +144,7 @@ pub(crate) fn root_json_json(
 
 #[rocket::get("/yaml")]
 pub(crate) fn root_yaml_suffix(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
@@ -153,6 +163,7 @@ pub(crate) fn root_yaml_suffix(
 
 #[rocket::get("/toml")]
 pub(crate) fn root_toml_suffix(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
@@ -171,6 +182,7 @@ pub(crate) fn root_toml_suffix(
 
 #[rocket::get("/csv")]
 pub(crate) fn root_csv_suffix(
+    _rate_limited: RateLimited,
     req_info: RequesterInfo,
     user_agent_parser: &State<UserAgentParser>,
     geoip_city_db: &State<GeoIpCityDb>,
@@ -192,6 +204,11 @@ pub(crate) fn not_found(_: &Request) -> &'static str {
     "not implemented"
 }
 
+#[rocket::catch(429)]
+pub(crate) fn too_many_requests(_: &Request) -> &'static str {
+    "rate limit exceeded\n"
+}
+
 macro_rules! route {
     ($name:ident, $route:tt, $route_json:tt, $route_fmt:tt) => {
         pub mod $name {
@@ -200,6 +217,7 @@ macro_rules! route {
             use crate::format::OutputFormat;
             use crate::guards::*;
             use crate::handlers;
+            use crate::rate_limiter::RateLimited;
             use rocket::http::ContentType;
             use rocket::serde::json::Json;
             use rocket::State;
@@ -207,6 +225,7 @@ macro_rules! route {
 
             #[rocket::get($route, rank = 1)]
             pub(crate) fn plain_cli(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 _cli_req: CliClientRequest,
                 user_agent_parser: &State<UserAgentParser>,
@@ -225,6 +244,7 @@ macro_rules! route {
 
             #[rocket::get($route, format = "application/json", rank = 2)]
             pub(crate) fn json(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -242,6 +262,7 @@ macro_rules! route {
 
             #[rocket::get($route, format = "application/yaml", rank = 3)]
             pub(crate) fn yaml(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -260,6 +281,7 @@ macro_rules! route {
 
             #[rocket::get($route, format = "application/toml", rank = 4)]
             pub(crate) fn toml_accept(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -278,6 +300,7 @@ macro_rules! route {
 
             #[rocket::get($route, format = "text/csv", rank = 5)]
             pub(crate) fn csv(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -296,6 +319,7 @@ macro_rules! route {
 
             #[rocket::get($route, rank = 6)]
             pub(crate) fn plain(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -313,6 +337,7 @@ macro_rules! route {
 
             #[rocket::get($route_json)]
             pub(crate) fn json_json(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -330,6 +355,7 @@ macro_rules! route {
 
             #[rocket::get($route_fmt)]
             pub(crate) fn format_suffix(
+                _rate_limited: RateLimited,
                 fmt: OutputFormat,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
@@ -370,6 +396,7 @@ pub mod all {
     use crate::format::OutputFormat;
     use crate::guards::*;
     use crate::handlers;
+    use crate::rate_limiter::RateLimited;
     use rocket::http::ContentType;
     use rocket::serde::json::Json;
     use rocket::State;
@@ -377,6 +404,7 @@ pub mod all {
 
     #[rocket::get("/all", rank = 1)]
     pub(crate) fn plain_cli(
+        _rate_limited: RateLimited,
         req_info: RequesterInfo,
         _cli_req: CliClientRequest,
         user_agent_parser: &State<UserAgentParser>,
@@ -389,6 +417,7 @@ pub mod all {
 
     #[rocket::get("/all", format = "application/json", rank = 2)]
     pub(crate) fn json(
+        _rate_limited: RateLimited,
         req_info: RequesterInfo,
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
@@ -400,6 +429,7 @@ pub mod all {
 
     #[rocket::get("/all", format = "application/yaml", rank = 3)]
     pub(crate) fn yaml(
+        _rate_limited: RateLimited,
         req_info: RequesterInfo,
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
@@ -418,6 +448,7 @@ pub mod all {
 
     #[rocket::get("/all", format = "application/toml", rank = 4)]
     pub(crate) fn toml_accept(
+        _rate_limited: RateLimited,
         req_info: RequesterInfo,
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
@@ -436,6 +467,7 @@ pub mod all {
 
     #[rocket::get("/all", format = "text/csv", rank = 5)]
     pub(crate) fn csv(
+        _rate_limited: RateLimited,
         req_info: RequesterInfo,
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
@@ -454,6 +486,7 @@ pub mod all {
 
     #[rocket::get("/all", rank = 6)]
     pub(crate) fn plain(
+        _rate_limited: RateLimited,
         req_info: RequesterInfo,
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
@@ -465,6 +498,7 @@ pub mod all {
 
     #[rocket::get("/all/json")]
     pub(crate) fn json_json(
+        _rate_limited: RateLimited,
         req_info: RequesterInfo,
         user_agent_parser: &State<UserAgentParser>,
         geoip_city_db: &State<GeoIpCityDb>,
@@ -476,6 +510,7 @@ pub mod all {
 
     #[rocket::get("/all/<fmt>")]
     pub(crate) fn format_suffix(
+        _rate_limited: RateLimited,
         fmt: OutputFormat,
         req_info: RequesterInfo,
         user_agent_parser: &State<UserAgentParser>,
@@ -501,6 +536,7 @@ macro_rules! ip_version_route {
             use crate::backend::*;
             use crate::format::OutputFormat;
             use crate::guards::*;
+            use crate::rate_limiter::RateLimited;
             use rocket::http::ContentType;
             use rocket::serde::json::Json;
             use rocket::State;
@@ -508,6 +544,7 @@ macro_rules! ip_version_route {
 
             #[rocket::get($route, rank = 1)]
             pub(crate) fn plain_cli(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 _cli_req: CliClientRequest,
                 user_agent_parser: &State<UserAgentParser>,
@@ -532,6 +569,7 @@ macro_rules! ip_version_route {
 
             #[rocket::get($route, format = "application/json", rank = 2)]
             pub(crate) fn json(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -555,6 +593,7 @@ macro_rules! ip_version_route {
 
             #[rocket::get($route, format = "application/yaml", rank = 3)]
             pub(crate) fn yaml(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -579,6 +618,7 @@ macro_rules! ip_version_route {
 
             #[rocket::get($route, format = "application/toml", rank = 4)]
             pub(crate) fn toml_accept(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -603,6 +643,7 @@ macro_rules! ip_version_route {
 
             #[rocket::get($route, format = "text/csv", rank = 5)]
             pub(crate) fn csv(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -627,6 +668,7 @@ macro_rules! ip_version_route {
 
             #[rocket::get($route, rank = 6)]
             pub(crate) fn plain(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -650,6 +692,7 @@ macro_rules! ip_version_route {
 
             #[rocket::get($route_json)]
             pub(crate) fn json_json(
+                _rate_limited: RateLimited,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
                 geoip_city_db: &State<GeoIpCityDb>,
@@ -673,6 +716,7 @@ macro_rules! ip_version_route {
 
             #[rocket::get($route_fmt)]
             pub(crate) fn format_suffix(
+                _rate_limited: RateLimited,
                 fmt: OutputFormat,
                 req_info: RequesterInfo,
                 user_agent_parser: &State<UserAgentParser>,
@@ -705,6 +749,7 @@ ip_version_route!(ipv6, "6", "/ipv6", "/ipv6/json", "/ipv6/<fmt>");
 pub mod headers {
     use crate::format::OutputFormat;
     use crate::guards::*;
+    use crate::rate_limiter::RateLimited;
     use rocket::http::ContentType;
     use rocket::serde::json::Json;
     use serde_json::Value as JsonValue;
@@ -739,42 +784,42 @@ pub mod headers {
     }
 
     #[rocket::get("/headers", rank = 1)]
-    pub(crate) fn plain_cli(_cli_req: CliClientRequest, req_headers: RequestHeaders) -> String {
+    pub(crate) fn plain_cli(_rate_limited: RateLimited, _cli_req: CliClientRequest, req_headers: RequestHeaders) -> String {
         to_plain(&req_headers)
     }
 
     #[rocket::get("/headers", format = "application/json", rank = 2)]
-    pub(crate) fn json(req_headers: RequestHeaders) -> Json<JsonValue> {
+    pub(crate) fn json(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Json<JsonValue> {
         to_json(&req_headers)
     }
 
     #[rocket::get("/headers", format = "application/yaml", rank = 3)]
-    pub(crate) fn yaml(req_headers: RequestHeaders) -> Option<(ContentType, String)> {
+    pub(crate) fn yaml(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Option<(ContentType, String)> {
         formatted(OutputFormat::Yaml, &req_headers)
     }
 
     #[rocket::get("/headers", format = "application/toml", rank = 4)]
-    pub(crate) fn toml_accept(req_headers: RequestHeaders) -> Option<(ContentType, String)> {
+    pub(crate) fn toml_accept(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Option<(ContentType, String)> {
         formatted(OutputFormat::Toml, &req_headers)
     }
 
     #[rocket::get("/headers", format = "text/csv", rank = 5)]
-    pub(crate) fn csv(req_headers: RequestHeaders) -> Option<(ContentType, String)> {
+    pub(crate) fn csv(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Option<(ContentType, String)> {
         formatted(OutputFormat::Csv, &req_headers)
     }
 
     #[rocket::get("/headers", rank = 6)]
-    pub(crate) fn plain(req_headers: RequestHeaders) -> String {
+    pub(crate) fn plain(_rate_limited: RateLimited, req_headers: RequestHeaders) -> String {
         to_plain(&req_headers)
     }
 
     #[rocket::get("/headers/json")]
-    pub(crate) fn json_json(req_headers: RequestHeaders) -> Json<JsonValue> {
+    pub(crate) fn json_json(_rate_limited: RateLimited, req_headers: RequestHeaders) -> Json<JsonValue> {
         to_json(&req_headers)
     }
 
     #[rocket::get("/headers/<fmt>")]
-    pub(crate) fn format_suffix(fmt: OutputFormat, req_headers: RequestHeaders) -> Option<(ContentType, String)> {
+    pub(crate) fn format_suffix(_rate_limited: RateLimited, fmt: OutputFormat, req_headers: RequestHeaders) -> Option<(ContentType, String)> {
         formatted(fmt, &req_headers)
     }
 }
