@@ -26,7 +26,7 @@ pub(crate) async fn root_plain_cli(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<String> {
-    handlers::root::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
+    handlers::root::plain(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
 }
 
 #[rocket::get("/", format = "text/plain", rank = 2)]
@@ -38,7 +38,7 @@ pub(crate) fn root_plain(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<String> {
-    handlers::root::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
+    handlers::root::plain(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
 }
 
 #[rocket::get("/", format = "application/json", rank = 3)]
@@ -50,7 +50,7 @@ pub(crate) fn root_json(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<Json<JsonValue>> {
-    handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
+    handlers::root::json(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
 }
 
 #[rocket::get("/", format = "application/yaml", rank = 4)]
@@ -62,14 +62,10 @@ pub(crate) fn root_yaml(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<(ContentType, String)> {
-    handlers::root::formatted(
-        OutputFormat::Yaml,
-        req_info,
-        user_agent_parser,
-        geoip_city_db,
-        geoip_asn_db,
-        tor_exit_nodes,
-    )
+    let fmt = OutputFormat::Yaml;
+    let body = handlers::root::formatted(&fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+    let (top, sub) = fmt.mime_type();
+    Some((ContentType::new(top, sub), body))
 }
 
 #[rocket::get("/", format = "application/toml", rank = 5)]
@@ -81,14 +77,10 @@ pub(crate) fn root_toml(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<(ContentType, String)> {
-    handlers::root::formatted(
-        OutputFormat::Toml,
-        req_info,
-        user_agent_parser,
-        geoip_city_db,
-        geoip_asn_db,
-        tor_exit_nodes,
-    )
+    let fmt = OutputFormat::Toml;
+    let body = handlers::root::formatted(&fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+    let (top, sub) = fmt.mime_type();
+    Some((ContentType::new(top, sub), body))
 }
 
 #[rocket::get("/", format = "text/csv", rank = 6)]
@@ -100,14 +92,10 @@ pub(crate) fn root_csv(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<(ContentType, String)> {
-    handlers::root::formatted(
-        OutputFormat::Csv,
-        req_info,
-        user_agent_parser,
-        geoip_city_db,
-        geoip_asn_db,
-        tor_exit_nodes,
-    )
+    let fmt = OutputFormat::Csv;
+    let body = handlers::root::formatted(&fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+    let (top, sub) = fmt.mime_type();
+    Some((ContentType::new(top, sub), body))
 }
 
 #[rocket::get("/", rank = 7)]
@@ -120,14 +108,15 @@ pub(crate) fn root_html(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Template {
-    handlers::root_html(
+    let context = handlers::root_html(
         project_info,
-        req_info,
+        &req_info,
         user_agent_parser,
         geoip_city_db,
         geoip_asn_db,
         tor_exit_nodes,
-    )
+    );
+    Template::render("index", context)
 }
 
 #[rocket::get("/json")]
@@ -139,7 +128,7 @@ pub(crate) fn root_json_json(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<Json<JsonValue>> {
-    handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
+    handlers::root::json(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
 }
 
 #[rocket::get("/yaml")]
@@ -151,14 +140,10 @@ pub(crate) fn root_yaml_suffix(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<(ContentType, String)> {
-    handlers::root::formatted(
-        OutputFormat::Yaml,
-        req_info,
-        user_agent_parser,
-        geoip_city_db,
-        geoip_asn_db,
-        tor_exit_nodes,
-    )
+    let fmt = OutputFormat::Yaml;
+    let body = handlers::root::formatted(&fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+    let (top, sub) = fmt.mime_type();
+    Some((ContentType::new(top, sub), body))
 }
 
 #[rocket::get("/toml")]
@@ -170,14 +155,10 @@ pub(crate) fn root_toml_suffix(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<(ContentType, String)> {
-    handlers::root::formatted(
-        OutputFormat::Toml,
-        req_info,
-        user_agent_parser,
-        geoip_city_db,
-        geoip_asn_db,
-        tor_exit_nodes,
-    )
+    let fmt = OutputFormat::Toml;
+    let body = handlers::root::formatted(&fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+    let (top, sub) = fmt.mime_type();
+    Some((ContentType::new(top, sub), body))
 }
 
 #[rocket::get("/csv")]
@@ -189,14 +170,10 @@ pub(crate) fn root_csv_suffix(
     geoip_asn_db: &State<GeoIpAsnDb>,
     tor_exit_nodes: &State<TorExitNodes>,
 ) -> Option<(ContentType, String)> {
-    handlers::root::formatted(
-        OutputFormat::Csv,
-        req_info,
-        user_agent_parser,
-        geoip_city_db,
-        geoip_asn_db,
-        tor_exit_nodes,
-    )
+    let fmt = OutputFormat::Csv;
+    let body = handlers::root::formatted(&fmt, &req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)?;
+    let (top, sub) = fmt.mime_type();
+    Some((ContentType::new(top, sub), body))
 }
 
 #[rocket::catch(404)]
@@ -234,7 +211,7 @@ macro_rules! route {
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<String> {
                 handlers::$name::plain(
-                    req_info,
+                    &req_info,
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
@@ -252,12 +229,12 @@ macro_rules! route {
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<Json<JsonValue>> {
                 handlers::$name::json(
-                    req_info,
+                    &req_info,
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
                     tor_exit_nodes,
-                )
+                ).map(Json)
             }
 
             #[rocket::get($route, format = "application/yaml", rank = 3)]
@@ -269,14 +246,17 @@ macro_rules! route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<(ContentType, String)> {
-                handlers::$name::formatted(
-                    OutputFormat::Yaml,
-                    req_info,
+                let fmt = OutputFormat::Yaml;
+                let body = handlers::$name::formatted(
+                    &fmt,
+                    &req_info,
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
                     tor_exit_nodes,
-                )
+                )?;
+                let (top, sub) = fmt.mime_type();
+                Some((ContentType::new(top, sub), body))
             }
 
             #[rocket::get($route, format = "application/toml", rank = 4)]
@@ -288,14 +268,17 @@ macro_rules! route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<(ContentType, String)> {
-                handlers::$name::formatted(
-                    OutputFormat::Toml,
-                    req_info,
+                let fmt = OutputFormat::Toml;
+                let body = handlers::$name::formatted(
+                    &fmt,
+                    &req_info,
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
                     tor_exit_nodes,
-                )
+                )?;
+                let (top, sub) = fmt.mime_type();
+                Some((ContentType::new(top, sub), body))
             }
 
             #[rocket::get($route, format = "text/csv", rank = 5)]
@@ -307,14 +290,17 @@ macro_rules! route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<(ContentType, String)> {
-                handlers::$name::formatted(
-                    OutputFormat::Csv,
-                    req_info,
+                let fmt = OutputFormat::Csv;
+                let body = handlers::$name::formatted(
+                    &fmt,
+                    &req_info,
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
                     tor_exit_nodes,
-                )
+                )?;
+                let (top, sub) = fmt.mime_type();
+                Some((ContentType::new(top, sub), body))
             }
 
             #[rocket::get($route, rank = 6)]
@@ -327,7 +313,7 @@ macro_rules! route {
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<String> {
                 handlers::$name::plain(
-                    req_info,
+                    &req_info,
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
@@ -345,12 +331,12 @@ macro_rules! route {
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<Json<JsonValue>> {
                 handlers::$name::json(
-                    req_info,
+                    &req_info,
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
                     tor_exit_nodes,
-                )
+                ).map(Json)
             }
 
             #[rocket::get($route_fmt)]
@@ -363,14 +349,16 @@ macro_rules! route {
                 geoip_asn_db: &State<GeoIpAsnDb>,
                 tor_exit_nodes: &State<TorExitNodes>,
             ) -> Option<(ContentType, String)> {
-                handlers::$name::formatted(
-                    fmt,
-                    req_info,
+                let body = handlers::$name::formatted(
+                    &fmt,
+                    &req_info,
                     user_agent_parser,
                     geoip_city_db,
                     geoip_asn_db,
                     tor_exit_nodes,
-                )
+                )?;
+                let (top, sub) = fmt.mime_type();
+                Some((ContentType::new(top, sub), body))
             }
         }
     };
@@ -412,7 +400,7 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<String> {
-        handlers::all::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
+        handlers::all::plain(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
     }
 
     #[rocket::get("/all", format = "application/json", rank = 2)]
@@ -424,7 +412,7 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<Json<JsonValue>> {
-        handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
+        handlers::root::json(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
     }
 
     #[rocket::get("/all", format = "application/yaml", rank = 3)]
@@ -436,14 +424,17 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<(ContentType, String)> {
-        handlers::root::formatted(
-            OutputFormat::Yaml,
-            req_info,
+        let fmt = OutputFormat::Yaml;
+        let body = handlers::root::formatted(
+            &fmt,
+            &req_info,
             user_agent_parser,
             geoip_city_db,
             geoip_asn_db,
             tor_exit_nodes,
-        )
+        )?;
+        let (top, sub) = fmt.mime_type();
+        Some((ContentType::new(top, sub), body))
     }
 
     #[rocket::get("/all", format = "application/toml", rank = 4)]
@@ -455,14 +446,17 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<(ContentType, String)> {
-        handlers::root::formatted(
-            OutputFormat::Toml,
-            req_info,
+        let fmt = OutputFormat::Toml;
+        let body = handlers::root::formatted(
+            &fmt,
+            &req_info,
             user_agent_parser,
             geoip_city_db,
             geoip_asn_db,
             tor_exit_nodes,
-        )
+        )?;
+        let (top, sub) = fmt.mime_type();
+        Some((ContentType::new(top, sub), body))
     }
 
     #[rocket::get("/all", format = "text/csv", rank = 5)]
@@ -474,14 +468,17 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<(ContentType, String)> {
-        handlers::root::formatted(
-            OutputFormat::Csv,
-            req_info,
+        let fmt = OutputFormat::Csv;
+        let body = handlers::root::formatted(
+            &fmt,
+            &req_info,
             user_agent_parser,
             geoip_city_db,
             geoip_asn_db,
             tor_exit_nodes,
-        )
+        )?;
+        let (top, sub) = fmt.mime_type();
+        Some((ContentType::new(top, sub), body))
     }
 
     #[rocket::get("/all", rank = 6)]
@@ -493,7 +490,7 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<String> {
-        handlers::all::plain(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
+        handlers::all::plain(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
     }
 
     #[rocket::get("/all/json")]
@@ -505,7 +502,7 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<Json<JsonValue>> {
-        handlers::root::json(req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes)
+        handlers::root::json(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
     }
 
     #[rocket::get("/all/<fmt>")]
@@ -518,14 +515,16 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<(ContentType, String)> {
-        handlers::root::formatted(
-            fmt,
-            req_info,
+        let body = handlers::root::formatted(
+            &fmt,
+            &req_info,
             user_agent_parser,
             geoip_city_db,
             geoip_asn_db,
             tor_exit_nodes,
-        )
+        )?;
+        let (top, sub) = fmt.mime_type();
+        Some((ContentType::new(top, sub), body))
     }
 }
 
