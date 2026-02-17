@@ -44,6 +44,16 @@
                     }
                 });
             };
+            var copyIp = function() {
+                var ip = document.getElementById('heading-ip').firstChild.textContent.trim();
+                navigator.clipboard.writeText(ip).then(function() {
+                    var btns = document.querySelectorAll('.copy-btn');
+                    btns.forEach(function(btn) {
+                        btn.classList.add('copied');
+                        setTimeout(function() { btn.classList.remove('copied'); }, 1500);
+                    });
+                });
+            };
         </script>
         <style>
             .bigip {
@@ -82,6 +92,23 @@
             .uk-open > .uk-accordion-title::after {
                 transform: rotate(-135deg);
             }
+            /* Copy-to-clipboard button */
+            .copy-btn {
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: #999;
+                padding: 4px;
+                margin-left: 8px;
+                vertical-align: middle;
+                transition: color 0.2s ease;
+            }
+            .copy-btn:hover {
+                color: #333;
+            }
+            .copy-btn.copied {
+                color: #32d296;
+            }
             /* Bigger touch targets for accordion on mobile */
             @media (max-width: 640px) {
                 .uk-accordion-title {
@@ -103,6 +130,87 @@
                     padding: 5px 10px;
                 }
             }
+
+            /* Dark mode — automatic via OS/browser preference */
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background-color: #1a1a2e;
+                    color: #e0e0e0;
+                }
+                .bigip {
+                    color: #e0e0e0;
+                }
+                h1, h2, h3, h4, h5, h6,
+                .uk-heading-medium,
+                .uk-heading-line > span,
+                .uk-accordion-title {
+                    color: #f0f0f0 !important;
+                }
+                a,
+                .uk-link {
+                    color: #6db3f2;
+                }
+                a:hover,
+                .uk-link:hover {
+                    color: #9dd0ff;
+                }
+                .uk-label {
+                    background-color: #3a3a5c;
+                    color: #e0e0e0;
+                }
+                .uk-tab > * > a {
+                    color: #b0b0b0;
+                }
+                .uk-tab > .uk-active > a {
+                    color: #f0f0f0;
+                    border-color: #6db3f2;
+                }
+                .uk-tab::before {
+                    border-bottom-color: #3a3a5c;
+                }
+                .uk-description-list > dt {
+                    color: #c8c8d0;
+                }
+                pre {
+                    background-color: #16213e;
+                    color: #c8d6e5;
+                    border: 1px solid #2a2a4a;
+                    border-radius: 4px;
+                    padding: 8px;
+                }
+                .uk-accordion-content {
+                    color: #d0d0d0;
+                }
+                .uk-heading-line > ::before,
+                .uk-heading-line > ::after {
+                    border-bottom-color: #3a3a5c;
+                }
+                .uk-list-bullet > ::before {
+                    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%226%22%20height%3D%226%22%20viewBox%3D%220%200%206%206%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%20%20%3Ccircle%20fill%3D%22%23e0e0e0%22%20cx%3D%223%22%20cy%3D%223%22%20r%3D%223%22%20%2F%3E%0A%3C%2Fsvg%3E") !important;
+                }
+                /* Copy-to-clipboard button */
+                .copy-btn {
+                    color: #888;
+                }
+                .copy-btn:hover {
+                    color: #ccc;
+                }
+                /* GitHub corner */
+                .github-corner svg {
+                    fill: #e0e0e0;
+                    color: #1a1a2e;
+                }
+                /* Footer text */
+                .uk-text-small {
+                    color: #a0a0b0;
+                }
+                .uk-text-small a {
+                    color: #6db3f2;
+                }
+                .uk-text-small a:hover {
+                    color: #9dd0ff;
+                }
+            }
         </style>
     </head>
     <body>
@@ -114,8 +222,9 @@
             <div class="uk-child-width-expand@s uk-grid-match" uk-grid>
                 <div class="uk-width-1-1@s">
                     <!-- Use large font on non touch devices -->
-                    <h1 class="uk-hidden-touch mono uk-text-break" id="heading-ip">{{ ip.addr }}</h1>
-                    <span class="uk-hidden-notouch mono bigip uk-text-break">{{ ip.addr }}</span>
+                    <h1 class="uk-hidden-touch mono uk-text-break" id="heading-ip">{{ ip.addr }}<button class="copy-btn" onclick="copyIp()" title="Copy IP to clipboard" uk-tooltip><span uk-icon="icon:copy"></span></button></h1>
+                    <span class="uk-hidden-notouch mono bigip uk-text-break">{{ ip.addr }}</span><button class="copy-btn uk-hidden-notouch" onclick="copyIp()" title="Copy IP to clipboard" uk-tooltip><span uk-icon="icon:copy"></span></button>
+                    <br>
                     <span class="mono">{{ host.name }}</span>
                 </div>
                 <div>
