@@ -156,6 +156,52 @@ handler!(location, ifconfig, { ifconfig.location }, Option<Location>, {
     format!("{}, {} ({}), {}, {}\n", city, country, iso, continent, timezone)
 });
 
+handler!(all, ifconfig, { ifconfig }, Ifconfig, {
+    let mut lines = Vec::new();
+    lines.push(format!("ip:         {}", ifconfig.ip.addr));
+    lines.push(format!("version:    {}", ifconfig.ip.version));
+    if let Some(ref host) = ifconfig.host {
+        lines.push(format!("hostname:   {}", host.name));
+    }
+    if let Some(ref loc) = ifconfig.location {
+        if let Some(city) = loc.city {
+            lines.push(format!("city:       {}", city));
+        }
+        if let Some(country) = loc.country {
+            lines.push(format!("country:    {}", country));
+        }
+        if let Some(iso) = loc.country_iso {
+            lines.push(format!("country_iso: {}", iso));
+        }
+        if let Some(continent) = loc.continent {
+            lines.push(format!("continent:  {}", continent));
+        }
+        if let Some(tz) = loc.timezone {
+            lines.push(format!("timezone:   {}", tz));
+        }
+        if let Some(lat) = loc.latitude {
+            lines.push(format!("latitude:   {}", lat));
+        }
+        if let Some(lon) = loc.longitude {
+            lines.push(format!("longitude:  {}", lon));
+        }
+    }
+    if let Some(ref isp) = ifconfig.isp {
+        if let Some(name) = isp.name {
+            lines.push(format!("isp:        {}", name));
+        }
+        if let Some(asn) = isp.asn {
+            lines.push(format!("asn:        AS{}", asn));
+        }
+    }
+    lines.push(format!("port:       {}", ifconfig.tcp.port));
+    if let Some(ref ua) = ifconfig.user_agent {
+        lines.push(format!("browser:    {} {}", ua.browser.family, ua.browser.version));
+        lines.push(format!("os:         {} {}", ua.os.family, ua.os.version));
+    }
+    lines.join("\n") + "\n"
+});
+
 handler!(user_agent, ifconfig, { ifconfig.user_agent }, Option<UserAgent>, {
     format!(
         "{}\n",

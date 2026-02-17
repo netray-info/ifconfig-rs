@@ -648,6 +648,70 @@ fn handle_headers_json_json() {
 }
 
 #[test]
+fn handle_all_plain_cli() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/all")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Any)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::Plain));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("ip:         192.168.0.101"));
+    assert!(body.contains("version:    4"));
+    assert!(body.contains("port:       8000"));
+}
+
+#[test]
+fn handle_all_plain() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/all")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Plain)
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::Plain));
+    let body = response.into_string().unwrap();
+    assert!(body.contains("ip:         192.168.0.101"));
+    assert!(body.contains("version:    4"));
+}
+
+#[test]
+fn handle_all_json() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/all")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::JSON)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::JSON));
+    let body = response.into_string().unwrap();
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["ip"]["addr"], "192.168.0.101");
+    assert_eq!(json["ip"]["version"], "4");
+}
+
+#[test]
+fn handle_all_json_json() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/all/json")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::JSON));
+    let body = response.into_string().unwrap();
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["ip"]["addr"], "192.168.0.101");
+}
+
+#[test]
 fn cache_control_plain_text() {
     let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
     let response = client

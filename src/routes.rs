@@ -139,6 +139,8 @@ route!(location, "/location", "/location/json");
 
 route!(user_agent, "/user_agent", "/user_agent/json");
 
+route!(all, "/all", "/all/json");
+
 pub mod headers {
     use crate::guards::*;
     use rocket::serde::json::Json;
