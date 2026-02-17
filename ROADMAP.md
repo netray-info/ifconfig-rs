@@ -46,13 +46,9 @@
 
 ~~Beyond JSON and plain text, some automation tools prefer YAML or other formats.~~ Added YAML, TOML, and CSV output formats to all endpoints. Formats can be requested via `Accept` header (`application/yaml`, `application/toml`, `text/csv`) or URL suffix (`/ip/yaml`, `/ip/toml`, `/ip/csv`). New `src/format.rs` module handles serialization. TOML output strips null fields (TOML has no null type). CSV output flattens nested JSON into dot-notation `key,value` rows. Content negotiation rank order: CLI(1) > JSON(2) > YAML(3) > TOML(4) > CSV(5) > plain(6) > HTML(7). Dependencies: `serde_yaml`, `toml`.
 
----
-
-## Future Work
-
 ### 9. Rate limiting
 
-No rate limiting currently exists. A simple token-bucket or sliding-window limiter would protect against abuse. Prefer a lightweight implementation using `std::sync` primitives over adding a heavy dependency.
+~~No rate limiting currently exists. A simple token-bucket or sliding-window limiter would protect against abuse.~~ Added per-IP rate limiting via a `RateLimited` request guard backed by a fixed-window counter using `std::sync` primitives (no external dependencies). Default: 60 requests per 60-second window. Rate limit state is cached per-request to avoid double-counting during Rocket's ranked route forwarding. Expired entries are cleaned up periodically. `/health` is exempt. Returns `429 Too Many Requests` when exceeded.
 
 ---
 
