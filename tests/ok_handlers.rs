@@ -825,14 +825,8 @@ fn cache_control_plain_text() {
         .header(Accept::Plain)
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
-    assert_eq!(
-        response.headers().get_one("Cache-Control"),
-        Some("private, max-age=60")
-    );
-    assert_eq!(
-        response.headers().get_one("Vary"),
-        Some("Accept, User-Agent")
-    );
+    assert_eq!(response.headers().get_one("Cache-Control"), Some("private, max-age=60"));
+    assert_eq!(response.headers().get_one("Vary"), Some("Accept, User-Agent"));
 }
 
 #[test]
@@ -844,10 +838,7 @@ fn cache_control_json() {
         .header(Accept::JSON)
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
-    assert_eq!(
-        response.headers().get_one("Cache-Control"),
-        Some("private, max-age=60")
-    );
+    assert_eq!(response.headers().get_one("Cache-Control"), Some("private, max-age=60"));
 }
 
 #[test]
@@ -859,18 +850,12 @@ fn cache_control_html() {
         .header(Accept::HTML)
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
-    assert_eq!(
-        response.headers().get_one("Cache-Control"),
-        Some("no-cache")
-    );
+    assert_eq!(response.headers().get_one("Cache-Control"), Some("no-cache"));
 }
 
 #[test]
 fn cache_control_health() {
     let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
     let response = client.get("/health").dispatch();
-    assert_eq!(
-        response.headers().get_one("Cache-Control"),
-        Some("no-cache")
-    );
+    assert_eq!(response.headers().get_one("Cache-Control"), Some("no-cache"));
 }

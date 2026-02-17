@@ -49,10 +49,7 @@ impl Fairing for SecurityHeaders {
 
         let is_error = !res.status().class().is_success();
         let is_health = req.uri().path() == "/health";
-        let is_html = res
-            .content_type()
-            .map(|ct| ct.is_html())
-            .unwrap_or(false);
+        let is_html = res.content_type().map(|ct| ct.is_html()).unwrap_or(false);
 
         if is_error || is_health || is_html {
             res.set_header(Header::new("Cache-Control", "no-cache"));
