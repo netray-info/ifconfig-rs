@@ -55,10 +55,6 @@ Add `prefers-color-scheme: dark` media query support or a toggle. The UIkit-base
 
 A proper health check endpoint that verifies GeoIP databases are loaded and the service is functional. Useful for Docker health checks, Kubernetes probes, and monitoring for self-hosters.
 
-### 9. Rate limiting
-
-No rate limiting currently exists. A simple token-bucket or sliding-window limiter would protect against abuse. Prefer a lightweight implementation using `std::sync` primitives over adding a heavy dependency.
-
 ### 10. Response caching headers
 
 Add `Cache-Control` headers (e.g., `max-age=60` for JSON, `no-cache` for HTML). GeoIP data doesn't change per-second. Reduces redundant lookups and improves performance for API consumers.
@@ -70,6 +66,14 @@ A boolean `is_tor` or `is_proxy` field. Tor exit node lists are publicly availab
 ### 14. Configurable output format (`?format=yaml|toml|csv`)
 
 Beyond JSON and plain text, some automation tools prefer YAML or other formats. Low priority but occasionally requested on similar services.
+
+---
+
+## Future Work
+
+### 9. Rate limiting
+
+No rate limiting currently exists. A simple token-bucket or sliding-window limiter would protect against abuse. Prefer a lightweight implementation using `std::sync` primitives over adding a heavy dependency.
 
 ---
 
