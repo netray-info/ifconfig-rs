@@ -39,7 +39,7 @@ export default function InfoCards(props: Props) {
           <span class="card-value">{props.data.tcp.port}</span>
         </div>
         <Show when={props.data.host}>
-          <div class="card-row">
+          <div class="card-row card-row-stackable">
             <span class="card-label">Hostname</span>
             <span class="card-value">{props.data.host!.name}</span>
           </div>

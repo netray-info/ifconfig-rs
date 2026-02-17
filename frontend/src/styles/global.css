@@ -196,6 +196,15 @@ a:hover {
   flex-shrink: 0;
 }
 
+.card-row-stackable {
+  flex-wrap: wrap;
+}
+
+.card-row-stackable .card-value {
+  flex: 1 1 60%;
+  white-space: nowrap;
+}
+
 .card-value {
   font-family: var(--font-mono);
   color: var(--text-primary);
