@@ -20,10 +20,7 @@ fn cors_header_present() {
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .dispatch();
     assert_eq!(response.status(), Status::Ok);
-    assert_eq!(
-        response.headers().get_one("Access-Control-Allow-Origin"),
-        Some("*")
-    );
+    assert_eq!(response.headers().get_one("Access-Control-Allow-Origin"), Some("*"));
 }
 
 #[test]
@@ -390,7 +387,7 @@ fn handle_isp_plain_cli() {
     eprintln!("{:?}", response);
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
-    assert_eq!(response.into_string(), Some("GOOGLE\n".into()));
+    assert_eq!(response.into_string(), Some("Google LLC (AS15169)\n".into()));
 }
 
 #[test]
@@ -404,7 +401,7 @@ fn handle_isp_plain() {
     eprintln!("{:?}", response);
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
-    assert_eq!(response.into_string(), Some("GOOGLE\n".into()));
+    assert_eq!(response.into_string(), Some("Google LLC (AS15169)\n".into()));
 }
 
 #[test]
@@ -422,7 +419,7 @@ fn handle_isp_json() {
     eprintln!("{:?}", response);
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
-    let expected = r#"{"name":"GOOGLE"}"#;
+    let expected = r#"{"asn":15169,"name":"Google LLC"}"#;
     assert_eq!(response.into_string(), Some(expected.into()));
 }
 
@@ -440,7 +437,7 @@ fn handle_isp_json_json() {
     eprintln!("{:?}", response);
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
-    let expected = r#"{"name":"GOOGLE"}"#;
+    let expected = r#"{"asn":15169,"name":"Google LLC"}"#;
     assert_eq!(response.into_string(), Some(expected.into()));
 }
 
@@ -449,14 +446,17 @@ fn handle_location_plain_cli() {
     let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
     let response = client
         .get("/location")
-        .remote("93.184.216.34:8000".parse().unwrap())
+        .remote("81.2.69.142:8000".parse().unwrap())
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .dispatch();
     eprintln!("{:?}", response);
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
-    assert_eq!(response.into_string(), Some("Norwell, United States\n".into()));
+    assert_eq!(
+        response.into_string(),
+        Some("Kettering, United Kingdom (GB), Europe, Europe/London\n".into())
+    );
 }
 
 #[test]
@@ -464,13 +464,16 @@ fn handle_location_plain() {
     let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
     let response = client
         .get("/location")
-        .remote("93.184.216.34:8000".parse().unwrap())
+        .remote("81.2.69.142:8000".parse().unwrap())
         .header(Accept::Plain)
         .dispatch();
     eprintln!("{:?}", response);
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
-    assert_eq!(response.into_string(), Some("Norwell, United States\n".into()));
+    assert_eq!(
+        response.into_string(),
+        Some("Kettering, United Kingdom (GB), Europe, Europe/London\n".into())
+    );
 }
 
 #[test]
@@ -478,7 +481,7 @@ fn handle_location_json() {
     let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
     let response = client
         .get("/location")
-        .remote("93.184.216.34:8000".parse().unwrap())
+        .remote("81.2.69.142:8000".parse().unwrap())
         .header(Accept::JSON)
         .header(Header::new(
             USER_AGENT.as_str(),
@@ -488,7 +491,7 @@ fn handle_location_json() {
     eprintln!("{:?}", response);
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
-    let expected = r#"{"city":"Norwell","country":"United States","latitude":42.1591,"longitude":-70.8163}"#;
+    let expected = r#"{"city":"Kettering","continent":"Europe","continent_code":"EU","country":"United Kingdom","country_iso":"GB","latitude":52.3966,"longitude":-0.7212,"timezone":"Europe/London"}"#;
     assert_eq!(response.into_string(), Some(expected.into()));
 }
 
@@ -497,7 +500,7 @@ fn handle_location_json_json() {
     let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
     let response = client
         .get("/location/json")
-        .remote("93.184.216.34:8000".parse().unwrap())
+        .remote("81.2.69.142:8000".parse().unwrap())
         .header(Header::new(
             USER_AGENT.as_str(),
             "Some browser that will ultimately win the war.",
@@ -506,7 +509,7 @@ fn handle_location_json_json() {
     eprintln!("{:?}", response);
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
-    let expected = r#"{"city":"Norwell","country":"United States","latitude":42.1591,"longitude":-70.8163}"#;
+    let expected = r#"{"city":"Kettering","continent":"Europe","continent_code":"EU","country":"United Kingdom","country_iso":"GB","latitude":52.3966,"longitude":-0.7212,"timezone":"Europe/London"}"#;
     assert_eq!(response.into_string(), Some(expected.into()));
 }
 

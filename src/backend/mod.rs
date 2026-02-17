@@ -41,13 +41,18 @@ impl GeoIpAsnDb {
 pub struct Location<'a> {
     pub city: Option<&'a str>,
     pub country: Option<&'a str>,
+    pub country_iso: Option<&'a str>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+    pub timezone: Option<&'a str>,
+    pub continent: Option<&'a str>,
+    pub continent_code: Option<&'a str>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Isp<'a> {
     pub name: Option<&'a str>,
+    pub asn: Option<u32>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -94,8 +99,12 @@ pub fn get_ifconfig<'a>(param: &'a IfconfigParam<'a>) -> Ifconfig<'a> {
     let location = geo_city.map(|c| Location {
         city: c.city.names.english,
         country: c.country.names.english,
+        country_iso: c.country.iso_code,
         latitude: c.location.latitude,
         longitude: c.location.longitude,
+        timezone: c.location.time_zone,
+        continent: c.continent.names.english,
+        continent_code: c.continent.code,
     });
 
     let geo_isp: Option<geoip2::Isp> = param
@@ -106,6 +115,7 @@ pub fn get_ifconfig<'a>(param: &'a IfconfigParam<'a>) -> Ifconfig<'a> {
         .and_then(|r| r.decode().ok().flatten());
     let isp = geo_isp.map(|isp| Isp {
         name: isp.autonomous_system_organization,
+        asn: isp.autonomous_system_number,
     });
 
     let user_agent = param.user_agent_header.map(|s| param.user_agent_parser.parse(s));

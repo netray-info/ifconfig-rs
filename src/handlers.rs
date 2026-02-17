@@ -123,19 +123,37 @@ handler!(host, ifconfig, { ifconfig.host }, Option<Host>, {
 });
 
 handler!(isp, ifconfig, { ifconfig.isp }, Option<Isp>, {
-    format!("{}\n", ifconfig.isp.and_then(|isp| isp.name).unwrap_or(UNKNOWN_STR))
+    let name = ifconfig.isp.as_ref().and_then(|isp| isp.name).unwrap_or(UNKNOWN_STR);
+    let asn = ifconfig.isp.as_ref().and_then(|isp| isp.asn);
+    match asn {
+        Some(n) => format!("{} (AS{})\n", name, n),
+        None => format!("{}\n", name),
+    }
 });
 
 handler!(location, ifconfig, { ifconfig.location }, Option<Location>, {
-    format!(
-        "{}, {}\n",
-        ifconfig.location.as_ref().and_then(|l| l.city).unwrap_or(UNKNOWN_STR),
-        ifconfig
-            .location
-            .as_ref()
-            .and_then(|l| l.country)
-            .unwrap_or(UNKNOWN_STR)
-    )
+    let city = ifconfig.location.as_ref().and_then(|l| l.city).unwrap_or(UNKNOWN_STR);
+    let country = ifconfig
+        .location
+        .as_ref()
+        .and_then(|l| l.country)
+        .unwrap_or(UNKNOWN_STR);
+    let iso = ifconfig
+        .location
+        .as_ref()
+        .and_then(|l| l.country_iso)
+        .unwrap_or(UNKNOWN_STR);
+    let continent = ifconfig
+        .location
+        .as_ref()
+        .and_then(|l| l.continent)
+        .unwrap_or(UNKNOWN_STR);
+    let timezone = ifconfig
+        .location
+        .as_ref()
+        .and_then(|l| l.timezone)
+        .unwrap_or(UNKNOWN_STR);
+    format!("{}, {} ({}), {}, {}\n", city, country, iso, continent, timezone)
 });
 
 handler!(user_agent, ifconfig, { ifconfig.user_agent }, Option<UserAgent>, {

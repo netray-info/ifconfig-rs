@@ -126,9 +126,11 @@
                             {{/if}}
                         {{/if}}
                     </h4>
-                    <span class="mono uk-text-break">{{#if location.city }}{{ location.city }}{{else}}Unknown{{/if}}, {{#if location.country}}{{ location.country }}{{else}}Unknown{{/if}}</span>
+                    <span class="mono uk-text-break">{{#if location.city }}{{ location.city }}{{else}}Unknown{{/if}}, {{#if location.country}}{{ location.country }}{{else}}Unknown{{/if}}{{#if location.country_iso}} ({{ location.country_iso }}){{/if}}</span>
                     <br>
-                    <span class="mono uk-text-break">{{#if isp.name }}{{ isp.name }}{{else}}Unknown{{/if}}</span>
+                    <span class="mono uk-text-break">{{#if location.continent}}{{ location.continent }}{{else}}Unknown{{/if}}{{#if location.timezone}} &middot; {{ location.timezone }}{{/if}}</span>
+                    <br>
+                    <span class="mono uk-text-break">{{#if isp.name }}{{ isp.name }}{{else}}Unknown{{/if}}{{#if isp.asn}} (AS{{ isp.asn }}){{/if}}</span>
                 </div>
                 <div>
                     <h4>User Agent</h4>
