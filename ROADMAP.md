@@ -26,38 +26,21 @@
 
 ~~A proper health check endpoint that verifies GeoIP databases are loaded and the service is functional.~~ `GET /health` returns `200 {"status": "ok"}` when both GeoIP databases are loaded, or `503 {"status": "unhealthy", "reason": "..."}` when databases are missing. JSON-only, no content negotiation.
 
----
+### 10. Response caching headers
 
-## Planned
+~~Add `Cache-Control` headers (e.g., `max-age=60` for JSON, `no-cache` for HTML).~~ `SecurityHeaders` fairing now sets `Cache-Control: private, max-age=60` on cacheable API responses (JSON, plain text) and `no-cache` on HTML pages, `/health`, and error responses. All responses include `Vary: Accept, User-Agent`.
 
 ### 4. `/all` plain-text endpoint
 
-A single CLI-friendly endpoint that dumps everything in a `key: value` format:
-
-```
-ip:        93.184.216.34
-version:   4
-hostname:  dns.google
-city:      Mountain View
-country:   US
-timezone:  America/Los_Angeles
-asn:       AS15169
-isp:       GOOGLE
-latitude:  37.386
-longitude: -122.0838
-browser:   Chrome 120.0.0
-os:        Mac OS X 14.2.1
-```
-
-Popular on similar services for quick diagnostic scripts.
+~~A single CLI-friendly endpoint that dumps everything in a `key: value` format.~~ New `/all` endpoint with full content negotiation. Plain text returns aligned `key: value` pairs (ip, version, hostname, location, ISP, port, browser, OS). Lines are omitted when data is absent (no GeoIP DB). JSON returns the full `Ifconfig` struct.
 
 ### 5. IPv4/IPv6 awareness
 
-Add `/ipv4` and `/ipv6` sub-endpoints or surface the protocol version more prominently. Network engineers in dual-stack environments need to verify which protocol path their traffic takes. The IP version field exists but isn't shown in the plain-text root response.
+~~Add `/ipv4` and `/ipv6` sub-endpoints.~~ New `/ipv4` and `/ipv6` endpoints return the client IP only when the connection matches the requested protocol version, otherwise 404. Full content negotiation (CLI, JSON, plain text, `/ipv4/json`, `/ipv6/json`). Uses a new `ip_version_route!` macro.
 
-### 10. Response caching headers
+---
 
-Add `Cache-Control` headers (e.g., `max-age=60` for JSON, `no-cache` for HTML). GeoIP data doesn't change per-second. Reduces redundant lookups and improves performance for API consumers.
+## Planned
 
 ### 11. Tor/VPN/proxy detection
 
