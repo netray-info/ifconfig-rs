@@ -4,6 +4,7 @@ use crate::guards::*;
 use crate::ProjectInfo;
 use rocket::State;
 use rocket_dyn_templates::Template;
+use serde::Serialize;
 
 pub(crate) static UNKNOWN_STR: &str = "unknown";
 

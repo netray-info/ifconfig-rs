@@ -14,23 +14,21 @@ include = [
   "**/*.rs",
   "Cargo.toml",
 ]
-edition = "2018"
+edition = "2021"
 
 [[bin]]
 name = "ifconfig-rs"
 path = "src/main.rs"
 
 [dependencies]
-dns-lookup = "2"
-lazy_static = "1"
-maxminddb = "0.24.0"
+dns-lookup = "3"
+maxminddb = "0.27"
 regex = "1"
 rocket = { version = "0.5", features = ["json"] }
-rocket_dyn_templates = { version = "0.1.0", features = ["handlebars"] }
+rocket_dyn_templates = { version = "0.2.0", features = ["handlebars"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
-toml = "0.8"
-uaparser = "0.6.3"
+uaparser = "0.6"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

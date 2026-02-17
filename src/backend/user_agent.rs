@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::convert::From;
-use uaparser;
 
 pub struct UserAgentParser {
     parser: uaparser::UserAgentParser,

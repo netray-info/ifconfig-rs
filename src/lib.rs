@@ -1,16 +1,3 @@
-extern crate dns_lookup;
-#[macro_use]
-extern crate lazy_static;
-extern crate maxminddb;
-extern crate regex;
-#[macro_use]
-extern crate rocket;
-extern crate rocket_dyn_templates;
-#[macro_use]
-extern crate serde;
-extern crate serde_json;
-extern crate uaparser;
-
 pub mod backend;
 pub mod fairings;
 pub mod guards;
@@ -20,8 +7,9 @@ pub mod routes;
 use fairings::*;
 use routes::*;
 
-use rocket::{Build, Rocket};
+use rocket::{catchers, routes, Build, Rocket};
 use rocket_dyn_templates::Template;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Deserialize)]
 pub enum Runtime {

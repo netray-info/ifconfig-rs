@@ -1,8 +1,8 @@
 pub mod user_agent;
 pub use user_agent::*;
 
-use dns_lookup;
 use maxminddb::{self, geoip2};
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -85,15 +85,25 @@ pub fn get_ifconfig<'a>(param: &'a IfconfigParam<'a>) -> Ifconfig<'a> {
         port: param.remote.port(),
     };
 
-    let geo_city: Option<geoip2::City> = param.geoip_city_db.0.lookup(param.remote.ip()).ok();
+    let geo_city: Option<geoip2::City> = param
+        .geoip_city_db
+        .0
+        .lookup(param.remote.ip())
+        .ok()
+        .and_then(|r| r.decode().ok().flatten());
     let location = geo_city.map(|c| Location {
-        city: c.city.and_then(|e| e.names).and_then(|mut h| h.remove("en")),
-        country: c.country.and_then(|e| e.names).and_then(|mut h| h.remove("en")),
-        latitude: c.location.as_ref().and_then(|l| l.latitude),
-        longitude: c.location.as_ref().and_then(|l| l.longitude),
+        city: c.city.names.english,
+        country: c.country.names.english,
+        latitude: c.location.latitude,
+        longitude: c.location.longitude,
     });
 
-    let geo_isp: Option<geoip2::Isp> = param.geoip_asn_db.0.lookup(param.remote.ip()).ok();
+    let geo_isp: Option<geoip2::Isp> = param
+        .geoip_asn_db
+        .0
+        .lookup(param.remote.ip())
+        .ok()
+        .and_then(|r| r.decode().ok().flatten());
     let isp = geo_isp.map(|isp| Isp {
         name: isp.autonomous_system_organization,
     });

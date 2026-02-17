@@ -4,6 +4,7 @@ use rocket::outcome::Outcome;
 use rocket::request::{self, FromRequest};
 use rocket::Request;
 use std::net::SocketAddr;
+use std::sync::LazyLock;
 
 pub struct RequesterInfo<'a> {
     pub remote: SocketAddr,
@@ -44,9 +45,8 @@ pub struct CliClientRequest<'a> {
     pub user_agent_header: &'a str,
 }
 
-lazy_static! {
-    static ref KNOWN_CLI_CLIENTS: RegexSet = RegexSet::new([r"curl", r"HTTPie", r"HTTP Library", r"Wget",]).unwrap();
-}
+static KNOWN_CLI_CLIENTS: LazyLock<RegexSet> =
+    LazyLock::new(|| RegexSet::new([r"curl", r"HTTPie", r"HTTP Library", r"Wget"]).unwrap());
 
 #[rocket::async_trait]
 impl<'a> FromRequest<'a> for CliClientRequest<'a> {
