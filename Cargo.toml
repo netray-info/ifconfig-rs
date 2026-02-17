@@ -14,7 +14,8 @@ include = [
   "**/*.rs",
   "Cargo.toml",
   "build.rs",
-  "ifconfig.toml",
+  "ifconfig.example.toml",
+  "ifconfig.dev.toml",
   "frontend/dist/**",
 ]
 edition = "2021"

@@ -31,7 +31,7 @@ frontend-dev:
 	cd frontend && npm run dev
 
 dev:
-	cargo run -- ifconfig.toml
+	cargo run -- ifconfig.dev.toml
 
 integration:
 	$(MAKE) -C tests $@

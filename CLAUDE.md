@@ -40,7 +40,7 @@ cargo test --lib --no-fail-fast  # Unit tests (fast, no network)
 cargo test                   # All tests including integration
 cargo clippy                 # Lint
 cargo fmt                    # Format
-cargo run -- ifconfig.toml   # Local dev server on :8080
+cargo run -- ifconfig.dev.toml  # Local dev server on :8080
 make frontend                # Build frontend via make
 make dev                     # Run dev server
 make tests                   # Unit + Docker integration + Playwright E2E
@@ -70,7 +70,7 @@ Request → Middleware (security headers, requester info extraction)
 Key modules:
 - `src/lib.rs` — Module hub, `build_app()` constructs the Axum Router with middleware
 - `src/main.rs` — tokio entry point, config loading, axum::serve with graceful shutdown
-- `src/config.rs` — `Config` struct loaded from `ifconfig.toml` + `IFCONFIG_` env vars via `config` crate
+- `src/config.rs` — `Config` struct loaded from config file + `IFCONFIG_` env vars via `config` crate
 - `src/state.rs` — `AppState` wrapping Arc'd backends (GeoIP, UA parser, Tor nodes)
 - `src/backend/mod.rs` — Core logic: `get_ifconfig()` orchestrates GeoIP, reverse DNS, UA parsing
 - `src/backend/user_agent.rs` — UA parsing wrapper around `uaparser`
@@ -100,7 +100,8 @@ Build: `cd frontend && npm run build` (outputs to `frontend/dist/`).
 
 ## Configuration
 
-Runtime config via `ifconfig.toml` with `IFCONFIG_` env var overrides (separator: `__`):
+Config files: `ifconfig.dev.toml` (local dev), `ifconfig.example.toml` (all options documented).
+Runtime config via a TOML file with `IFCONFIG_` env var overrides (separator: `__`):
 
 ```toml
 base_url = "localhost"
@@ -132,6 +133,6 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 - Routes and handlers are generated via declarative macros — follow existing macro invocations when adding new endpoints.
 - `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it.
 - CLI client detection in `negotiate.rs` checks User-Agent patterns and `Accept: */*` header.
-- Config values are loaded from `ifconfig.toml` via the `config` crate with env var overrides.
+- Config values are loaded from a TOML file (`ifconfig.dev.toml` for local dev) via the `config` crate with env var overrides.
 - `AppState` is shared via Axum's `State` extractor; all backends are `Arc`-wrapped.
 - Frontend assets are embedded at compile time via `rust-embed` — `cargo build` requires `frontend/dist/` to exist.

@@ -42,6 +42,8 @@ pub fn router(_state: AppState) -> Router<AppState> {
         .route("/ipv4/{fmt}", get(ipv4_format_handler))
         .route("/ipv6", get(ipv6_handler))
         .route("/ipv6/{fmt}", get(ipv6_format_handler))
+        // Meta endpoint (site info for SPA)
+        .route("/meta", get(meta_handler))
         // Health endpoint (no content negotiation)
         .route("/health", get(health_handler))
 }
@@ -398,6 +400,12 @@ fn ip_version_dispatch(
             }
         }
     }
+}
+
+// ---- Meta handler (site info for SPA) ----
+
+async fn meta_handler(State(state): State<AppState>) -> Response {
+    (StatusCode::OK, axum::Json(&*state.project_info)).into_response()
 }
 
 // ---- Health handler ----

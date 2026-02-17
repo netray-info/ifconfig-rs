@@ -7,7 +7,7 @@ use tokio::net::TcpListener;
 use ifconfig_rs::Config;
 
 fn test_config() -> Config {
-    Config::load(Some("ifconfig.toml")).expect("test config")
+    Config::load(Some("ifconfig.dev.toml")).expect("test config")
 }
 
 async fn send_request(req: Request<Body>, _remote: SocketAddr) -> (StatusCode, axum::http::HeaderMap, String) {

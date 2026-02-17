@@ -11,7 +11,7 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY src src/
 COPY tests tests/
-COPY ifconfig.toml .
+COPY ifconfig.dev.toml ifconfig.toml
 COPY --from=frontend /build/frontend/dist frontend/dist/
 COPY --from=data /data data/
 RUN cargo test -- --include-ignored

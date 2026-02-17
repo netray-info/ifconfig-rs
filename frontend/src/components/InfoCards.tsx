@@ -119,7 +119,14 @@ export default function InfoCards(props: Props) {
               <div class="card-row">
                 <span class="card-label">Coordinates</span>
                 <span class="card-value">
-                  {props.data.location.latitude}, {props.data.location.longitude}
+                  <a
+                    href={`https://www.google.com/maps/place/${props.data.location.city ? encodeURIComponent(props.data.location.city) + "," : ""}${props.data.location.country ? encodeURIComponent(props.data.location.country) : ""}/@${props.data.location.latitude},${props.data.location.longitude},10z`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open in Google Maps"
+                  >
+                    {props.data.location.latitude}, {props.data.location.longitude}
+                  </a>
                 </span>
               </div>
             </Show>

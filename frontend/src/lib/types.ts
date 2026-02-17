@@ -1,3 +1,9 @@
+export interface SiteMeta {
+  name: string;
+  version: string;
+  base_url: string;
+}
+
 export interface Ifconfig {
   host: Host | null;
   ip: Ip;

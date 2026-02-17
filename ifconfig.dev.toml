@@ -1,3 +1,5 @@
+# Site name displayed in the frontend UI (header, footer, FAQ).
+# Production: "ip.pdt.sh", dev: "localhost".
 base_url = "localhost"
 project_name = "ifconfig-rs"
 geoip_city_db = "data/GeoLite2-City.mmdb"

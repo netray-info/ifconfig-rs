@@ -68,6 +68,7 @@ export default defineConfig({
       "/toml": BACKEND,
       "/csv": BACKEND,
       "/health": BACKEND,
+      "/meta": BACKEND,
     },
   },
   build: {

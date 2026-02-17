@@ -74,11 +74,26 @@ a:hover {
   padding: 2rem 1.5rem;
 }
 
+/* ---- Site Header ---- */
+
+.site-header {
+  text-align: center;
+  padding: 2.5rem 0 0;
+}
+
+.site-title {
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
 /* ---- Hero / IP Display ---- */
 
 .hero {
   text-align: center;
-  padding: 3rem 0 2rem;
+  padding: 1.5rem 0 2rem;
 }
 
 .ip-row {
@@ -468,25 +483,67 @@ a:hover {
   color: var(--error);
 }
 
+/* ---- FAQ ---- */
+
+.faq {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.faq-item {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.faq-item:last-child {
+  border-bottom: none;
+}
+
+.faq-q {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-bottom: 0.3rem;
+}
+
+.faq-a {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 /* ---- Footer ---- */
 
 footer {
   text-align: center;
-  padding: 2.5rem 0 1.5rem;
+  padding: 2rem 0 1.5rem;
   font-size: 0.8rem;
   color: var(--text-muted);
   border-top: 1px solid var(--border);
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 footer a {
   color: var(--text-secondary);
 }
 
-footer .footer-tagline {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.7rem;
+.footer-about {
+  line-height: 1.6;
+  max-width: 540px;
+  margin: 0 auto 0.75rem;
+}
+
+.footer-about em {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.footer-links {
+  font-size: 0.8rem;
   color: var(--text-muted);
 }
 
@@ -552,8 +609,11 @@ footer .footer-tagline {
   .container {
     padding: 1rem;
   }
+  .site-header {
+    padding: 1.5rem 0 0;
+  }
   .hero {
-    padding: 2rem 0 1.5rem;
+    padding: 1rem 0 1.5rem;
   }
   .cards {
     grid-template-columns: 1fr;
@@ -566,5 +626,8 @@ footer .footer-tagline {
     right: 0.5rem;
     padding: 0.4rem;
     font-size: 1rem;
+  }
+  .site-title {
+    font-size: 1.2rem;
   }
 }
