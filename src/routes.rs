@@ -185,6 +185,42 @@ pub mod headers {
     }
 }
 
+pub mod health {
+    use crate::backend::*;
+    use rocket::http::Status;
+    use rocket::serde::json::Json;
+    use rocket::State;
+    use serde_json::{json, Value as JsonValue};
+
+    #[rocket::get("/health")]
+    pub(crate) fn check(
+        geoip_city_db: Option<&State<GeoIpCityDb>>,
+        geoip_asn_db: Option<&State<GeoIpAsnDb>>,
+    ) -> (Status, Json<JsonValue>) {
+        let has_city_db = geoip_city_db.is_some();
+        let has_asn_db = geoip_asn_db.is_some();
+
+        if has_city_db && has_asn_db {
+            (Status::Ok, Json(json!({ "status": "ok" })))
+        } else {
+            let mut missing = Vec::new();
+            if !has_city_db {
+                missing.push("GeoIP City database not loaded");
+            }
+            if !has_asn_db {
+                missing.push("GeoIP ASN database not loaded");
+            }
+            (
+                Status::ServiceUnavailable,
+                Json(json!({
+                    "status": "unhealthy",
+                    "reason": missing.join("; ")
+                })),
+            )
+        }
+    }
+}
+
 #[rocket::get("/<file..>", rank = 5)]
 pub(crate) async fn files(file: PathBuf) -> Option<NamedFile> {
     NamedFile::open(Path::new("htdocs/").join(file)).await.ok()

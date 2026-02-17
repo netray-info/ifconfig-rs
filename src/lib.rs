@@ -100,6 +100,7 @@ pub fn rocket() -> Rocket<Build> {
                 headers::json,
                 headers::plain,
                 headers::json_json,
+                health::check,
                 files
             ],
         )
