@@ -407,7 +407,7 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<Json<JsonValue>> {
-        handlers::root::json(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
+        handlers::all::json(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
     }
 
     #[rocket::get("/all", format = "application/yaml", rank = 3)]
@@ -420,7 +420,7 @@ pub mod all {
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<(ContentType, String)> {
         let fmt = OutputFormat::Yaml;
-        let body = handlers::root::formatted(
+        let body = handlers::all::formatted(
             &fmt,
             &req_info,
             user_agent_parser,
@@ -442,7 +442,7 @@ pub mod all {
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<(ContentType, String)> {
         let fmt = OutputFormat::Toml;
-        let body = handlers::root::formatted(
+        let body = handlers::all::formatted(
             &fmt,
             &req_info,
             user_agent_parser,
@@ -464,7 +464,7 @@ pub mod all {
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<(ContentType, String)> {
         let fmt = OutputFormat::Csv;
-        let body = handlers::root::formatted(
+        let body = handlers::all::formatted(
             &fmt,
             &req_info,
             user_agent_parser,
@@ -497,7 +497,7 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<Json<JsonValue>> {
-        handlers::root::json(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
+        handlers::all::json(&req_info, user_agent_parser, geoip_city_db, geoip_asn_db, tor_exit_nodes).map(Json)
     }
 
     #[rocket::get("/all/<fmt>")]
@@ -510,7 +510,7 @@ pub mod all {
         geoip_asn_db: &State<GeoIpAsnDb>,
         tor_exit_nodes: &State<TorExitNodes>,
     ) -> Option<(ContentType, String)> {
-        let body = handlers::root::formatted(
+        let body = handlers::all::formatted(
             &fmt,
             &req_info,
             user_agent_parser,
