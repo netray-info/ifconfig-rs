@@ -8,7 +8,8 @@ geoip_city_db = "data/GeoLite2-City.mmdb"
 geoip_asn_db = "data/GeoLite2-ASN.mmdb"
 
 [debug]
-address = "0.0.0.0"
+address = "127.0.0.1"
+port = 8001
 log = "normal"
 base_url = "localhost"
 
