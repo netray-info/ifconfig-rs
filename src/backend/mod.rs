@@ -22,19 +22,27 @@ pub struct Tcp {
     pub port: u16,
 }
 
-pub struct GeoIpCityDb(pub maxminddb::Reader<Vec<u8>>);
+pub struct GeoIpCityDb(maxminddb::Reader<Vec<u8>>);
 
 impl GeoIpCityDb {
     pub fn new(db_path: &str) -> Option<Self> {
         maxminddb::Reader::open_readfile(db_path).ok().map(GeoIpCityDb)
     }
+
+    pub fn lookup(&self, ip: IpAddr) -> Option<geoip2::City<'_>> {
+        self.0.lookup(ip).ok().and_then(|r| r.decode().ok().flatten())
+    }
 }
 
-pub struct GeoIpAsnDb(pub maxminddb::Reader<Vec<u8>>);
+pub struct GeoIpAsnDb(maxminddb::Reader<Vec<u8>>);
 
 impl GeoIpAsnDb {
     pub fn new(db_path: &str) -> Option<Self> {
         maxminddb::Reader::open_readfile(db_path).ok().map(GeoIpAsnDb)
+    }
+
+    pub fn lookup(&self, ip: IpAddr) -> Option<geoip2::Isp<'_>> {
+        self.0.lookup(ip).ok().and_then(|r| r.decode().ok().flatten())
     }
 }
 
@@ -119,12 +127,7 @@ pub fn get_ifconfig<'a>(param: &IfconfigParam<'a>) -> Ifconfig<'a> {
         port: param.remote.port(),
     };
 
-    let geo_city: Option<geoip2::City> = param
-        .geoip_city_db
-        .0
-        .lookup(param.remote.ip())
-        .ok()
-        .and_then(|r| r.decode().ok().flatten());
+    let geo_city = param.geoip_city_db.lookup(param.remote.ip());
     let location = geo_city.map(|c| Location {
         city: c.city.names.english,
         country: c.country.names.english,
@@ -136,12 +139,7 @@ pub fn get_ifconfig<'a>(param: &IfconfigParam<'a>) -> Ifconfig<'a> {
         continent_code: c.continent.code,
     });
 
-    let geo_isp: Option<geoip2::Isp> = param
-        .geoip_asn_db
-        .0
-        .lookup(param.remote.ip())
-        .ok()
-        .and_then(|r| r.decode().ok().flatten());
+    let geo_isp = param.geoip_asn_db.lookup(param.remote.ip());
     let isp = geo_isp.map(|isp| Isp {
         name: isp.autonomous_system_organization,
         asn: isp.autonomous_system_number,

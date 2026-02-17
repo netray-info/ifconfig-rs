@@ -67,7 +67,7 @@ impl RateLimiter {
 
         drop(counters);
 
-        if self.call_counter.fetch_add(1, Ordering::Relaxed) % CLEANUP_INTERVAL == 0 {
+        if self.call_counter.fetch_add(1, Ordering::Relaxed).is_multiple_of(CLEANUP_INTERVAL) {
             self.cleanup_expired(now);
         }
 

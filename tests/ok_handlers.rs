@@ -32,7 +32,7 @@ fn handle_root_plain_cli() {
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("192.168.0.101\n".into()));
@@ -46,7 +46,7 @@ fn handle_root_plain() {
         .remote("192.168.0.101:8000".parse().unwrap())
         .header(Accept::Plain)
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("192.168.0.101\n".into()));
@@ -64,7 +64,7 @@ fn handle_root_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
 
@@ -101,7 +101,7 @@ fn handle_root_html() {
         .remote("192.168.0.101:8000".parse().unwrap())
         .header(Accept::HTML)
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::HTML));
     assert!(response.into_string().unwrap().contains("html"));
@@ -118,7 +118,7 @@ fn handle_root_json_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
 
@@ -156,7 +156,7 @@ fn handle_ip_plain_cli() {
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("192.168.0.101\n".into()));
@@ -170,7 +170,7 @@ fn handle_ip_plain() {
         .remote("192.168.0.101:8000".parse().unwrap())
         .header(Accept::Plain)
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("192.168.0.101\n".into()));
@@ -188,7 +188,7 @@ fn handle_ip_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"addr":"192.168.0.101","version":"4"}"#;
@@ -206,7 +206,7 @@ fn handle_ip_json_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"addr":"192.168.0.101","version":"4"}"#;
@@ -222,7 +222,7 @@ fn handle_tcp_plain_cli() {
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("8000\n".into()));
@@ -236,7 +236,7 @@ fn handle_tcp_plain() {
         .remote("192.168.0.101:8000".parse().unwrap())
         .header(Accept::Plain)
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("8000\n".into()));
@@ -254,7 +254,7 @@ fn handle_tcp_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"port":8000}"#;
@@ -272,7 +272,7 @@ fn handle_tcp_json_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"port":8000}"#;
@@ -288,7 +288,7 @@ fn handle_host_plain_cli_curl() {
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("dns.google\n".into()));
@@ -303,7 +303,7 @@ fn handle_host_plain_cli_httpie() {
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "HTTPie/0.9.9"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("dns.google\n".into()));
@@ -318,7 +318,7 @@ fn handle_host_plain_cli_wget() {
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "Wget/1.19.5 (darwin17.5.0)"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("dns.google\n".into()));
@@ -332,7 +332,7 @@ fn handle_host_plain() {
         .remote("8.8.8.8:8000".parse().unwrap())
         .header(Accept::Plain)
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("dns.google\n".into()));
@@ -350,7 +350,7 @@ fn handle_host_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"name":"dns.google"}"#;
@@ -368,7 +368,7 @@ fn handle_host_json_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"name":"dns.google"}"#;
@@ -384,7 +384,7 @@ fn handle_isp_plain_cli() {
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("Google LLC (AS15169)\n".into()));
@@ -398,7 +398,7 @@ fn handle_isp_plain() {
         .remote("8.8.8.8:8000".parse().unwrap())
         .header(Accept::Plain)
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("Google LLC (AS15169)\n".into()));
@@ -416,7 +416,7 @@ fn handle_isp_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"asn":15169,"name":"Google LLC"}"#;
@@ -434,7 +434,7 @@ fn handle_isp_json_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"asn":15169,"name":"Google LLC"}"#;
@@ -450,7 +450,7 @@ fn handle_location_plain_cli() {
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(
@@ -467,7 +467,7 @@ fn handle_location_plain() {
         .remote("81.2.69.142:8000".parse().unwrap())
         .header(Accept::Plain)
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(
@@ -488,7 +488,7 @@ fn handle_location_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"city":"Kettering","continent":"Europe","continent_code":"EU","country":"United Kingdom","country_iso":"GB","latitude":52.3966,"longitude":-0.7212,"timezone":"Europe/London"}"#;
@@ -506,7 +506,7 @@ fn handle_location_json_json() {
             "Some browser that will ultimately win the war.",
         ))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"city":"Kettering","continent":"Europe","continent_code":"EU","country":"United Kingdom","country_iso":"GB","latitude":52.3966,"longitude":-0.7212,"timezone":"Europe/London"}"#;
@@ -522,7 +522,7 @@ fn handle_user_agent_plain_cli() {
         .header(Accept::Any)
         .header(Header::new(USER_AGENT.as_str(), "Wget/1.19.5 (darwin17.5.0)"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(response.into_string(), Some("Wget, 1.19.5, Other, \n".into()));
@@ -537,7 +537,7 @@ fn handle_user_agent_plain() {
         .header(Accept::Plain)
         .header(Header::new(USER_AGENT.as_str(),"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     assert_eq!(
@@ -555,7 +555,7 @@ fn handle_user_agent_json() {
         .header(Accept::JSON)
         .header(Header::new(USER_AGENT.as_str(),"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"browser":{"family":"Safari","major":"10","minor":"1","patch":"2","version":"10.1.2"},"device":{"brand":"Apple","family":"Mac","model":"Mac"},"os":{"family":"Mac OS X","major":"10","minor":"12","patch":"6","patch_minor":null,"version":"10.12.6"}}"#;
@@ -570,7 +570,7 @@ fn handle_user_agent_json_json() {
         .remote("192.168.0.101:8000".parse().unwrap())
         .header(Header::new(USER_AGENT.as_str(),"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let expected = r#"{"browser":{"family":"Safari","major":"10","minor":"1","patch":"2","version":"10.1.2"},"device":{"brand":"Apple","family":"Mac","model":"Mac"},"os":{"family":"Mac OS X","major":"10","minor":"12","patch":"6","patch_minor":null,"version":"10.12.6"}}"#;
@@ -587,7 +587,7 @@ fn handle_headers_plain_cli() {
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .header(Header::new("X-Custom-Test", "hello"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     let body = response.into_string().unwrap();
@@ -605,7 +605,7 @@ fn handle_headers_json() {
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .header(Header::new("X-Custom-Test", "hello"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let body = response.into_string().unwrap();
@@ -623,7 +623,7 @@ fn handle_headers_plain() {
         .header(Accept::Plain)
         .header(Header::new("X-Forwarded-For", "10.0.0.1"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::Plain));
     let body = response.into_string().unwrap();
@@ -639,7 +639,7 @@ fn handle_headers_json_json() {
         .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
         .header(Header::new("X-Custom-Test", "world"))
         .dispatch();
-    eprintln!("{:?}", response);
+
     assert_eq!(response.status(), Status::Ok);
     assert_eq!(response.content_type(), Some(ContentType::JSON));
     let body = response.into_string().unwrap();

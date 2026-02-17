@@ -1,6 +1,7 @@
 use rocket::http::ContentType;
 use rocket::request::FromParam;
 use serde_json::Value;
+use std::borrow::Cow;
 
 pub enum OutputFormat {
     Json,
@@ -111,11 +112,11 @@ fn flatten_json(value: &Value, prefix: String, rows: &mut Vec<String>) {
     }
 }
 
-fn csv_escape(s: &str) -> String {
+fn csv_escape(s: &str) -> Cow<'_, str> {
     if s.contains(',') || s.contains('"') || s.contains('\n') {
-        format!("\"{}\"", s.replace('"', "\"\""))
+        Cow::Owned(format!("\"{}\"", s.replace('"', "\"\"")))
     } else {
-        s.to_string()
+        Cow::Borrowed(s)
     }
 }
 
