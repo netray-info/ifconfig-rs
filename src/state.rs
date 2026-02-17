@@ -1,9 +1,16 @@
 use crate::backend::user_agent::UserAgentParser;
 use crate::backend::{GeoIpAsnDb, GeoIpCityDb, TorExitNodes};
 use crate::config::Config;
+use governor::clock::DefaultClock;
+use governor::state::keyed::DefaultKeyedStateStore;
+use governor::{Quota, RateLimiter};
 use serde::Serialize;
+use std::net::IpAddr;
+use std::num::NonZeroU32;
 use std::sync::Arc;
 use tracing::{info, warn};
+
+pub type KeyedRateLimiter = RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock>;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -13,6 +20,7 @@ pub struct AppState {
     pub geoip_city_db: Option<Arc<GeoIpCityDb>>,
     pub geoip_asn_db: Option<Arc<GeoIpAsnDb>>,
     pub tor_exit_nodes: Arc<TorExitNodes>,
+    pub rate_limiter: Arc<KeyedRateLimiter>,
 }
 
 #[derive(Serialize)]
@@ -81,11 +89,18 @@ impl AppState {
             name: config.project_name.clone(),
             version: config.project_version.clone(),
             base_url: config.base_url.clone(),
-            site_name: config
-                .site_name
-                .clone()
-                .unwrap_or_else(|| config.base_url.clone()),
+            site_name: config.site_name.clone().unwrap_or_else(|| config.base_url.clone()),
         };
+
+        let per_minute =
+            NonZeroU32::new(config.rate_limit.per_ip_per_minute as u32).expect("per_ip_per_minute must be > 0");
+        let burst = NonZeroU32::new(config.rate_limit.per_ip_burst).expect("per_ip_burst must be > 0");
+        let quota = Quota::per_minute(per_minute).allow_burst(burst);
+        let rate_limiter = Arc::new(RateLimiter::keyed(quota));
+        info!(
+            "Rate limiter configured: {} req/min, burst {}",
+            config.rate_limit.per_ip_per_minute, config.rate_limit.per_ip_burst
+        );
 
         AppState {
             config: Arc::new(Config {
@@ -111,6 +126,7 @@ impl AppState {
             geoip_city_db,
             geoip_asn_db,
             tor_exit_nodes: Arc::new(tor_exit_nodes),
+            rate_limiter,
         }
     }
 }

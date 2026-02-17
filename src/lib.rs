@@ -25,6 +25,7 @@ pub fn build_app(config: &Config) -> Router {
         .merge(api_routes)
         .fallback(routes::static_handler)
         .layer(axum_mw::from_fn(middleware::security_headers))
+        .layer(axum_mw::from_fn_with_state(state.clone(), middleware::rate_limit))
         .layer(axum_mw::from_fn_with_state(
             state.clone(),
             extractors::requester_info_middleware,

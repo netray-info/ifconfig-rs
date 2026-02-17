@@ -50,6 +50,10 @@
 
 ~~No rate limiting currently exists. A simple token-bucket or sliding-window limiter would protect against abuse.~~ Added per-IP rate limiting via a `RateLimited` request guard backed by a fixed-window counter using `std::sync` primitives (no external dependencies). Default: 60 requests per 60-second window. Rate limit state is cached per-request to avoid double-counting during Rocket's ranked route forwarding. Expired entries are cleaned up periodically. `/health` is exempt. Returns `429 Too Many Requests` when exceeded.
 
+### 16. Re-wire rate limiting for Axum
+
+~~Rate limiting was implemented for the Rocket-era codebase (item 9) but was lost in the Axum migration.~~ Re-wired per-IP rate limiting using `governor`'s `DefaultKeyedRateLimiter<IpAddr>` with a custom Axum middleware function. Removed unused `tower_governor` dependency. Configurable via `[rate_limit]` in config (default: 60 req/min, burst 10). `/health` is exempt. Returns `429 Too Many Requests` when exceeded. Integration tests cover burst exhaustion and health exemption.
+
 ---
 
 ## Future
@@ -59,10 +63,6 @@
 #### 15. Fix trusted proxies CIDR parsing
 
 Config accepts CIDR ranges like `trusted_proxies = ["10.0.0.0/8"]`, but extractors.rs only does `IpAddr::from_str()` — actual CIDR matching isn't implemented. Needs an `ipnetwork`-style check so proxy networks work correctly.
-
-#### 16. Re-wire rate limiting for Axum
-
-Rate limiting was implemented for the Rocket-era codebase (item 9) but was lost in the Axum migration. `governor` and `tower_governor` are still in Cargo.toml, `AppError::RateLimited` exists, and the config is parsed — but no middleware actually applies rate limits. Wire up `tower_governor` as Axum middleware.
 
 ### Backend — High Value, Low Effort
 

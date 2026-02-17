@@ -1,6 +1,26 @@
+use axum::extract::State;
 use axum::http::{Request, StatusCode};
 use axum::middleware::Next;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
+
+use crate::error::AppError;
+use crate::extractors::RequesterInfo;
+use crate::state::AppState;
+
+pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::Body>, next: Next) -> Response {
+    if req.uri().path() == "/health" {
+        return next.run(req).await;
+    }
+
+    if let Some(info) = req.extensions().get::<RequesterInfo>() {
+        let ip = info.remote.ip();
+        if state.rate_limiter.check_key(&ip).is_err() {
+            return AppError::RateLimited.into_response();
+        }
+    }
+
+    next.run(req).await
+}
 
 pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Response {
     let is_health = req.uri().path() == "/health";
