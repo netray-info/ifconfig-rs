@@ -648,6 +648,111 @@ fn handle_headers_json_json() {
 }
 
 #[test]
+fn handle_ipv4_plain_cli() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ipv4")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Any)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::Plain));
+    assert_eq!(response.into_string(), Some("192.168.0.101\n".into()));
+}
+
+#[test]
+fn handle_ipv4_plain() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ipv4")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Plain)
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.into_string(), Some("192.168.0.101\n".into()));
+}
+
+#[test]
+fn handle_ipv4_json() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ipv4")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::JSON)
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::JSON));
+    let expected = r#"{"addr":"192.168.0.101","version":"4"}"#;
+    assert_eq!(response.into_string(), Some(expected.into()));
+}
+
+#[test]
+fn handle_ipv4_json_json() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ipv4/json")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::JSON));
+    let expected = r#"{"addr":"192.168.0.101","version":"4"}"#;
+    assert_eq!(response.into_string(), Some(expected.into()));
+}
+
+#[test]
+fn handle_ipv4_returns_404_for_ipv6() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ipv4")
+        .remote("[::1]:8000".parse().unwrap())
+        .header(Accept::Any)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+}
+
+#[test]
+fn handle_ipv6_plain_cli() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ipv6")
+        .remote("[::1]:8000".parse().unwrap())
+        .header(Accept::Any)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::Plain));
+    assert_eq!(response.into_string(), Some("::1\n".into()));
+}
+
+#[test]
+fn handle_ipv6_json() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ipv6")
+        .remote("[::1]:8000".parse().unwrap())
+        .header(Accept::JSON)
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(response.content_type(), Some(ContentType::JSON));
+    let expected = r#"{"addr":"::1","version":"6"}"#;
+    assert_eq!(response.into_string(), Some(expected.into()));
+}
+
+#[test]
+fn handle_ipv6_returns_404_for_ipv4() {
+    let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
+    let response = client
+        .get("/ipv6")
+        .remote("192.168.0.101:8000".parse().unwrap())
+        .header(Accept::Any)
+        .header(Header::new(USER_AGENT.as_str(), "curl/7.54.0"))
+        .dispatch();
+    assert_eq!(response.status(), Status::NotFound);
+}
+
+#[test]
 fn handle_all_plain_cli() {
     let client = Client::tracked(ifconfig_rs::rocket()).expect("valid rocket instance");
     let response = client

@@ -141,6 +141,107 @@ route!(user_agent, "/user_agent", "/user_agent/json");
 
 route!(all, "/all", "/all/json");
 
+macro_rules! ip_version_route {
+    ($name:ident, $version:tt, $route:tt, $route_json:tt) => {
+        pub mod $name {
+            use crate::backend::user_agent::UserAgentParser;
+            use crate::backend::*;
+            use crate::guards::*;
+            use rocket::serde::json::Json;
+            use rocket::State;
+            use serde_json::Value as JsonValue;
+
+            #[rocket::get($route, rank = 1)]
+            pub(crate) fn plain_cli(
+                req_info: RequesterInfo,
+                _cli_req: CliClientRequest,
+                user_agent_parser: &State<UserAgentParser>,
+                geoip_city_db: &State<GeoIpCityDb>,
+                geoip_asn_db: &State<GeoIpAsnDb>,
+            ) -> Option<String> {
+                let ifconfig_param = IfconfigParam {
+                    remote: &req_info.remote,
+                    user_agent_header: &req_info.user_agent,
+                    user_agent_parser,
+                    geoip_city_db,
+                    geoip_asn_db,
+                };
+                let ifconfig = get_ifconfig(&ifconfig_param);
+                if ifconfig.ip.version != $version {
+                    return None;
+                }
+                Some(format!("{}\n", ifconfig.ip.addr))
+            }
+
+            #[rocket::get($route, format = "application/json", rank = 2)]
+            pub(crate) fn json(
+                req_info: RequesterInfo,
+                user_agent_parser: &State<UserAgentParser>,
+                geoip_city_db: &State<GeoIpCityDb>,
+                geoip_asn_db: &State<GeoIpAsnDb>,
+            ) -> Option<Json<JsonValue>> {
+                let ifconfig_param = IfconfigParam {
+                    remote: &req_info.remote,
+                    user_agent_header: &req_info.user_agent,
+                    user_agent_parser,
+                    geoip_city_db,
+                    geoip_asn_db,
+                };
+                let ifconfig = get_ifconfig(&ifconfig_param);
+                if ifconfig.ip.version != $version {
+                    return None;
+                }
+                serde_json::to_value(&ifconfig.ip).ok().map(Json)
+            }
+
+            #[rocket::get($route, rank = 3)]
+            pub(crate) fn plain(
+                req_info: RequesterInfo,
+                user_agent_parser: &State<UserAgentParser>,
+                geoip_city_db: &State<GeoIpCityDb>,
+                geoip_asn_db: &State<GeoIpAsnDb>,
+            ) -> Option<String> {
+                let ifconfig_param = IfconfigParam {
+                    remote: &req_info.remote,
+                    user_agent_header: &req_info.user_agent,
+                    user_agent_parser,
+                    geoip_city_db,
+                    geoip_asn_db,
+                };
+                let ifconfig = get_ifconfig(&ifconfig_param);
+                if ifconfig.ip.version != $version {
+                    return None;
+                }
+                Some(format!("{}\n", ifconfig.ip.addr))
+            }
+
+            #[rocket::get($route_json)]
+            pub(crate) fn json_json(
+                req_info: RequesterInfo,
+                user_agent_parser: &State<UserAgentParser>,
+                geoip_city_db: &State<GeoIpCityDb>,
+                geoip_asn_db: &State<GeoIpAsnDb>,
+            ) -> Option<Json<JsonValue>> {
+                let ifconfig_param = IfconfigParam {
+                    remote: &req_info.remote,
+                    user_agent_header: &req_info.user_agent,
+                    user_agent_parser,
+                    geoip_city_db,
+                    geoip_asn_db,
+                };
+                let ifconfig = get_ifconfig(&ifconfig_param);
+                if ifconfig.ip.version != $version {
+                    return None;
+                }
+                serde_json::to_value(&ifconfig.ip).ok().map(Json)
+            }
+        }
+    };
+}
+
+ip_version_route!(ipv4, "4", "/ipv4", "/ipv4/json");
+ip_version_route!(ipv6, "6", "/ipv6", "/ipv6/json");
+
 pub mod headers {
     use crate::guards::*;
     use rocket::serde::json::Json;
