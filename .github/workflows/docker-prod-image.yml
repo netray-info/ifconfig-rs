@@ -22,7 +22,9 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/lukaspustina/ifconfig-rs:latest
+      - name: Install Koyeb CLI
+        run: curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | sh
       - name: Trigger Koyeb redeploy
         env:
-          DEPLOY_HOOK: ${{ secrets.KOYEB_DEPLOY_HOOK }}
-        run: curl -s -X POST "$DEPLOY_HOOK"
+          KOYEB_TOKEN: ${{ secrets.KOYEB_API_TOKEN }}
+        run: koyeb service redeploy ifconfig-rs/ifconfig-rs
