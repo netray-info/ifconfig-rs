@@ -1,10 +1,8 @@
 # ifconfig-rs
 
-[![Production deployed](https://img.shields.io/badge/ip.pdt.sh.rs-prod-brightgreen.svg)](http://ip.pdt.sh) [![Build Status](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/release/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/releases) [![license](https://img.shields.io/github/license/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/blob/master/LICENSE)
+[![Production deployed](https://img.shields.io/badge/ip.pdt.sh-prod-brightgreen.svg)](https://ip.pdt.sh) [![Build Status](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/release/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/releases) [![license](https://img.shields.io/github/license/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/blob/master/LICENSE)
 
-_ifconfig-rs_ is yet another <a href="https://www.google.com/search?q=what's+my+ip+address">"what's my IP address"</a> service currently powering [ip.pdt.sh](http://ip.pdt.sh). It is written in <a href="https://www.rust-lang.org/"> Rust</a> (hence the "-rs" suffix) using the <a href="https://rocket.rs">Rocket</a> web framework and includes GeoLite2 data created by MaxMind, available from <a href="http://www.maxmind.com">http://www.maxmind.com</a>. The UI is made with <a href="https://getuikit.com">uikit</a>. It is MIT licensed so please feel free to clone and to fork it.
-
-_ifconfig_rs_ offers an API to query information like the origin's IP address, TCP port, host name, geoip based location, ISP, as well as user agent. See [ip.pdt.sh](http://ip.pdt.sh) for API and special CLI tool support.
+_ifconfig-rs_ is a fast, self-hostable <a href="https://www.google.com/search?q=what's+my+ip+address">"what's my IP address"</a> service currently powering [ip.pdt.sh](https://ip.pdt.sh). Written in [Rust](https://www.rust-lang.org) using the [Axum](https://github.com/tokio-rs/axum) web framework, with a [SolidJS](https://www.solidjs.com) SPA frontend. Includes GeoLite2 data created by MaxMind, available from [http://www.maxmind.com](http://www.maxmind.com). MIT licensed.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -12,7 +10,7 @@ _ifconfig_rs_ offers an API to query information like the origin's IP address, T
 
 - [Features](#features)
 - [Another "What's my IP" service? But why?](#another-whats-my-ip-service-but-why)
-- [Customaziation](#customaziation)
+- [Customization](#customization)
 - [Deployment Prerequisites](#deployment-prerequisites)
 - [Koyeb (and other providers using load balancers)](#koyeb-and-other-providers-using-load-balancers)
 - [FAQ](#faq)
@@ -22,70 +20,127 @@ _ifconfig_rs_ offers an API to query information like the origin's IP address, T
 
 ## Features
 
-  * It's really fast.
+* Fast — single Rust binary with embedded frontend assets.
 
-  * Shows your IP address, TCP port, host name, geoip based location, ISP, and user agent.
+* Shows your IP address, TCP port, host name, geoip-based location, ISP, and user agent.
 
-  * Google Maps integration for geoip location
+* Google Maps integration for geoip location.
 
-  * [JSON API](http://ip.pdt.sh)
+* Multi-format API: JSON, YAML, TOML, CSV, and plain text.
 
-  * Special [support for CLI tools](http://ip.pdt.sh) like [curl](https://curl.haxx.se), [httpie](https://github.com/jakubroztocil/httpie), and [wget](https://www.gnu.org/software/wget/). API calls will be answered with just the base information followed by a newline for easy script integration.
+* Special [support for CLI tools](https://ip.pdt.sh) like [curl](https://curl.haxx.se), [httpie](https://github.com/jakubroztocil/httpie), and [wget](https://www.gnu.org/software/wget/) — API calls return just the value followed by a newline for easy script integration.
+
+* Interactive SPA with API Explorer and dark/light/system theme support.
+
+* Per-IP rate limiting with configurable burst and per-minute caps.
+
+* Tor exit node detection.
 
 
 ## Another "What's my IP" service? But why?
 
-Well, first of all, everybody should have a "What's my IP" service and I wanted to do a little web project using [Rust](https://www.rust-lang.org) and [Rocket](https://rocket.rs). I have been strongly inspired by [ipd](https://github.com/mpolden/ipd) which powers [iconfig.co](http://ifconfig.co). I've added a few details though and I think the UI is nicer.
+First of all, everybody should have a "What's my IP" service. I wanted a small web project in Rust and was strongly inspired by [ipd](https://github.com/mpolden/ipd) which powers [ifconfig.co](https://ifconfig.co). ifconfig-rs adds a few details and has a nicer UI.
 
 
 ## Customization
 
-The file [Rocket.toml](Rocket.toml) sets the various runtime parameters.
+Runtime configuration is loaded from a TOML file (see `ifconfig.example.toml` for all options) with `IFCONFIG_` environment variable overrides.
 
-### `runtime_environment`
- If you omit the runtime setting, the TCP connection's remote IP address will be presented as your IP address. In case the runtime is set to "xforwarded", the `X-Forwarded-To` header is used to determine your IP address. In case you another runtime environment, make sure that you get the real origin IP address -- see section [Koyeb](#koyeb-and-other-providers-using-load-balancers).
+```toml
+base_url = "localhost"
+site_name = "ifconfig-rs"
+project_name = "ifconfig-rs"
+geoip_city_db = "data/GeoLite2-City.mmdb"
+geoip_asn_db = "data/GeoLite2-ASN.mmdb"
+user_agent_regexes = "data/regexes.yaml"
+tor_exit_nodes = "data/tor_exit_nodes.txt"
 
-### `project_name`
-This sets the title, name etc. of the website in the index.html template file.
+[server]
+bind = "127.0.0.1:8080"
+# trusted_proxies = ["10.0.0.0/8"]
 
-### `project_base_url`
-The base URL sets the base URL for the CLI examples.
+[rate_limit]
+per_ip_per_minute = 60
+per_ip_burst = 10
+```
 
-### Web Server Configuration
-For web server specific settings like listen IP address and port etc. please see Rocket's [documentation](https://rocket.rs/guide/configuration/#rockettoml).
+Environment variable examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.pdt.sh`.
+
+### `base_url`
+
+Sets the base URL used in CLI examples shown in the SPA and plain-text responses.
+
+### `site_name` / `project_name`
+
+Sets the title and name displayed in the UI.
+
+### `trusted_proxies`
+
+List of CIDR ranges for trusted reverse proxies. When set, `X-Forwarded-For` is consulted only from these sources to determine the client IP.
+
+### Rate limiting
+
+`per_ip_per_minute` and `per_ip_burst` control the token-bucket rate limiter applied per client IP.
 
 
 ## Deployment Prerequisites
 
-You have to run `make get_geoip` to retrieve the latest MaxMind geoip and ASN databases.
+You need GeoIP databases from MaxMind in `data/`:
+
+* `data/GeoLite2-City.mmdb`
+* `data/GeoLite2-ASN.mmdb`
+
+Register for a free MaxMind account at [https://www.maxmind.com](https://www.maxmind.com) to download these files.
+
+Build the frontend before `cargo build`:
+
+```sh
+cd frontend && npm ci && npm run build
+cargo build
+```
+
+Or use the Makefile:
+
+```sh
+make build   # builds frontend then cargo build
+make dev     # runs the dev server on :8080
+```
+
+### Docker
+
+```sh
+make docker-build
+docker run -p 8080:8080 -v $(pwd)/data:/data ifconfig-rs:0.4.0 /ifconfig.toml
+```
 
 
 ## Koyeb (and other providers using load balancers)
 
-[Koyeb](https://koyeb.com) uses load balancers to route incoming traffic to apps. On this route, the original remote IP address is masqueraded by the load balancers. Therefore, you can not rely on the TCP connection's remote IP address to identify the request origin's IP address. If the load balancers behave like good citizens, then they add the requesters IP address to the HTTP header `X-Forwarded-For`. From this list, you can gather the origin's IP address. _ifconfig_rs uses a [Rocket Fairing](https://rocket.rs/guide/fairings/); see [fairings.rs](src/fairings.rs) for details.
+[Koyeb](https://koyeb.com) and similar platforms use load balancers that masquerade the original client IP. Configure `trusted_proxies` in the TOML config to trust the load balancer CIDR range, so that `X-Forwarded-For` is used to extract the real client IP.
 
 
 ## FAQ
 
-  * The IP address is wrong! WTH?
+* **The IP address is wrong!**
 
-    Yes, that's possible. It turns out that determining the originating IP address of an HTTP request is not as easy as it might seem. For example, there might be transparent proxies, load balancers, and even NAT gateways on the path from your browser to _ifconfig-rs_. Even though, _ifconfig-rs_ uses a heuristic to determine the originating IP address, information may be hidden or removed which might lead to wrong results. If you encouter such a scenario, open an issue on [GitHub](https://github.com/lukaspustina/ifconfig-rs/issues) and let's try to enhance the heuristic together.
+  This can happen due to transparent proxies, load balancers, or NAT gateways between the client and the server. Configure `trusted_proxies` appropriately. Open an issue on [GitHub](https://github.com/lukaspustina/ifconfig-rs/issues) if you encounter a case the heuristic should handle.
 
-  * Where is [ip.pdt.sh](http://ip.pdt.sh) hosted?
+* **Where is [ip.pdt.sh](https://ip.pdt.sh) hosted?**
 
-    The code runs on <a href="https://koyeb.com">Koyeb</a>.
+  The code runs on [Koyeb](https://koyeb.com).
 
-  * Does _ifconfig-rs_ support IPv6?
+* **Does _ifconfig-rs_ support IPv6?**
 
-    Yes. The code is agnostic regarding the IP version.
+  Yes. The code is IP-version-agnostic.
 
-  * Can I run my own instance of _ifconfig-rs_?
+* **Can I run my own instance?**
 
-    Yes please, you're welcome to. Just clone or fork this repository.  If you find it useful for your purpose, I would highly appreciate you sending me a postcard from your hometown mentioning how you use it. See my [address](#postcardware).
+  Yes. Clone or fork this repository. If you find it useful, a postcard would be appreciated — see below.
 
-  * Can you add &lt;feature&gt;, please?
+* **Can you add &lt;feature&gt;?**
 
-    Yes, why not. Just contact me and let's discuss the details. Better, do it yourself and send me a pull request.
+  Open an issue or send a pull request.
+
 
 ## Postcardware
 
@@ -98,4 +153,3 @@ Rheinwerkallee 3
 53227 Bonn
 Germany
 ```
-
