@@ -27,4 +27,4 @@ jobs:
       - name: Trigger Koyeb redeploy
         env:
           KOYEB_TOKEN: ${{ secrets.KOYEB_API_TOKEN }}
-        run: koyeb service redeploy ifconfig-rs/ifconfig-rs
+        run: /home/runner/.koyeb/bin/koyeb service redeploy ifconfig-rs/ifconfig-rs
