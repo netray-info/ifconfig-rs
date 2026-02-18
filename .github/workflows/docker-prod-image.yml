@@ -22,3 +22,7 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/lukaspustina/ifconfig-rs:latest
+      - name: Trigger Koyeb redeploy
+        env:
+          DEPLOY_HOOK: ${{ secrets.KOYEB_DEPLOY_HOOK }}
+        run: curl -s -X POST "$DEPLOY_HOOK"
