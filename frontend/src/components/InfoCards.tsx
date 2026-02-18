@@ -99,11 +99,25 @@ export default function InfoCards(props: Props) {
             <span class="card-label">City</span>
             <span class="card-value">
               {mapsUrl() ? (
-                <a href={mapsUrl()!} target="_blank" rel="noopener noreferrer" title="Open in Google Maps">
+                <a class="map-link" href={mapsUrl()!} target="_blank" rel="noopener noreferrer" title="Open in Google Maps">
                   {loc().city}
                 </a>
               ) : (
                 loc().city
+              )}
+            </span>
+          </div>
+        </Show>
+        <Show when={loc().latitude != null && loc().longitude != null}>
+          <div class="card-row">
+            <span class="card-label">Coordinates</span>
+            <span class="card-value">
+              {mapsUrl() ? (
+                <a class="map-link" href={mapsUrl()!} target="_blank" rel="noopener noreferrer" title="Open in Google Maps">
+                  {loc().latitude!.toFixed(4)}, {loc().longitude!.toFixed(4)}
+                </a>
+              ) : (
+                <>{loc().latitude!.toFixed(4)}, {loc().longitude!.toFixed(4)}</>
               )}
             </span>
           </div>

@@ -68,6 +68,13 @@ a:hover {
   text-decoration: underline;
 }
 
+.map-link::after {
+  content: " ↗";
+  font-size: 0.65em;
+  opacity: 0.5;
+  vertical-align: super;
+}
+
 .container {
   max-width: 960px;
   margin: 0 auto;
