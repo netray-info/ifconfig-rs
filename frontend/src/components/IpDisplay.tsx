@@ -24,12 +24,23 @@ function CheckIcon() {
 
 export default function IpDisplay(props: Props) {
   const [copied, setCopied] = createSignal(false);
+  const [copiedHost, setCopiedHost] = createSignal(false);
 
   const copyIp = async () => {
     try {
       await navigator.clipboard.writeText(props.data.ip.addr);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API not available
+    }
+  };
+
+  const copyHost = async () => {
+    try {
+      await navigator.clipboard.writeText(props.data.host!.name);
+      setCopiedHost(true);
+      setTimeout(() => setCopiedHost(false), 2000);
     } catch {
       // Clipboard API not available
     }
@@ -49,7 +60,16 @@ export default function IpDisplay(props: Props) {
         </button>
       </div>
       <Show when={props.data.host}>
-        <div class="hostname">{props.data.host!.name}</div>
+        <div class="hostname-row">
+          <span class="hostname">{props.data.host!.name}</span>
+          <button
+            class={`copy-icon ${copiedHost() ? "copied" : ""}`}
+            onClick={copyHost}
+            title={copiedHost() ? "Copied!" : "Copy to clipboard"}
+          >
+            {copiedHost() ? <CheckIcon /> : <ClipboardIcon />}
+          </button>
+        </div>
       </Show>
     </div>
   );

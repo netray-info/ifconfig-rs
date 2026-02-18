@@ -119,6 +119,13 @@ a:hover {
   word-break: break-all;
 }
 
+.hostname-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .hostname {
   color: var(--text-secondary);
   font-size: 0.95rem;
@@ -129,7 +136,10 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  flex-shrink: 0;
   color: var(--text-secondary);
   background: var(--bg-card);
   border: 1px solid var(--border);

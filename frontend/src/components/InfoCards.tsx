@@ -10,15 +10,25 @@ function known(v: string | null | undefined): string | null {
   return v && v !== "unknown" ? v : null;
 }
 
+/** Convert decimal degrees to DMS string, e.g. 50.0471 lat → "50°02'49.6"N" */
+function toDMS(deg: number, isLat: boolean): string {
+  const abs = Math.abs(deg);
+  const d = Math.floor(abs);
+  const mFull = (abs - d) * 60;
+  const m = Math.floor(mFull);
+  const s = (mFull - m) * 60;
+  const dir = isLat ? (deg >= 0 ? "N" : "S") : (deg >= 0 ? "E" : "W");
+  return `${d}°${String(m).padStart(2, "0")}'${s.toFixed(1)}"${dir}`;
+}
+
 export default function InfoCards(props: Props) {
   const loc = () => props.data.location;
   const isp = () => props.data.isp;
 
   const mapsUrl = () => {
-    const { city, country, latitude, longitude } = loc();
+    const { latitude, longitude } = loc();
     if (latitude == null || longitude == null) return null;
-    const place = [known(city), known(country)].filter(Boolean).join(",");
-    return `https://www.google.com/maps/place/${encodeURIComponent(place)}/@${latitude},${longitude},10z`;
+    return `https://www.google.com/maps/place/${encodeURIComponent(toDMS(latitude, true))}+${encodeURIComponent(toDMS(longitude, false))}`;
   };
 
   return (
