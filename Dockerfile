@@ -16,7 +16,7 @@ FROM ghcr.io/lukaspustina/ifconfig-rs-data:latest AS data
 
 FROM alpine:latest
 WORKDIR /ifconfig-rs
-COPY ifconfig.example.toml ifconfig.toml
+COPY ifconfig.prod.toml ifconfig.toml
 COPY --from=builder /ifconfig-rs .
 COPY --from=data /data data/
-CMD ["./ifconfig-rs"]
+CMD ["./ifconfig-rs", "ifconfig.toml"]

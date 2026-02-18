@@ -1,0 +1,56 @@
+# ifconfig-rs configuration
+#
+# All values can be overridden via environment variables with the prefix
+# IFCONFIG_ and separator __ (e.g. IFCONFIG_BASE_URL, IFCONFIG_SERVER__BIND).
+
+# Base URL / public domain name, used in curl examples.
+# Default: "localhost"
+base_url = "ip.pdt.sh"
+
+# Display name shown in the site header, footer, and FAQ.
+# If omitted, defaults to base_url.
+site_name = "ip.pdt.sh"
+
+# Project name returned by the /meta endpoint.
+# Default: "ifconfig-rs" (from Cargo.toml)
+# project_name = "ifconfig-rs"
+
+# Project version returned by the /meta endpoint.
+# Default: crate version from Cargo.toml
+# project_version = "0.3.0"
+
+# Path to MaxMind GeoLite2 City database (.mmdb).
+# If omitted, geolocation lookups are disabled.
+geoip_city_db = "data/GeoLite2-City.mmdb"
+
+# Path to MaxMind GeoLite2 ASN database (.mmdb).
+# If omitted, ISP/ASN lookups are disabled.
+geoip_asn_db = "data/GeoLite2-ASN.mmdb"
+
+# Path to ua-parser regexes YAML file.
+# If omitted, User-Agent parsing is disabled.
+user_agent_regexes = "data/regexes.yaml"
+
+# Path to a newline-delimited list of Tor exit node IPs.
+# If omitted, Tor exit node detection is disabled.
+tor_exit_nodes = "data/tor_exit_nodes.txt"
+
+[server]
+# Address and port to bind the HTTP server to.
+# Default: "127.0.0.1:8080"
+bind = "0.0.0.0:8000"
+
+# List of trusted proxy CIDR ranges for X-Forwarded-For parsing.
+# Only the rightmost untrusted IP in the XFF chain is used as the client IP.
+# Default: [] (no proxies trusted, peer IP is used directly)
+# trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+
+[rate_limit]
+# Maximum sustained requests per IP per minute.
+# Default: 60
+per_ip_per_minute = 60
+
+# Burst capacity — number of requests allowed in a quick burst before
+# rate limiting kicks in.
+# Default: 10
+per_ip_burst = 10
