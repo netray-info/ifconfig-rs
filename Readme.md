@@ -1,150 +1,328 @@
-# ifconfig-rs
+<div align="center">
+  <h1>ifconfig-rs</h1>
+  <p><strong>Your IP address. Instantly. From the terminal or the browser.</strong></p>
+  <p>
+    <a href="https://ip.pdt.sh"><img src="https://img.shields.io/badge/ip.pdt.sh-live-brightgreen.svg" alt="Live at ip.pdt.sh" /></a>
+    <a href="https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml"><img src="https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+    <a href="https://github.com/lukaspustina/ifconfig-rs/releases"><img src="https://img.shields.io/github/release/lukaspustina/ifconfig-rs.svg" alt="GitHub release" /></a>
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" />
+  </p>
+  <p>
+    <a href="#quick-start">Quick Start</a> |
+    <a href="#api-reference">API Reference</a> |
+    <a href="#output-formats">Formats</a> |
+    <a href="#self-hosting">Self-Hosting</a> |
+    <a href="#configuration">Configuration</a>
+  </p>
+</div>
 
-[![Production deployed](https://img.shields.io/badge/ip.pdt.sh-prod-brightgreen.svg)](https://ip.pdt.sh) [![Build Status](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/release/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/releases) [![license](https://img.shields.io/github/license/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/blob/master/LICENSE)
+---
 
-_ifconfig-rs_ is a fast, self-hostable <a href="https://www.google.com/search?q=what's+my+ip+address">"what's my IP address"</a> service currently powering [ip.pdt.sh](https://ip.pdt.sh). Written in [Rust](https://www.rust-lang.org) using the [Axum](https://github.com/tokio-rs/axum) web framework, with a [SolidJS](https://www.solidjs.com) SPA frontend. Includes GeoLite2 data created by MaxMind, available from [http://www.maxmind.com](http://www.maxmind.com). MIT licensed.
+_ifconfig-rs_ is a fast, self-hostable "what's my IP" service written in [Rust](https://www.rust-lang.org), powered by [Axum](https://github.com/tokio-rs/axum), with a [SolidJS](https://www.solidjs.com) SPA. It serves a clean browser UI to humans and plain text to scripts — no configuration needed on the client side. Currently powering [ip.pdt.sh](https://ip.pdt.sh).
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**
+```sh
+$ curl ip.pdt.sh
+203.0.113.42
+```
 
-- [Features](#features)
-- [Another "What's my IP" service? But why?](#another-whats-my-ip-service-but-why)
-- [Customization](#customization)
-- [Deployment Prerequisites](#deployment-prerequisites)
-- [Koyeb (and other providers using load balancers)](#koyeb-and-other-providers-using-load-balancers)
-- [FAQ](#faq)
-- [Postcardware](#postcardware)
+That's it. One command. Your IP. No noise.
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+---
 
-## Features
+## Quick Start
 
-* Fast — single Rust binary with embedded frontend assets.
+```sh
+# Your public IP address — the most common use case
+curl ip.pdt.sh
 
-* Shows your IP address, TCP port, host name, geoip-based location, ISP, and user agent.
+# Works great with wget and httpie too
+wget -qO- ip.pdt.sh
+http ip.pdt.sh
 
-* Google Maps integration for geoip location.
+# Want more than just the IP?
+curl ip.pdt.sh/all
 
-* Multi-format API: JSON, YAML, TOML, CSV, and plain text.
+# Everything as JSON — pipe it anywhere
+curl ip.pdt.sh/json
 
-* Special [support for CLI tools](https://ip.pdt.sh) like [curl](https://curl.haxx.se), [httpie](https://github.com/jakubroztocil/httpie), and [wget](https://www.gnu.org/software/wget/) — API calls return just the value followed by a newline for easy script integration.
+# Just your IPv4 address (useful from dual-stack machines)
+curl -4 ip.pdt.sh/ipv4
 
-* Interactive SPA with API Explorer and dark/light/system theme support.
+# Just your IPv6 address
+curl -6 ip.pdt.sh/ipv6
 
-* Per-IP rate limiting with configurable burst and per-minute caps.
+# Where are you connecting from?
+curl ip.pdt.sh/location
 
-* Tor exit node detection.
+# Which ISP and ASN?
+curl ip.pdt.sh/isp
 
+# Reverse DNS hostname
+curl ip.pdt.sh/host
 
-## Another "What's my IP" service? But why?
+# What headers did you send?
+curl ip.pdt.sh/headers
 
-First of all, everybody should have a "What's my IP" service. I wanted a small web project in Rust and was strongly inspired by [ipd](https://github.com/mpolden/ipd) which powers [ifconfig.co](https://ifconfig.co). ifconfig-rs adds a few details and has a nicer UI.
+# Health check for your monitoring
+curl ip.pdt.sh/health
+```
 
+**Pro tip:** Set up a shell alias and never think about it again:
 
-## Customization
+```sh
+alias myip="curl -s ip.pdt.sh"
+```
 
-Runtime configuration is loaded from a TOML file (see `ifconfig.example.toml` for all options) with `IFCONFIG_` environment variable overrides.
+---
+
+## Why ifconfig-rs?
+
+There are plenty of "what's my IP" services. Here's why this one is worth self-hosting:
+
+| | ifconfig.co | wtfismyip | ipinfo.io | **ifconfig-rs** |
+|---|:---:|:---:|:---:|:---:|
+| Single static binary | | | | **yes** |
+| No rate-limit surprises | limited | limited | limited | **configurable** |
+| JSON, YAML, TOML, CSV | JSON only | JSON only | JSON only | **all four** |
+| CLI auto-detection (plain text) | yes | yes | | **yes** |
+| SPA with interactive API explorer | | | | **yes** |
+| Dark / light / system theme | | | | **yes** |
+| Tor exit node detection | | | | **yes** |
+| Trusted-proxy / XFF support | | yes | | **yes** |
+| Zero external runtime dependencies | | | | **yes** |
+| Self-host in 5 minutes | | | | **yes** |
+
+---
+
+## API Reference
+
+Every endpoint accepts a format suffix or an `Accept` header — see [Output Formats](#output-formats).
+
+| Endpoint | Returns | Example |
+|----------|---------|---------|
+| `/` | Full info (SPA for browsers, plain IP for CLIs) | `curl ip.pdt.sh` |
+| `/ip` | Your IP address | `curl ip.pdt.sh/ip` |
+| `/ipv4` | Your IPv4 address | `curl -4 ip.pdt.sh/ipv4` |
+| `/ipv6` | Your IPv6 address | `curl -6 ip.pdt.sh/ipv6` |
+| `/tcp` | Your IP and source port | `curl ip.pdt.sh/tcp` |
+| `/host` | Reverse DNS hostname | `curl ip.pdt.sh/host` |
+| `/location` | City, region, country, coordinates | `curl ip.pdt.sh/location` |
+| `/isp` | ASN number and organisation name | `curl ip.pdt.sh/isp` |
+| `/user_agent` | Parsed browser / OS / device info | `curl ip.pdt.sh/user_agent` |
+| `/all` | Everything at once | `curl ip.pdt.sh/all` |
+| `/headers` | Your raw request headers | `curl ip.pdt.sh/headers` |
+| `/health` | Service health check | `curl ip.pdt.sh/health` |
+
+### Content Negotiation
+
+ifconfig-rs figures out what you want automatically — no flags needed:
+
+1. **Format suffix** — `/ip/json`, `/location/yaml`, `/all/csv` — highest priority
+2. **CLI detection** — `curl`, `wget`, `httpie` with `Accept: */*` get plain text
+3. **`Accept` header** — standard content negotiation
+4. **Default** — browsers get the SPA
+
+---
+
+## Output Formats
+
+Append a format to any endpoint, or use an `Accept` header:
+
+```sh
+# Format suffix (easiest)
+curl ip.pdt.sh/all/json
+curl ip.pdt.sh/all/yaml
+curl ip.pdt.sh/all/toml
+curl ip.pdt.sh/all/csv
+
+# Or at the root
+curl ip.pdt.sh/json
+
+# Or via Accept header
+curl -H "Accept: application/json" ip.pdt.sh/all
+curl -H "Accept: application/yaml" ip.pdt.sh/all
+curl -H "Accept: application/toml" ip.pdt.sh/all
+curl -H "Accept: text/csv"         ip.pdt.sh/all
+```
+
+| Format | Suffix | Content-Type |
+|--------|--------|--------------|
+| Plain text | *(CLI auto-detect)* | `text/plain` |
+| JSON | `/json` | `application/json` |
+| YAML | `/yaml` | `application/yaml` |
+| TOML | `/toml` | `application/toml` |
+| CSV | `/csv` | `text/csv` |
+
+### Sample JSON Response
+
+```json
+{
+  "ip": "203.0.113.42",
+  "ip_decimal": 3405803818,
+  "country": "Germany",
+  "country_iso": "DE",
+  "city": "Berlin",
+  "hostname": "ptr-203-0-113-42.example.net",
+  "latitude": 52.5200,
+  "longitude": 13.4050,
+  "asn": "AS1234",
+  "asn_org": "Example ISP GmbH",
+  "user_agent": {
+    "product": "curl",
+    "version": "8.6.0",
+    "raw_value": "curl/8.6.0"
+  }
+}
+```
+
+---
+
+## Self-Hosting
+
+### Prerequisites
+
+You need [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) databases in `data/`:
+
+```
+data/GeoLite2-City.mmdb
+data/GeoLite2-ASN.mmdb
+```
+
+Register for a free MaxMind account to download them. Without the databases, geolocation and ISP endpoints return empty results (the service still starts and `/ip` still works).
+
+### Docker (fastest)
+
+```sh
+docker run -p 8080:8080 \
+  -v $(pwd)/data:/data \
+  -e IFCONFIG_BASE_URL=localhost \
+  ghcr.io/lukaspustina/ifconfig-rs:latest
+```
+
+Then visit [http://localhost:8080](http://localhost:8080) or `curl localhost:8080`.
+
+### From Source
+
+```sh
+git clone https://github.com/lukaspustina/ifconfig-rs
+cd ifconfig-rs
+
+# 1. Build the frontend (required)
+make frontend          # or: cd frontend && npm ci && npm run build
+
+# 2. Create a config file
+cp ifconfig.example.toml ifconfig.toml
+$EDITOR ifconfig.toml  # set base_url and data paths
+
+# 3. Run
+cargo run -- ifconfig.toml
+```
+
+### Makefile Targets
+
+```sh
+make build        # Build frontend + cargo build
+make dev          # Run dev server on :8080
+make tests        # Unit + Docker integration + Playwright E2E
+make integration  # Docker-based integration tests only
+make acceptance   # Playwright E2E tests against ip.pdt.sh
+make docker-build # Build production Docker image
+```
+
+---
+
+## Configuration
+
+Config is a TOML file (see [`ifconfig.example.toml`](ifconfig.example.toml) for all options), with `IFCONFIG_` environment variable overrides (`__` as separator).
 
 ```toml
-base_url = "localhost"
-site_name = "ifconfig-rs"
-project_name = "ifconfig-rs"
-geoip_city_db = "data/GeoLite2-City.mmdb"
-geoip_asn_db = "data/GeoLite2-ASN.mmdb"
+# Public domain, used in CLI examples shown in the SPA
+base_url = "ip.pdt.sh"
+
+# Display name in the site header and footer (defaults to base_url)
+site_name = "My IP Service"
+
+# MaxMind GeoLite2 databases
+geoip_city_db  = "data/GeoLite2-City.mmdb"
+geoip_asn_db   = "data/GeoLite2-ASN.mmdb"
+
+# ua-parser regexes for User-Agent parsing
 user_agent_regexes = "data/regexes.yaml"
+
+# Newline-delimited list of Tor exit node IPs
 tor_exit_nodes = "data/tor_exit_nodes.txt"
 
 [server]
-bind = "127.0.0.1:8080"
-# trusted_proxies = ["10.0.0.0/8"]
+bind = "0.0.0.0:8080"
+
+# Trust these CIDR ranges for X-Forwarded-For (e.g. behind a load balancer)
+# trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
 
 [rate_limit]
-per_ip_per_minute = 60
-per_ip_burst = 10
+per_ip_per_minute = 60   # sustained request rate
+per_ip_burst      = 10   # burst capacity
 ```
 
-Environment variable examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.pdt.sh`.
-
-### `base_url`
-
-Sets the base URL used in CLI examples shown in the SPA and plain-text responses.
-
-### `site_name` / `project_name`
-
-Sets the title and name displayed in the UI.
-
-### `trusted_proxies`
-
-List of CIDR ranges for trusted reverse proxies. When set, `X-Forwarded-For` is consulted only from these sources to determine the client IP.
-
-### Rate limiting
-
-`per_ip_per_minute` and `per_ip_burst` control the token-bucket rate limiter applied per client IP.
-
-
-## Deployment Prerequisites
-
-You need GeoIP databases from MaxMind in `data/`:
-
-* `data/GeoLite2-City.mmdb`
-* `data/GeoLite2-ASN.mmdb`
-
-Register for a free MaxMind account at [https://www.maxmind.com](https://www.maxmind.com) to download these files.
-
-Build the frontend before `cargo build`:
+**Environment variable examples:**
 
 ```sh
-cd frontend && npm ci && npm run build
-cargo build
+IFCONFIG_BASE_URL=ip.example.com
+IFCONFIG_SERVER__BIND=0.0.0.0:9090
+IFCONFIG_RATE_LIMIT__PER_IP_PER_MINUTE=120
 ```
 
-Or use the Makefile:
+### Behind a Load Balancer
 
-```sh
-make build   # builds frontend then cargo build
-make dev     # runs the dev server on :8080
+Set `trusted_proxies` to the CIDR ranges of your load balancers so that `X-Forwarded-For` is trusted and the real client IP is shown:
+
+```toml
+[server]
+trusted_proxies = ["10.0.0.0/8"]
 ```
 
-### Docker
+Without this, the IP of the load balancer would be reported as the client IP.
 
-```sh
-make docker-build
-docker run -p 8080:8080 -v $(pwd)/data:/data ifconfig-rs:0.4.0 /ifconfig.toml
-```
-
-
-## Koyeb (and other providers using load balancers)
-
-[Koyeb](https://koyeb.com) and similar platforms use load balancers that masquerade the original client IP. Configure `trusted_proxies` in the TOML config to trust the load balancer CIDR range, so that `X-Forwarded-For` is used to extract the real client IP.
-
+---
 
 ## FAQ
 
-* **The IP address is wrong!**
+**The IP address is wrong!**
 
-  This can happen due to transparent proxies, load balancers, or NAT gateways between the client and the server. Configure `trusted_proxies` appropriately. Open an issue on [GitHub](https://github.com/lukaspustina/ifconfig-rs/issues) if you encounter a case the heuristic should handle.
+There may be proxies, load balancers, or NAT gateways between you and the server. If you're self-hosting, configure `trusted_proxies` to trust your infrastructure. If you're using [ip.pdt.sh](https://ip.pdt.sh), open a [GitHub issue](https://github.com/lukaspustina/ifconfig-rs/issues) and let's look into it.
 
-* **Where is [ip.pdt.sh](https://ip.pdt.sh) hosted?**
+**Does it support IPv6?**
 
-  The code runs on [Koyeb](https://koyeb.com).
+Yes. The service is IP-version-agnostic. Use `/ipv4` or `/ipv6` if you want to force a particular version (requires your machine to have connectivity on that version).
 
-* **Does _ifconfig-rs_ support IPv6?**
+**Can I use this in scripts?**
 
-  Yes. The code is IP-version-agnostic.
+Absolutely — that's the primary use case. `curl` and `wget` are auto-detected and always get plain text back:
 
-* **Can I run my own instance?**
+```sh
+IP=$(curl -s ip.pdt.sh)
+LOCATION=$(curl -s ip.pdt.sh/location)
+```
 
-  Yes. Clone or fork this repository. If you find it useful, a postcard would be appreciated — see below.
+Or grab structured data:
 
-* **Can you add &lt;feature&gt;?**
+```sh
+curl -s ip.pdt.sh/json | jq .country
+curl -s ip.pdt.sh/all/csv
+```
 
-  Open an issue or send a pull request.
+**Where is [ip.pdt.sh](https://ip.pdt.sh) hosted?**
 
+On [Koyeb](https://koyeb.com).
+
+**Can I run my own instance?**
+
+Yes, please do! Clone this repo and follow the [Self-Hosting](#self-hosting) instructions.
+
+---
 
 ## Postcardware
 
-You're free to use _ifconfig-rs_. If you find it useful, I would highly appreciate you sending me a postcard from your hometown. My work address is
+_ifconfig-rs_ is free to use and self-host. If it saves you time, I'd love a postcard from your hometown.
 
 ```
 Lukas Pustina
