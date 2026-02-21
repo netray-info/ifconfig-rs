@@ -23,8 +23,14 @@ jobs:
           push: true
           tags: ghcr.io/lukaspustina/ifconfig-rs:latest
       - name: Install Koyeb CLI
-        run: curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | sh
+        env:
+          KOYEB_CLI_VERSION: "5.9.1"
+        run: |
+          curl -fsSL -o koyeb-cli.tar.gz \
+            "https://github.com/koyeb/koyeb-cli/releases/download/v${KOYEB_CLI_VERSION}/koyeb-cli_${KOYEB_CLI_VERSION}_linux_amd64.tar.gz"
+          tar xzf koyeb-cli.tar.gz
+          install -m 755 koyeb /usr/local/bin/koyeb
       - name: Trigger Koyeb redeploy
         env:
           KOYEB_TOKEN: ${{ secrets.KOYEB_API_TOKEN }}
-        run: /home/runner/.koyeb/bin/koyeb service redeploy ip.pdt.sh/ifconfig-rs
+        run: koyeb service redeploy ip.pdt.sh/ifconfig-rs
