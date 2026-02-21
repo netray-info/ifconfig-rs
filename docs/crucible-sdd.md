@@ -1,6 +1,6 @@
 # Software Design Document: ifconfig-rs Enrichment Evolution
 
-**Status:** Phase 1b complete
+**Status:** Phase 2 design in progress
 **Date:** 2026-02-21 (updated)
 **Input:** [RFC crucible-rfc.md](crucible-rfc.md), multi-perspective design review, async migration analysis
 
@@ -161,17 +161,104 @@ Each handler module (`handlers::ip`, `handlers::location`, etc.) exposes `to_jso
 
 *Features that create competitive separation. 1-2 months.*
 
-| Item | LOC | Notes |
-|------|-----|-------|
-| Backend context struct | ~200 | Group backend references into `EnrichmentContext` struct. Introduced now because this phase adds new backends (cloud provider DB, threat lists). |
-| Cloud/hosting provider fingerprinting | ~400 | IP prefix trie via `ip_network_table`. Load AWS, GCP, Azure, Cloudflare, Hetzner, DigitalOcean CIDRs at startup. Fetch directly from canonical provider URLs, not third-party aggregators. |
-| Static threat lists: Tor periodic refresh + Feodo C2 | ~150 | Background task, hourly refresh. Same `HashSet<IpAddr>` pattern as existing Tor implementation. |
-| VPN/proxy/hosting detection | ~200 | Known VPN IP range lists + hosting provider CIDRs + ASN name heuristic. |
-| `is_tor` migration to `hosting` object | ~60 | Breaking change: remove top-level `is_tor`, add `hosting` object. Bump to 0.5.0. Update frontend `types.ts`. |
-| GeoIP hot-reload via SIGHUP | ~100 | SIGHUP handler triggers reload. Validate new MMDB before swapping. On failure: log error, keep old DB. Add `notify`+`ArcSwap` later if demand warrants. |
-| docker-compose.yml with geoipupdate sidecar | docs | Example deployment pattern, not a Helm chart. |
+**Commit ordering** — each commit is independently testable with all tests passing:
 
-**Cloud provider response extension:**
+| # | Commit | Est. LOC | Scope |
+|---|--------|----------|-------|
+| 1 | Data pipeline | Makefile | `data/Makefile` targets for `cloud_provider_ranges.jsonl`, `feodo_botnet_ips.txt`, `vpn_ranges.txt`. No Rust changes. See §4.1. |
+| 2 | EnrichmentContext + ArcSwap + SIGHUP | ~300 | Group `{geoip_city, geoip_asn, tor, dns_resolver, ua_parser}` into `EnrichmentContext` struct with `load(&Config)` constructor. Store behind `ArcSwap` in `AppState`. SIGHUP handler calls `load()`, validates, swaps. Pure refactor of existing backends — no new features, no behavioral change. Future backends automatically participate in hot-reload. |
+| 3 | Cloud provider fingerprinting | ~400 | Add `CloudProviderDb` to `EnrichmentContext`. `ip_network_table` dep for CIDR trie. JSONL parser for `cloud_provider_ranges.jsonl`. New `cloud` field on `Ifconfig` response. AWS + GCP + Cloudflare; Azure next. |
+| 4 | Feodo C2 botnet list | ~50 | Add `FeodoBotnetIps` to `EnrichmentContext`. `HashSet<IpAddr>` from `feodo_botnet_ips.txt`. Same file-parsing pattern as existing `TorExitNodes`. |
+| 5 | ASN heuristic module | ~100 | New `src/backend/asn_heuristic.rs`. Pure functions: `classify_asn(asn_org: &str) -> AsnClassification`. Lookup table mapping ASN name patterns to hosting/VPN tags. No state in `EnrichmentContext`. Unit tests for known patterns. |
+| 6 | VPN detection | ~200 | Add `VpnRanges` to `EnrichmentContext`. CIDR prefix matching via `ip_network_table` (same trie type as cloud). Falls back to ASN heuristic from commit 5. |
+| 7 | `is_tor` → `hosting` object | ~150 | **Breaking change.** Consolidate cloud (commit 3), Feodo (commit 4), ASN heuristic (commit 5), VPN (commit 6), and existing Tor into `Hosting` struct. Remove top-level `is_tor` from `Ifconfig`. Update frontend `types.ts`. Version bump to 0.5.0. |
+| 8 | docker-compose.yml | docs | Example deployment with geoipupdate sidecar + data volume. |
+
+**Why this order:**
+
+- **Commit 1 (data pipeline) first** — unblocks local testing for all subsequent commits. No Rust changes.
+- **Commit 2 (EnrichmentContext + ArcSwap + SIGHUP) early** — establishes the reload pattern before adding new backends. The SIGHUP handler is trivial: call `EnrichmentContext::load()`, validate, swap. Each subsequent commit (3–6) extends `load()` as part of adding its backend — the handler itself never changes. No retrofit.
+- **Commits 3–6 (new backends) in dependency order** — cloud first (introduces `ip_network_table` trie, highest differentiation value), Feodo next (trivial, same HashSet pattern), ASN heuristic (pure functions, no backend state), VPN last (depends on both `ip_network_table` from commit 3 and ASN heuristic from commit 5).
+- **Commit 7 (breaking change) last among code changes** — all classification sources must exist before consolidating into the `hosting` object. Clear boundary for the 0.5.0 version bump.
+- **Commit 8 (docs) anytime after commit 2** — but logically last since it references the full feature set.
+
+#### 4.1 Data Pipeline
+
+**Design principle:** ifconfig-rs never fetches external data. All data files are acquired by the `data/Makefile` and placed on disk. ifconfig-rs reads them at startup and hot-reloads on SIGHUP. This preserves the offline-first guarantee — the binary has zero outbound network dependencies.
+
+**New data files:**
+
+| File | Source | Format | Size | Update cadence |
+|------|--------|--------|------|----------------|
+| `cloud_provider_ranges.jsonl` | AWS + GCP + Cloudflare (Azure next) | Normalized JSONL | ~2MB | Weekly |
+| `feodo_botnet_ips.txt` | [Feodo Tracker](https://feodotracker.abuse.ch/downloads/ipblocklist.txt) (abuse.ch) | Plain text, one IP/line, `#` comments | ~10KB | Daily |
+| `vpn_ranges.txt` | [X4BNet/lists_vpn](https://github.com/X4BNet/lists_vpn) (v4+v6 merged) | Plain text, one CIDR/line | ~500KB | Daily |
+
+**Cloud provider JSONL normalization:**
+
+Raw provider JSONs have different schemas. The Makefile fetches each and normalizes via `jq` into a single JSONL file:
+
+```jsonl
+{"cidr":"3.2.34.0/26","provider":"aws","service":"EC2","region":"af-south-1"}
+{"cidr":"35.186.0.0/16","provider":"gcp","service":"Google Cloud","region":"us-central1"}
+{"cidr":"104.16.0.0/13","provider":"cloudflare","service":null,"region":null}
+```
+
+One file, one Rust parser. Each line is self-contained — easy to validate, diff, and debug.
+
+**Cloud provider sources:**
+
+| Provider | URL | Notes |
+|----------|-----|-------|
+| AWS | `https://ip-ranges.amazonaws.com/ip-ranges.json` | Stable URL. JSON with `service`, `region`, IPv4+IPv6. |
+| GCP | `https://www.gstatic.com/ipranges/cloud.json` | Stable URL. JSON with `service`, `scope`. |
+| Cloudflare | `https://www.cloudflare.com/ips-v4` + `ips-v6` | Stable URLs. Plain text CIDRs only — no service/region metadata. |
+| Azure | *Next after initial three.* Scrape download link from `https://www.microsoft.com/en-us/download/details.aspx?id=56519`. Rotating URL, but standard ecosystem approach (same as Terraform Azure provider). | JSON with `serviceTags`, each containing `addressPrefixes` + `region`. |
+
+Providers without official machine-readable CIDR lists (Hetzner, DigitalOcean, etc.) are handled by the ASN name heuristic in Rust code, not by data files.
+
+**VPN data sources:**
+
+X4BNet/lists_vpn is the initial source — it aggregates Mullvad, NordVPN, ExpressVPN, Surfshark, and others into consolidated `vpn-ipv4.txt` and `vpn-ipv6.txt` files, updated daily via GitHub Actions. These are merged into a single `vpn_ranges.txt` in the Makefile.
+
+Additional VPN sources (individual provider relay lists, ASN-based prefix dumps) are deferred. The ASN name heuristic in `src/backend/asn_heuristic.rs` provides fallback coverage for VPN providers not in X4BNet.
+
+**Updated `data/` directory:**
+
+```
+data/
+├── Makefile                        # existing + new targets
+├── Dockerfile                      # scratch image with all files
+├── GeoLite2-City.mmdb              # existing (manual/geoipupdate)
+├── GeoLite2-ASN.mmdb               # existing (manual/geoipupdate)
+├── regexes.yaml                    # existing (uap-core)
+├── tor_exit_nodes.txt              # existing (torproject)
+├── feodo_botnet_ips.txt            # NEW — abuse.ch
+├── cloud_provider_ranges.jsonl     # NEW — AWS + GCP + Cloudflare, normalized
+└── vpn_ranges.txt                  # NEW — X4BNet (v4+v6 merged)
+```
+
+#### 4.2 ASN Name Heuristic
+
+A separate module `src/backend/asn_heuristic.rs` contains ASN-name-based classification rules. This provides:
+
+- **Hosting/datacenter detection** for providers without official CIDR lists (Hetzner, DigitalOcean, OVH, Vultr, Linode, etc.) — matched by ASN organization name from the existing MaxMind ASN database.
+- **VPN fallback** for VPN providers not covered by X4BNet — matched by known VPN ASN names.
+
+The heuristic is a single point of change: a lookup table mapping ASN name patterns to classification tags. No external data dependency — uses the MaxMind ASN data already loaded.
+
+```rust
+// src/backend/asn_heuristic.rs — single source of truth for name-based classification
+pub enum AsnClassification {
+    Hosting { provider: &'static str },
+    Vpn { provider: &'static str },
+    None,
+}
+
+pub fn classify_asn(asn_org: &str) -> AsnClassification { ... }
+```
+
+#### 4.3 Cloud Provider Response Extension
 
 ```json
 "cloud": {
@@ -181,9 +268,11 @@ Each handler module (`handlers::ip`, `handlers::location`, etc.) exposes `to_jso
 }
 ```
 
-Provider and region available for AWS and Cloudflare. Partial for GCP/Azure. `null` fields when data is unavailable — never guess.
+Provider, service, and region populated from `cloud_provider_ranges.jsonl` via longest-prefix-match in `ip_network_table`. `null` fields when data is unavailable — never guess. Providers matched only by CIDR data have `"service": null, "region": null` (e.g., Cloudflare).
 
-**Hosting type response extension (replaces top-level `is_tor`):**
+#### 4.4 Hosting Type Response Extension
+
+Replaces top-level `is_tor`:
 
 ```json
 "hosting": {
@@ -195,6 +284,8 @@ Provider and region available for AWS and Cloudflare. Partial for GCP/Azure. `nu
   "is_proxy": false
 }
 ```
+
+Classification priority (highest wins for `type`): cloud CIDR match → VPN CIDR match → Tor exit list → Feodo C2 → ASN heuristic. Boolean flags are independent — an IP can be both `is_datacenter: true` and `is_vpn: true`.
 
 This is a **breaking change** from the current API where `is_tor` is a top-level boolean on `Ifconfig`. The `hosting` object consolidates all IP classification into a single structure. Version bump to 0.5.0.
 
@@ -277,9 +368,9 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 | 1b | `metrics-exporter-prometheus` 0.16 | Prometheus metrics recorder + `/metrics` render handle | **Added** — `axum-prometheus` was originally planned but panics on repeated global recorder installation (breaks integration tests) |
 | 1b | `metrics-process` 2.3 | OS-level process metrics (CPU, memory, FDs) for `/metrics` | **Added** |
 | 1b | `tracing-subscriber` json feature | Structured JSON log output via `IFCONFIG_LOG_FORMAT=json` | **Added** (feature flag on existing dep) |
-| 2 | `ip_network_table` | IP prefix trie for cloud provider fingerprinting | Planned |
-| 2 | `arc-swap` | Atomic pointer swap for hot-reload (when upgrading from SIGHUP) | Planned |
-| 2 | `notify` | Filesystem watcher for hot-reload (optional, after SIGHUP) | Deferred — SIGHUP first |
+| 2 | `arc-swap` | Atomic pointer swap for `EnrichmentContext` hot-reload via SIGHUP | Planned (commit 2) |
+| 2 | `ip_network_table` | IP prefix trie for cloud provider + VPN CIDR matching | Planned (commit 3) |
+| 2 | `notify` | Filesystem watcher for automatic hot-reload (complement to SIGHUP) | Deferred — SIGHUP-only first |
 | 3 | `utoipa` + `utoipa-axum` | OpenAPI spec generation (if compatible with handler functions) | Evaluate after Phase 1a (now eligible) |
 
 `dns-lookup` was removed in Phase 1a.
@@ -288,9 +379,10 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 
 ## 9. Open Questions
 
-1. **Cloud provider update cadence:** AWS/GCP/Azure publish IP ranges with weekly-ish changes. Daily refresh at startup sufficient, or periodic background refresh needed?
-2. **VPN range data sources:** X4BNet/lists_vpn is one option. Are there more reliable/comprehensive public sources?
+1. ~~**Cloud provider update cadence**~~ — Resolved: data fetching is external (`data/Makefile`). ifconfig-rs reads files at startup and hot-reloads on SIGHUP. Update cadence is controlled by however often the operator runs the data pipeline (cron, CI, geoipupdate sidecar).
+2. ~~**VPN range data sources**~~ — Resolved: X4BNet/lists_vpn as primary source. ASN name heuristic in `src/backend/asn_heuristic.rs` as fallback. Additional sources deferred until X4BNet proves insufficient.
 3. ~~**mhost version pinning**~~ — Resolved: migrated to mhost 0.11.1 which fixes the `serde_json::Error` feature-gating build defect from 0.11.0.
+4. **Azure CIDR download URL:** Microsoft rotates the download URL for their IP ranges JSON. Plan: scrape the download link from the details page (`?id=56519`). Standard approach (used by Terraform Azure provider). Accepted risk: if page structure changes, the Makefile target fails and the last good file is kept.
 
 ---
 
@@ -305,3 +397,7 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 - [utoipa](https://docs.rs/utoipa-axum/latest/utoipa_axum/) — OpenAPI for Axum
 - [Feodo Tracker](https://feodotracker.abuse.ch/) — Botnet C2 IP blocklist (abuse.ch)
 - [X4BNet/lists_vpn](https://github.com/X4BNet/lists_vpn) — VPN provider IP ranges
+- [AWS IP Ranges](https://ip-ranges.amazonaws.com/ip-ranges.json) — Official AWS IP range data (JSON)
+- [GCP IP Ranges](https://www.gstatic.com/ipranges/cloud.json) — Official Google Cloud IP range data (JSON)
+- [Cloudflare IP Ranges](https://www.cloudflare.com/ips/) — Official Cloudflare IP ranges (plain text)
+- [Azure IP Ranges](https://www.microsoft.com/en-us/download/details.aspx?id=56519) — Official Azure IP range download page (rotating URL)
