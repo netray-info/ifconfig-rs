@@ -21,6 +21,17 @@ fn generate_request_id() -> String {
     format!("{:016x}", REQUEST_ID_SEED.wrapping_add(count))
 }
 
+pub async fn record_metrics(req: Request<axum::body::Body>, next: Next) -> Response {
+    let method = req.method().to_string();
+    let start = std::time::Instant::now();
+    let response = next.run(req).await;
+    let status = response.status().as_u16().to_string();
+    let duration = start.elapsed().as_secs_f64();
+    metrics::counter!("http_requests_total", "method" => method.clone(), "status" => status).increment(1);
+    metrics::histogram!("http_request_duration_seconds", "method" => method).record(duration);
+    response
+}
+
 pub async fn request_id(req: Request<axum::body::Body>, next: Next) -> Response {
     let id = req
         .headers()
@@ -115,15 +126,16 @@ pub async fn geoip_date_headers(State(state): State<AppState>, req: Request<axum
         if let Ok(val) = HeaderValue::from_str(&date_str) {
             response.headers_mut().insert("x-geoip-database-date", val);
         }
-        let age_days = SystemTime::now()
+        let age_secs = SystemTime::now()
             .duration_since(build_time)
             .unwrap_or_default()
-            .as_secs()
-            / 86400;
+            .as_secs();
+        let age_days = age_secs / 86400;
         response.headers_mut().insert(
             "x-geoip-database-age-days",
             HeaderValue::from(age_days),
         );
+        metrics::gauge!("geoip_database_age_seconds").set(age_secs as f64);
     }
 
     response

@@ -86,6 +86,7 @@ pub async fn build_app(config: &Config) -> AppBundle {
                 )
             }),
         )
+        .layer(axum_mw::from_fn(middleware::record_metrics))
         .layer(axum_mw::from_fn(middleware::request_id))
         .layer(CompressionLayer::new())
         .with_state(state);

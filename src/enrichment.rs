@@ -159,7 +159,7 @@ impl EnrichmentContext {
 
         let geoip_city_build_epoch = geoip_city_db.as_ref().map(|db| db.build_epoch());
 
-        EnrichmentContext {
+        let ctx = EnrichmentContext {
             user_agent_parser,
             geoip_city_db,
             geoip_asn_db,
@@ -172,6 +172,30 @@ impl EnrichmentContext {
             spamhaus_drop,
             dns_resolver: Arc::new(dns_resolver),
             geoip_city_build_epoch,
-        }
+        };
+
+        // Report which enrichment sources are loaded (updates on reload too).
+        metrics::gauge!("enrichment_sources_loaded", "source" => "geoip_city")
+            .set(f64::from(ctx.geoip_city_db.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "geoip_asn")
+            .set(f64::from(ctx.geoip_asn_db.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "user_agent")
+            .set(f64::from(ctx.user_agent_parser.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "tor_exit_nodes")
+            .set(f64::from(ctx.tor_exit_nodes.is_loaded() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "cloud_provider")
+            .set(f64::from(ctx.cloud_provider_db.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "vpn_ranges")
+            .set(f64::from(ctx.vpn_ranges.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "datacenter_ranges")
+            .set(f64::from(ctx.datacenter_ranges.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "bot_ranges")
+            .set(f64::from(ctx.bot_db.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "feodo_botnet")
+            .set(f64::from(ctx.feodo_botnet_ips.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "spamhaus_drop")
+            .set(f64::from(ctx.spamhaus_drop.is_some() as u8));
+
+        ctx
     }
 }
