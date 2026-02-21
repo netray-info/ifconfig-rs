@@ -58,6 +58,7 @@ export default defineConfig({
       "/host": BACKEND,
       "/location": BACKEND,
       "/isp": BACKEND,
+      "/network": BACKEND,
       "/user_agent": BACKEND,
       "/all": BACKEND,
       "/headers": BACKEND,
