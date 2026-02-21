@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::LazyLock;
 
 use axum::extract::State;
-use axum::http::{HeaderValue, Request, StatusCode};
+use axum::http::{HeaderValue, Request};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use governor::clock::{Clock, DefaultClock};
@@ -163,6 +163,3 @@ pub async fn geoip_date_headers(State(state): State<AppState>, req: Request<axum
     response
 }
 
-pub async fn not_found_handler() -> Response {
-    crate::error::error_response(StatusCode::NOT_FOUND, "not implemented")
-}
