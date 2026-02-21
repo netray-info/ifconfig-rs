@@ -1217,6 +1217,17 @@ async fn batch_invalid_body() {
 }
 
 #[tokio::test]
+async fn batch_max_size_rejected() {
+    // Default max_size is 100 — build an array of 101 IPs
+    let ips: Vec<String> = (0..101).map(|i| format!("\"8.8.{}.{}\"", i / 256, i % 256)).collect();
+    let body = format!("[{}]", ips.join(","));
+    let req = post_json("/batch", &body);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body.contains("exceeds maximum"), "Expected max_size rejection, got: {}", body);
+}
+
+#[tokio::test]
 async fn batch_csv_format() {
     let req = post_json("/batch/csv", r#"["8.8.8.8", "1.1.1.1"]"#);
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
