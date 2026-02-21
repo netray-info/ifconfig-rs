@@ -65,7 +65,6 @@ pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Res
         "strict-transport-security",
         "max-age=63072000; includeSubDomains".parse().unwrap(),
     );
-    headers.insert("access-control-allow-origin", "*".parse().unwrap());
     headers.insert("vary", "Accept, User-Agent".parse().unwrap());
 
     if is_error || is_health || is_html {

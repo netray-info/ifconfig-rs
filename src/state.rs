@@ -98,6 +98,7 @@ impl AppState {
                     bind: config.server.bind.clone(),
                     admin_bind: config.server.admin_bind.clone(),
                     trusted_proxies: config.server.trusted_proxies.clone(),
+                    cors_allowed_origins: config.server.cors_allowed_origins.clone(),
                 },
                 base_url: config.base_url.clone(),
                 site_name: config.site_name.clone(),

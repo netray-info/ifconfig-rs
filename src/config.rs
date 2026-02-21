@@ -56,6 +56,8 @@ pub struct ServerConfig {
     pub admin_bind: Option<String>,
     #[serde(default)]
     pub trusted_proxies: Vec<String>,
+    #[serde(default = "ServerConfig::default_cors_allowed_origins")]
+    pub cors_allowed_origins: Vec<String>,
 }
 
 impl Default for ServerConfig {
@@ -64,6 +66,7 @@ impl Default for ServerConfig {
             bind: Self::default_bind(),
             admin_bind: None,
             trusted_proxies: Vec::new(),
+            cors_allowed_origins: Self::default_cors_allowed_origins(),
         }
     }
 }
@@ -71,6 +74,9 @@ impl Default for ServerConfig {
 impl ServerConfig {
     fn default_bind() -> String {
         "127.0.0.1:8080".to_string()
+    }
+    fn default_cors_allowed_origins() -> Vec<String> {
+        vec!["*".to_string()]
     }
 }
 

@@ -92,6 +92,11 @@ bind = "0.0.0.0:8080"
 # Default: [] (no proxies trusted, peer IP is used directly)
 # trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
 
+# Allowed origins for CORS. Default: ["*"] (allow all origins).
+# Handles OPTIONS preflight automatically via tower-http CorsLayer.
+# cors_allowed_origins = ["*"]
+# cors_allowed_origins = ["https://ip.pdt.sh", "https://example.com"]
+
 [rate_limit]
 # Maximum sustained requests per IP per minute.
 # Default: 60

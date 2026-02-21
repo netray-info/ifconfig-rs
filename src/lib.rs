@@ -19,6 +19,7 @@ use enrichment::EnrichmentContext;
 use state::AppState;
 use std::sync::Arc;
 use tower_http::compression::CompressionLayer;
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 pub use config::Config;
@@ -47,10 +48,23 @@ pub async fn build_app(config: &Config) -> AppBundle {
 
     let api_routes = routes::router(state.clone());
 
+    let cors = if config.server.cors_allowed_origins.iter().any(|o| o == "*") {
+        CorsLayer::new().allow_origin(Any)
+    } else {
+        let origins: Vec<axum::http::HeaderValue> = config
+            .server
+            .cors_allowed_origins
+            .iter()
+            .filter_map(|o| o.parse().ok())
+            .collect();
+        CorsLayer::new().allow_origin(AllowOrigin::list(origins))
+    };
+
     let app = Router::new()
         .merge(api_routes)
         .fallback(routes::static_handler)
         .layer(axum_mw::from_fn(middleware::security_headers))
+        .layer(cors)
         .layer(axum_mw::from_fn_with_state(state.clone(), middleware::geoip_date_headers))
         .layer(axum_mw::from_fn_with_state(state.clone(), middleware::rate_limit))
         .layer(axum_mw::from_fn_with_state(
