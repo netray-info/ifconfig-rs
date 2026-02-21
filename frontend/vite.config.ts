@@ -70,6 +70,8 @@ export default defineConfig({
       "/csv": BACKEND,
       "/health": BACKEND,
       "/meta": BACKEND,
+      "/docs": BACKEND,
+      "/api-docs": BACKEND,
     },
   },
   build: {

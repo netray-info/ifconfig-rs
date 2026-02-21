@@ -77,6 +77,8 @@ export default function App() {
           <div class="footer-links">
             <a href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">GitHub</a>
             {" · "}
+            <a href="/docs">API Docs</a>
+            {" · "}
             <a href="https://lukas.pustina.de" target="_blank" rel="noopener noreferrer">Author</a>
             <Show when={meta()?.version}>
               {" · "}
