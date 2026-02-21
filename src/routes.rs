@@ -165,7 +165,26 @@ fn is_global_ip(ip: IpAddr) -> bool {
     }
     match ip {
         IpAddr::V4(v4) => !v4.is_private() && !v4.is_link_local(),
-        IpAddr::V6(_) => true,
+        IpAddr::V6(v6) => {
+            let segs = v6.segments();
+            // ULA fc00::/7
+            if segs[0] & 0xfe00 == 0xfc00 {
+                return false;
+            }
+            // Link-local fe80::/10
+            if segs[0] & 0xffc0 == 0xfe80 {
+                return false;
+            }
+            // Multicast ff00::/8
+            if segs[0] & 0xff00 == 0xff00 {
+                return false;
+            }
+            // IPv4-mapped ::ffff:x.x.x.x — check the embedded v4 address
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return !v4.is_private() && !v4.is_link_local() && !v4.is_loopback();
+            }
+            true
+        }
     }
 }
 
@@ -1209,6 +1228,24 @@ mod tests {
         assert!(is_global_ip("8.8.8.8".parse().unwrap()));
         assert!(is_global_ip("1.1.1.1".parse().unwrap()));
         assert!(is_global_ip("2001:db8::1".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_global_ip_rejects_ipv6_private() {
+        assert!(!is_global_ip("fc00::1".parse().unwrap()));
+        assert!(!is_global_ip("fd12::1".parse().unwrap()));
+        assert!(!is_global_ip("fe80::1".parse().unwrap()));
+        assert!(!is_global_ip("ff02::1".parse().unwrap()));
+        assert!(!is_global_ip("::ffff:10.0.0.1".parse().unwrap()));
+        assert!(!is_global_ip("::ffff:192.168.1.1".parse().unwrap()));
+        assert!(!is_global_ip("::ffff:172.16.0.1".parse().unwrap()));
+        assert!(!is_global_ip("::ffff:127.0.0.1".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_global_ip_accepts_public_ipv6() {
+        assert!(is_global_ip("2606:4700::1111".parse().unwrap()));
+        assert!(is_global_ip("::ffff:8.8.8.8".parse().unwrap()));
     }
 
     #[test]
