@@ -1,6 +1,6 @@
 # Software Design Document: ifconfig-rs Enrichment Evolution
 
-**Status:** Phases 1a, 1b, 2, 3, 4, 5 complete
+**Status:** Phases 1a, 1b, 2, 3, 4, 5, 6 complete
 **Date:** 2026-02-21 (updated)
 **Input:** [RFC crucible-rfc.md](crucible-rfc.md), multi-perspective design review, async migration analysis
 
@@ -21,8 +21,9 @@ ifconfig-rs evolves from a "what's my IP" utility into a **self-hostable IP enri
 - **Batch lookup** — `POST /batch` for up to 100 IPs, a feature only commercial APIs offer
 - **Multi-format content negotiation** — JSON, YAML, TOML, CSV, plain text across all endpoints including batch
 - **Single binary with embedded SPA** — zero deployment dependencies beyond the binary and MMDB files
+- **Interactive API reference** — Scalar-powered `/docs` endpoint with schema examples, error schemas, and query parameter documentation
 
-With Phases 1–5 complete, the competitive advantage spans architecture (single Rust binary, sub-ms lookups, 5-format content negotiation, embedded SolidJS frontend) and enrichment depth (cloud provider fingerprinting, network classification, batch lookup).
+With Phases 1–6 complete, the competitive advantage spans architecture (single Rust binary, sub-ms lookups, 5-format content negotiation, embedded SolidJS frontend), enrichment depth (cloud provider fingerprinting, network classification, batch lookup), and developer experience (interactive API docs, structured errors, comprehensive OpenAPI spec with examples).
 
 **The SolidJS frontend remains as a demo/marketing surface**, not a co-equal development priority.
 
@@ -325,7 +326,7 @@ This is a **breaking change** from the current API where `is_tor` is a top-level
 
 - **Batch endpoint:** `POST /batch` accepts a JSON array of IP addresses (max configurable, default 100). Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens (checked before processing). Per-IP error handling: invalid/private IPs return `{"error": "...", "input": "..."}` inline. Full content negotiation: `/batch/json`, `/batch/yaml`, `/batch/toml`, `/batch/csv`. Batch CSV uses tabular format (one row per IP, dot-notated column headers). Exempt from standard per-request rate limiting middleware; batch handler applies its own N-token check via `check_key_n`.
 
-- **OpenAPI via utoipa:** The macro-free handler architecture from Phase 1a made utoipa viable (decision record confirmed). All 16 public handlers annotated with `#[utoipa::path]`. Response types derive `ToSchema`: `Ifconfig`, `Ip`, `Tcp`, `Host`, `Location`, `Isp`, `Network`, `UserAgent`, `Browser`, `OS`, `Device`. Spec served at `GET /api-docs/openapi.json`. Swagger UI deferred (adds too many deps for marginal value). **Caveat:** The version in the `#[openapi]` attribute (`src/routes.rs`) is a string literal — utoipa doesn't support `env!()` or `const` there, so it must be manually updated on version bumps.
+- **OpenAPI via utoipa:** The macro-free handler architecture from Phase 1a made utoipa viable (decision record confirmed). All 16 public handlers annotated with `#[utoipa::path]`. Response types derive `ToSchema`: `Ifconfig`, `Ip`, `Tcp`, `Host`, `Location`, `Isp`, `Network`, `UserAgent`, `Browser`, `OS`, `Device`. Spec served at `GET /api-docs/openapi.json`. Interactive API reference via Scalar at `GET /docs` (added in Phase 6). **Version sync:** The `#[openapi]` attribute requires a string literal — utoipa doesn't support `env!()` or `const` there. Solved in Phase 6 by patching `spec.info.version` at runtime from `CARGO_PKG_VERSION` in the handler.
 
 ### Phase 4: API Surface & Operational Polish ✓
 
@@ -392,6 +393,41 @@ Three issues discovered from production testing after Phase 5 shipped:
 
 **Post-fix test count:** 215 tests (110 unit + 99 ok_handlers + 1 error_handler + 5 rate_limit).
 
+### Phase 6: Developer Experience & API Polish ✓
+
+*Closing DX gaps before v1.0: interactive docs, structured errors, enriched OpenAPI spec, performance benchmarks. **COMPLETED** 2026-02-21.*
+
+| # | Item | Commit | LOC | Status |
+|---|------|--------|-----|--------|
+| 1 | Runtime OpenAPI version sync | `9e88527` | +5/-2 | Done |
+| 2 | Structured JSON error responses | `da8c8ac` | +43/-25 | Done |
+| 3 | OpenAPI spec enrichment | `8708615` | +177/-30 | Done |
+| 4 | Scalar API reference UI at `/docs` | `8c2478f` | +35 | Done |
+| 5 | Criterion benchmarks | `05a8e51` | +198 | Done |
+
+**Milestone:** All 220 tests pass (115 unit + 100 ok_handlers + 5 rate_limit). No breaking API changes. Zero new runtime dependencies.
+
+**Implementation notes:**
+
+- **Runtime OpenAPI version sync:** utoipa's `#[openapi]` derive attribute requires a string literal for the version — `env!()` and `const` are not supported. Solved by patching `spec.info.version` at runtime in `openapi_handler` from `env!("CARGO_PKG_VERSION")` before serializing the JSON. Eliminates the manual version-sync chore.
+
+- **Structured JSON error responses:** Added `ErrorResponse { error: String, status: u16 }` (derives `Serialize` + `ToSchema`) in `src/error.rs` with a helper `error_response(StatusCode, &str) -> Response`. Replaced ~15 inline `(StatusCode, "message").into_response()` calls across `routes.rs`, `middleware.rs`, and the `AppError` impl. All error responses now return `application/json` with a machine-parseable body:
+  ```json
+  {"error": "private/loopback IP not allowed", "status": 400}
+  ```
+
+- **OpenAPI spec enrichment:** Added `#[schema(example = ...)]` annotations to all `ToSchema` struct fields in `backend/mod.rs` and `backend/user_agent.rs` using RFC 5737 IPs (`203.0.113.42`) and `example.com` domains. Added `ErrorResponse` to `components(schemas(...))`. Enriched all `#[utoipa::path]` annotations with: `description` strings, `params()` for `?ip=`, `?fields=`, `?dns=` query parameters, `responses()` for 400/429 with `body = ErrorResponse`. Note: utoipa's proc-macro resolves `json!()` in schema attributes internally — no `use serde_json::json` import needed in the module.
+
+- **Scalar API reference UI:** `GET /docs` serves a lightweight HTML page (~20 lines) embedded via `include_str!("scalar_docs.html")`. Loads [Scalar](https://github.com/scalar/scalar) from CDN (`@scalar/api-reference`), configured to read the OpenAPI spec from `/api-docs/openapi.json`. CDN dependency is client-side only — the API spec works fully offline. No new Rust dependencies.
+
+- **Criterion benchmarks:** Four benchmark suites targeting hot-path functions:
+  - `benches/negotiation.rs` — `negotiate()` with format suffix, CLI detection, Accept header, browser
+  - `benches/asn_heuristic.rs` — `classify_asn()` hit/miss patterns (Hetzner, Mullvad, generic hosting, residential)
+  - `benches/serialization.rs` — `OutputFormat::serialize_body()` for JSON/YAML/TOML/CSV with a representative `Ifconfig` payload
+  - `benches/cloud_lookup.rs` — `CloudProviderDb` CIDR trie lookup (AWS, Cloudflare, GCP, miss, IPv6) and construction from JSONL
+
+  All benchmarks use `criterion` 0.5 (dev-dependency only, with `html_reports` feature). Added `make bench` / `cargo bench` targets.
+
 ---
 
 ## 5. Rate Limiting Model
@@ -455,6 +491,7 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 | 4 | `httpdate` 1 | HTTP date formatting for X-GeoIP-Database-Date header | **Added** in Phase 4 — already transitive dep of hyper |
 | 3 | `utoipa` 5 (features: `axum_extras`) | OpenAPI 3.1 spec generation from code annotations | **Added** — works cleanly with explicit handler functions from Phase 1a |
 | 5 | `metrics` 0.24 | Application-level counters, histograms, gauges | **Added** — already transitive via `metrics-exporter-prometheus`, zero compile cost |
+| 6 | `criterion` 0.5 (dev-dependency) | Microbenchmark framework for hot-path performance validation | **Added** — dev-only, not included in release binary |
 
 `dns-lookup` was removed in Phase 1a.
 
@@ -478,6 +515,8 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 - [metrics-exporter-prometheus](https://docs.rs/metrics-exporter-prometheus) — Prometheus metrics exporter (replaced axum-prometheus due to global recorder conflict in tests)
 - [metrics-process](https://docs.rs/metrics-process) — OS-level process metrics
 - [utoipa](https://docs.rs/utoipa-axum/latest/utoipa_axum/) — OpenAPI for Axum
+- [Scalar](https://github.com/scalar/scalar) — Interactive API reference UI (loaded via CDN at `/docs`)
+- [Criterion](https://docs.rs/criterion) — Microbenchmark framework for Rust
 - [Feodo Tracker](https://feodotracker.abuse.ch/) — Botnet C2 IP blocklist (abuse.ch)
 - [X4BNet/lists_vpn](https://github.com/X4BNet/lists_vpn) — VPN provider IP ranges
 - [AWS IP Ranges](https://ip-ranges.amazonaws.com/ip-ranges.json) — Official AWS IP range data (JSON)
