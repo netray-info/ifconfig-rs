@@ -5,53 +5,24 @@
 
 ---
 
-## P1 — Fix Soon
+## P1 — Fix Soon ✅
 
-These are correctness bugs or high-impact UX problems with straightforward fixes.
+### ~~1. Unknown format suffix returns 200 + SPA instead of 404~~ ✅
 
-### 1. Unknown format suffix returns 200 + SPA instead of 404
+`negotiate()` now returns `NegotiatedFormat::Unknown` for unrecognized suffixes; both
+`dispatch_standard()` and `ip_version_dispatch()` return 404 before any enrichment lookup.
+Two unit tests added.
 
-**Source**: fixes.md
-**File**: `src/negotiate.rs:32`
+### ~~2. Network status badges are visually identical~~ ✅
 
-`GET /all/garbage` returns 200 with the SPA index page. API clients hitting a misspelled URL get
-a silent wrong response. `NegotiatedFormat::Unknown` was added to the enum but `negotiate()` never
-produces it — the wildcard arm maps every unrecognized suffix to `Html`.
+Replaced `tor-badge tor` on all four flags with semantic classes: `net-badge--vpn` (blue),
+`net-badge--tor` (amber), `net-badge--bot` (orange), `net-badge--threat` (red). All contrast
+ratios verified ≥4.5:1 against dark card background.
 
-**Fix**: Change the wildcard arm in `negotiate()` to return `NegotiatedFormat::Unknown`, then have
-`dispatch_standard()` return a 404 for `Unknown`, and handle it in the batch match arm (already
-has an arm for it).
+### ~~3. `X-RateLimit-Limit` reports burst capacity, not the per-minute rate~~ ✅
 
----
-
-### 2. Network status badges are visually identical
-
-**Source**: fixes.md
-**File**: `frontend/src/components/InfoCards.tsx:70–94`, `frontend/src/styles/global.css`
-
-Tor, VPN, bot, and threat flags all render with the same `tor-badge tor` class in amber. A user
-cannot distinguish "connected via a commercial VPN" (routine) from "IP is a known C2 botnet node"
-(serious threat) by color alone.
-
-**Fix**: Introduce distinct semantic classes — e.g. `badge-vpn` (blue/neutral), `badge-tor`
-(amber/warning), `badge-bot` (orange/caution), `badge-threat` (red/danger) — and update the CSS
-accordingly. Check contrast ratios for each new color.
-
----
-
-### 3. `X-RateLimit-Limit` reports burst capacity, not the per-minute rate
-
-**Source**: fixes.md
-**File**: `src/middleware.rs:72`
-
-`X-RateLimit-Limit` is set to `per_ip_burst` (default 10) rather than `per_ip_per_minute`
-(default 60). A client sees `X-RateLimit-Limit: 10` and has no way to know the sustained
-throughput is 60 req/min. There is also no `X-RateLimit-Reset` header, so clients cannot
-implement backoff correctly.
-
-**Fix**: Report `per_ip_per_minute` as `X-RateLimit-Limit`. Add `X-RateLimit-Reset` as a Unix
-timestamp derived from `not_until.earliest_possible()`. Document the per-IP / all-endpoints
-scope in OpenAPI.
+`X-RateLimit-Limit` now reports `per_ip_per_minute`. `X-RateLimit-Reset` (Unix timestamp) added
+to 429 responses. Rate-limit integration tests updated.
 
 ---
 
