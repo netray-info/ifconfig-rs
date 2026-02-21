@@ -4,6 +4,9 @@ tor_exit_nodes.txt
 feodo_botnet_ips.txt
 vpn_ranges.txt
 cloud_provider_ranges.jsonl
+datacenter_ranges.txt
+bot_ranges.jsonl
+spamhaus_drop.txt
 .aws.json
 .gcp.json
 .cloudflare-v4.txt
@@ -15,3 +18,7 @@ cloud_provider_ranges.jsonl
 .github.json
 .google-services.json
 .azure.txt
+.googlebot.json
+.bingbot.json
+.applebot.json
+.gptbot.txt

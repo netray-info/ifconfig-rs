@@ -1,6 +1,7 @@
 all:
 
-get_all: regexes.yaml tor_exit_nodes.txt feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl
+get_all: regexes.yaml tor_exit_nodes.txt feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl \
+	datacenter_ranges.txt bot_ranges.jsonl spamhaus_drop.txt
 
 regexes.yaml:
 	curl -s https://raw.githubusercontent.com/ua-parser/uap-core/master/regexes.yaml -o $@
@@ -65,8 +66,37 @@ cloud_provider_ranges.jsonl: .aws.json .gcp.json .cloudflare-v4.txt .cloudflare-
 .azure.txt:
 	curl -s https://cloud-ip-ranges.com/download/azure.txt -o $@
 
+datacenter_ranges.txt:
+	curl -s https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/datacenter/ipv4.txt -o $@
+
+bot_ranges.jsonl: .googlebot.json .bingbot.json .applebot.json .gptbot.txt
+	jq -c '.prefixes[] | if .ipv4Prefix then {cidr: .ipv4Prefix, provider: "googlebot"} elif .ipv6Prefix then {cidr: .ipv6Prefix, provider: "googlebot"} else empty end' .googlebot.json > $@
+	jq -c '.prefixes[] | if .ipv4Prefix then {cidr: .ipv4Prefix, provider: "bingbot"} elif .ipv6Prefix then {cidr: .ipv6Prefix, provider: "bingbot"} else empty end' .bingbot.json >> $@
+	jq -c '.prefixes[] | if .ipv4Prefix then {cidr: .ipv4Prefix, provider: "applebot"} elif .ipv6Prefix then {cidr: .ipv6Prefix, provider: "applebot"} else empty end' .applebot.json >> $@
+	while IFS= read -r cidr; do case "$$cidr" in \#*|"") continue;; esac; printf '{"cidr":"%s","provider":"gptbot"}\n' "$$cidr"; done < .gptbot.txt >> $@
+	rm -f .googlebot.json .bingbot.json .applebot.json .gptbot.txt
+
+.googlebot.json:
+	curl -s https://developers.google.com/search/apis/ipranges/googlebot.json -o $@
+
+.bingbot.json:
+	curl -s https://www.bing.com/toolbox/bingbot.json -o $@
+
+.applebot.json:
+	curl -s https://search.developer.apple.com/applebot.json -o $@
+
+.gptbot.txt:
+	curl -s https://openai.com/gptbot-ranges.txt -o $@
+
+spamhaus_drop.txt:
+	{ curl -s https://www.spamhaus.org/drop/drop.txt; \
+	  curl -s https://www.spamhaus.org/drop/edrop.txt; \
+	  curl -s https://www.spamhaus.org/drop/dropv6.txt; } \
+	| sed -e 's/ ;.*//' -e '/^;/d' -e '/^$$/d' > $@
+
 DATA_FILES = GeoLite2-ASN.mmdb GeoLite2-City.mmdb regexes.yaml tor_exit_nodes.txt \
-	feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl
+	feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl \
+	datacenter_ranges.txt bot_ranges.jsonl spamhaus_drop.txt
 
 build: $(DATA_FILES)
 	docker buildx build --platform linux/amd64,linux/arm64 \
@@ -80,7 +110,7 @@ push: $(DATA_FILES)
 		--push \
 		.
 
-clean: clean_regexes clean_tor clean_feodo clean_vpn clean_cloud
+clean: clean_regexes clean_tor clean_feodo clean_vpn clean_cloud clean_datacenter clean_bot clean_spamhaus
 	rm -f *.mmdb
 
 clean_regexes:
@@ -99,4 +129,14 @@ clean_cloud:
 	rm -f cloud_provider_ranges.jsonl .aws.json .gcp.json .cloudflare-v4.txt .cloudflare-v6.txt \
 		.oracle.json .fastly.json .digitalocean.csv .linode.csv .github.json .google-services.json .azure.txt
 
-.PHONY: all get_all build push clean clean_regexes clean_tor clean_feodo clean_vpn clean_cloud
+clean_datacenter:
+	rm -f datacenter_ranges.txt
+
+clean_bot:
+	rm -f bot_ranges.jsonl .googlebot.json .bingbot.json .applebot.json .gptbot.txt
+
+clean_spamhaus:
+	rm -f spamhaus_drop.txt
+
+.PHONY: all get_all build push clean clean_regexes clean_tor clean_feodo clean_vpn clean_cloud \
+	clean_datacenter clean_bot clean_spamhaus
