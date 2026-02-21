@@ -100,7 +100,10 @@ pub async fn build_app(config: &Config) -> AppBundle {
     let api_routes = routes::router();
 
     let cors = if config.server.cors_allowed_origins.iter().any(|o| o == "*") {
-        CorsLayer::new().allow_origin(Any)
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any)
     } else {
         let origins: Vec<axum::http::HeaderValue> = config
             .server
@@ -108,7 +111,10 @@ pub async fn build_app(config: &Config) -> AppBundle {
             .iter()
             .filter_map(|o| o.parse().ok())
             .collect();
-        CorsLayer::new().allow_origin(AllowOrigin::list(origins))
+        CorsLayer::new()
+            .allow_origin(AllowOrigin::list(origins))
+            .allow_methods(Any)
+            .allow_headers(Any)
     };
 
     let app = Router::new()

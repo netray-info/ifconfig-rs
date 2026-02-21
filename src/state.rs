@@ -26,7 +26,7 @@ pub struct AppState {
     pub trusted_proxies: Arc<Vec<IpNetwork>>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct ProjectInfo {
     pub name: String,
     pub version: String,

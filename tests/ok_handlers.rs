@@ -1450,3 +1450,112 @@ async fn ipv6_with_ipv4_ip_param_returns_404() {
     let (status, _, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+// --- IPv6 client tests ---
+//
+// These tests bind the server to [::1] so the connecting client is seen as an IPv6 client.
+
+async fn send_request_v6(path: &str, req_headers: &[(&str, &str)]) -> (StatusCode, axum::http::HeaderMap, String) {
+    let config = test_config();
+    let app = ifconfig_rs::build_app(&config).await.app;
+
+    let listener = TcpListener::bind("[::1]:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+
+    tokio::spawn(async move {
+        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+            .with_graceful_shutdown(async { rx.await.ok(); })
+            .await
+            .unwrap();
+    });
+
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new()).build_http();
+    let uri = format!("http://[::1]:{}{}", addr.port(), path);
+    let mut builder = Request::builder()
+        .method("GET")
+        .uri(&uri)
+        .header("user-agent", "curl/8.0")
+        .header("accept", "*/*");
+    for (key, value) in req_headers {
+        builder = builder.header(*key, *value);
+    }
+    let request = builder.body(Body::empty()).unwrap();
+    let response = client.request(request).await.unwrap();
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body_str = String::from_utf8(body_bytes.to_vec()).unwrap_or_default();
+    let _ = tx.send(());
+    (status, headers, body_str)
+}
+
+#[tokio::test]
+async fn ipv6_client_root_returns_200_with_v6() {
+    let (status, _, body) = send_request_v6("/json", &[]).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["ip"]["version"], "6");
+    assert_eq!(json["ip"]["addr"], "::1");
+}
+
+#[tokio::test]
+async fn ipv6_client_ipv6_endpoint_returns_200() {
+    let (status, _, body) = send_request_v6("/ipv6/json", &[]).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["version"], "6");
+}
+
+#[tokio::test]
+async fn ipv6_client_ipv4_endpoint_returns_404() {
+    let (status, _, _) = send_request_v6("/ipv4/json", &[]).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+// --- CORS preflight test ---
+
+#[tokio::test]
+async fn cors_preflight_returns_correct_headers() {
+    let config = test_config();
+    let app = ifconfig_rs::build_app(&config).await.app;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+
+    tokio::spawn(async move {
+        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+            .with_graceful_shutdown(async { rx.await.ok(); })
+            .await
+            .unwrap();
+    });
+
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new()).build_http();
+    let uri = format!("http://{}/", addr);
+    let request = Request::builder()
+        .method("OPTIONS")
+        .uri(&uri)
+        .header("origin", "https://example.com")
+        .header("access-control-request-method", "GET")
+        .body(Body::empty())
+        .unwrap();
+    let response = client.request(request).await.unwrap();
+
+    let _ = tx.send(());
+
+    assert!(
+        response.status() == StatusCode::OK || response.status() == StatusCode::NO_CONTENT,
+        "CORS preflight should return 200 or 204, got {}",
+        response.status()
+    );
+    assert_eq!(
+        response.headers().get("access-control-allow-origin").and_then(|v| v.to_str().ok()),
+        Some("*"),
+        "CORS preflight must echo back Access-Control-Allow-Origin: *"
+    );
+    assert!(
+        response.headers().contains_key("access-control-allow-methods"),
+        "CORS preflight must include Access-Control-Allow-Methods"
+    );
+}

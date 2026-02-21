@@ -26,87 +26,56 @@ to 429 responses. Rate-limit integration tests updated.
 
 ---
 
-## P2 — Next Sprint
+## P2 — Next Sprint ✅
 
 Meaningful gaps that affect API consumers and documentation quality.
 
-### 4. OpenAPI: query parameters undocumented on most endpoints
+### ~~4. OpenAPI: query parameters undocumented on most endpoints~~ ✅
 
-**Source**: fixes.md
-**File**: `src/routes.rs` — utoipa annotations
-
-`?ip=`, `?fields=`, and `?dns=` are supported on every standard endpoint but are only documented
-on a handful (`/`, `/all`, `/ip`, `/batch`). Code generators and the Scalar UI omit them for
-`/host`, `/location`, `/isp`, `/network`, `/tcp`, `/user_agent`, `/headers`.
-
-**Fix**: Extract a shared set of utoipa `params` for `ip_param`, `fields_param`, and `dns_param`
-and apply them to every `#[utoipa::path]` annotation that dispatches via `dispatch_standard()`.
+`?dns=` param added to all standard endpoints (`/ip`, `/tcp`, `/location`, `/isp`,
+`/user_agent`, `/network`, `/ipv4`, `/ipv6`) that pass through `dispatch_standard()`.
 
 ---
 
-### 5. OpenAPI: `/meta` endpoint missing from spec
+### ~~5. OpenAPI: `/meta` endpoint missing from spec~~ ✅
 
-**Source**: fixes.md
-**File**: `src/routes.rs`
-
-The SPA calls `/meta` on startup to get `site_name` and `version`, but the endpoint has no
-`#[utoipa::path]` annotation and does not appear in the OpenAPI spec or the Scalar UI.
-
-**Fix**: Add a `#[utoipa::path]` annotation to `meta_handler` and include `MetaResponse` (or
-`ProjectInfo`) as a response schema.
+Added `#[utoipa::path]` annotation to `meta_handler` with `ProjectInfo` response schema.
+`meta_handler` added to `#[openapi(paths(...))]`; `crate::state::ProjectInfo` added to
+`components(schemas(...))` with `#[derive(utoipa::ToSchema)]`.
 
 ---
 
-### 6. OpenAPI: rate-limit response headers undocumented
+### ~~6. OpenAPI: rate-limit response headers undocumented~~ ✅
 
-**Source**: fixes.md
-**File**: `src/routes.rs` — utoipa annotations
-
-`X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `Retry-After` (on 429) are implemented but
-absent from all operation specs. API consumers reading the spec have no way to discover them.
-
-**Fix**: Add response header definitions to the affected operations, or add a shared description
-in the spec's top-level `info.description`.
+Documented in `info.description` under a "Rate Limiting" section: `X-RateLimit-Limit`,
+`X-RateLimit-Remaining` on all responses; `Retry-After`, `X-RateLimit-Reset` on 429s.
+Also fixed batch 429 responses to use `per_ip_per_minute` (not `per_ip_burst`) and include
+`X-RateLimit-Reset`, consistent with middleware behaviour.
 
 ---
 
-### 7. OpenAPI: no operation tags — Scalar UI is a flat unorganized list
+### ~~7. OpenAPI: no operation tags — Scalar UI is a flat unorganized list~~ ✅
 
-**Source**: fixes.md
-**File**: `src/routes.rs` — utoipa annotations
-
-Every endpoint appears in one undifferentiated list in Scalar. Grouping by tag (e.g. "IP",
-"Location", "Network", "User Agent", "Probes", "Batch") makes the interactive docs usable.
-
-**Fix**: Add `tags = ["IP"]` etc. to each `#[utoipa::path]` and register the tag definitions
-in `#[openapi(tags(...))]`.
+Ten tags defined and registered: IP, Location, ISP, Network, TCP, Host, User Agent, Headers,
+Batch, Probes. All `#[utoipa::path]` annotations updated with `tag = "..."`.
 
 ---
 
-### 8. No integration test for IPv6 clients
+### ~~8. No integration test for IPv6 clients~~ ✅
 
-**Source**: fixes.md
-**File**: `tests/ok_handlers.rs`
-
-All integration tests use `remote_v4()`. There is no `remote_v6()` helper and no test for an
-IPv6 client, including the case of an IPv6 client hitting `/ipv4` (should return 404) or an
-IPv4 client hitting `/ipv6` — which is tested but only one direction.
-
-**Fix**: Add a `remote_v6()` helper and tests: IPv6 client on `/`, `/ipv6`, and `/ipv4`
-(expect 404).
+Added `send_request_v6()` helper that binds the server to `[::1]:0` and connects via IPv6
+loopback. Three new tests: IPv6 client on `/json` (version=6), on `/ipv6/json` (200), on
+`/ipv4/json` (404).
 
 ---
 
-### 9. No CORS preflight test
+### ~~9. No CORS preflight test~~ ✅
 
-**Source**: fixes.md
-**File**: `tests/ok_handlers.rs`
-
-`CorsLayer` is the outermost layer but `OPTIONS` requests are never exercised in tests. A
-regression in CORS config would not be caught.
-
-**Fix**: Add an integration test that sends `OPTIONS / HTTP/1.1` with `Origin` and
-`Access-Control-Request-Method` headers and asserts the correct CORS response headers.
+Added `cors_preflight_returns_correct_headers` test: sends `OPTIONS /` with `Origin` and
+`Access-Control-Request-Method` headers, asserts 200/204 response with
+`Access-Control-Allow-Origin: *` and `Access-Control-Allow-Methods` present. Also updated
+`CorsLayer` to explicitly set `allow_methods(Any)` and `allow_headers(Any)` for a complete
+preflight response.
 
 ---
 

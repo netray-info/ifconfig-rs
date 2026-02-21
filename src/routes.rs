@@ -23,7 +23,15 @@ use crate::state::AppState;
 #[openapi(
     info(
         title = "ifconfig-rs",
-        description = "IP address lookup and enrichment API",
+        description = "IP address lookup and enrichment API.\n\n\
+            ## Rate Limiting\n\
+            All endpoints (except `/health`, `/ready`) are rate-limited per source IP.\n\
+            Every response includes:\n\
+            - `X-RateLimit-Limit` — requests allowed per minute\n\
+            - `X-RateLimit-Remaining` — tokens left in the current window\n\n\
+            When the limit is exceeded (HTTP 429):\n\
+            - `Retry-After` — seconds until a new token is available\n\
+            - `X-RateLimit-Reset` — Unix timestamp when the limit resets",
         version = "0.8.0",
         license(name = "MIT"),
     ),
@@ -42,13 +50,27 @@ use crate::state::AppState;
         ipv4_handler,
         ipv6_handler,
         batch_handler,
+        meta_handler,
         health_handler,
         ready_handler,
     ),
     components(schemas(
         Ifconfig, Ip, Tcp, Host, Location, Isp, Network,
         UserAgent, Browser, OS, Device, ErrorResponse,
-    ))
+        crate::state::ProjectInfo,
+    )),
+    tags(
+        (name = "IP", description = "IP address lookup and version endpoints"),
+        (name = "Location", description = "Geolocation data from GeoIP databases"),
+        (name = "ISP", description = "ISP name and ASN from GeoIP ASN database"),
+        (name = "Network", description = "Network classification (cloud, VPN, Tor, bot, hosting)"),
+        (name = "TCP", description = "Source TCP port of the connection"),
+        (name = "Host", description = "Reverse DNS / PTR hostname"),
+        (name = "User Agent", description = "Parsed User-Agent header"),
+        (name = "Headers", description = "Raw request headers as received by the server"),
+        (name = "Batch", description = "Batch enrichment of multiple IPs"),
+        (name = "Probes", description = "Liveness, readiness, and site metadata endpoints"),
+    )
 )]
 struct ApiDoc;
 
@@ -268,6 +290,7 @@ async fn dispatch_standard(
 
 #[utoipa::path(
     get, path = "/",
+    tag = "IP",
     description = "Returns the caller's full enrichment data (IP, location, ISP, network classification, user agent). Content-negotiated: returns HTML (SPA) for browsers, plain text for CLI clients, or structured data when an Accept header or format suffix is used.",
     params(
         ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
@@ -357,10 +380,12 @@ macro_rules! standard_endpoint {
 standard_endpoint! {
     #[utoipa::path(
         get, path = "/ip",
+        tag = "IP",
         description = "Returns the caller's IP address and version (4 or 6).",
         params(
             ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
             ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
         ),
         responses(
             (status = 200, description = "IP address info", body = Ip),
@@ -375,6 +400,7 @@ standard_endpoint! {
 
 #[utoipa::path(
     get, path = "/ip/cidr",
+    tag = "IP",
     description = "Returns the caller's IP in CIDR notation (e.g. 203.0.113.42/32 or 2001:db8::1/128). Plain text only.",
     responses(
         (status = 200, description = "IP in CIDR notation", content_type = "text/plain"),
@@ -391,10 +417,12 @@ async fn ip_cidr_handler(headers: HeaderMap, extensions: axum::http::Extensions)
 standard_endpoint! {
     #[utoipa::path(
         get, path = "/tcp",
+        tag = "TCP",
         description = "Returns the caller's source TCP port. Omitted for ?ip= queries.",
         params(
             ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
             ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
         ),
         responses(
             (status = 200, description = "TCP port info", body = Tcp),
@@ -410,6 +438,7 @@ standard_endpoint! {
 standard_endpoint! {
     #[utoipa::path(
         get, path = "/host",
+        tag = "Host",
         description = "Returns the reverse DNS (PTR) hostname for the caller's IP. Skipped by default for ?ip= queries unless ?dns=true.",
         params(
             ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
@@ -430,10 +459,12 @@ standard_endpoint! {
 standard_endpoint! {
     #[utoipa::path(
         get, path = "/location",
+        tag = "Location",
         description = "Returns geolocation data (city, country, coordinates, timezone) from the GeoIP database.",
         params(
             ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
             ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
         ),
         responses(
             (status = 200, description = "Geolocation data", body = Location),
@@ -449,10 +480,12 @@ standard_endpoint! {
 standard_endpoint! {
     #[utoipa::path(
         get, path = "/isp",
+        tag = "ISP",
         description = "Returns ISP name and ASN number from the GeoIP ASN database.",
         params(
             ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
             ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
         ),
         responses(
             (status = 200, description = "ISP / ASN info", body = Isp),
@@ -468,10 +501,12 @@ standard_endpoint! {
 standard_endpoint! {
     #[utoipa::path(
         get, path = "/user_agent",
+        tag = "User Agent",
         description = "Returns the parsed User-Agent header (browser, OS, device families and versions).",
         params(
             ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
             ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
         ),
         responses(
             (status = 200, description = "Parsed User-Agent", body = UserAgent),
@@ -487,10 +522,12 @@ standard_endpoint! {
 standard_endpoint! {
     #[utoipa::path(
         get, path = "/network",
+        tag = "Network",
         description = "Returns network classification (cloud, VPN, Tor, bot, hosting, residential) with provider details and boolean flags.",
         params(
             ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
             ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
         ),
         responses(
             (status = 200, description = "Network classification", body = Network),
@@ -506,6 +543,7 @@ standard_endpoint! {
 standard_endpoint! {
     #[utoipa::path(
         get, path = "/all",
+        tag = "IP",
         description = "Returns all enrichment data. Equivalent to / but always returns structured data (never HTML).",
         params(
             ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
@@ -527,6 +565,7 @@ standard_endpoint! {
 
 #[utoipa::path(
     get, path = "/headers",
+    tag = "Headers",
     description = "Returns the request headers as received by the server (after proxy processing).",
     responses(
         (status = 200, description = "Request headers as key-value pairs"),
@@ -552,6 +591,7 @@ async fn headers_format_handler(
 fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) -> Response {
     match format {
         NegotiatedFormat::Html => serve_spa(),
+        NegotiatedFormat::Unknown => error_response(StatusCode::NOT_FOUND, "unknown format suffix"),
         NegotiatedFormat::Plain => respond_plain(handlers::headers::to_plain(req_headers)),
         NegotiatedFormat::Json => respond_json_value(handlers::headers::to_json_value(req_headers)),
         fmt => {
@@ -573,6 +613,7 @@ fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) 
 
 #[utoipa::path(
     post, path = "/batch",
+    tag = "Batch",
     description = "Batch-enrich multiple IPs in a single request. Each IP consumes one rate-limit token. Disabled by default (requires batch.enabled = true in config).",
     request_body(content = Vec<String>, description = "JSON array of IP address strings"),
     params(
@@ -640,21 +681,33 @@ async fn batch_dispatch(
         Ok(Err(not_until)) => {
             let wait = not_until.wait_time_from(DefaultClock::default().now());
             let retry_after = wait.as_secs().saturating_add(1);
-            let limit = state.config.rate_limit.per_ip_burst;
+            let limit = state.config.rate_limit.per_ip_per_minute;
+            let reset_unix = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+                .saturating_add(retry_after);
             let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "rate limit exceeded");
             let h = resp.headers_mut();
             h.insert("x-ratelimit-limit", HeaderValue::from(limit));
             h.insert("x-ratelimit-remaining", HeaderValue::from(0u32));
             h.insert("retry-after", HeaderValue::from(retry_after));
+            h.insert("x-ratelimit-reset", HeaderValue::from(reset_unix));
             return resp;
         }
         Err(_insufficient) => {
-            let limit = state.config.rate_limit.per_ip_burst;
+            let limit = state.config.rate_limit.per_ip_per_minute;
+            let reset_unix = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+                .saturating_add(1);
             let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "rate limit exceeded");
             let h = resp.headers_mut();
             h.insert("x-ratelimit-limit", HeaderValue::from(limit));
             h.insert("x-ratelimit-remaining", HeaderValue::from(0u32));
             h.insert("retry-after", HeaderValue::from(1u64));
+            h.insert("x-ratelimit-reset", HeaderValue::from(reset_unix));
             return resp;
         }
     };
@@ -766,10 +819,12 @@ async fn batch_dispatch(
 
 #[utoipa::path(
     get, path = "/ipv4",
+    tag = "IP",
     description = "Returns IP info only if the caller connected via IPv4. Returns 404 for IPv6 clients.",
     params(
         ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
         ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
     ),
     responses(
         (status = 200, description = "IPv4 address info", body = Ip),
@@ -797,10 +852,12 @@ async fn ipv4_format_handler(
 
 #[utoipa::path(
     get, path = "/ipv6",
+    tag = "IP",
     description = "Returns IP info only if the caller connected via IPv6. Returns 404 for IPv4 clients.",
     params(
         ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
         ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
     ),
     responses(
         (status = 200, description = "IPv6 address info", body = Ip),
@@ -894,6 +951,14 @@ async fn ip_version_dispatch(
 
 // ---- Meta handler (site info for SPA) ----
 
+#[utoipa::path(
+    get, path = "/meta",
+    tag = "Probes",
+    description = "Returns site metadata used by the SPA: project name, version, base URL, and site name.",
+    responses(
+        (status = 200, description = "Site metadata", body = crate::state::ProjectInfo),
+    )
+)]
 async fn meta_handler(State(state): State<AppState>) -> Response {
     (StatusCode::OK, axum::Json(&*state.project_info)).into_response()
 }
@@ -902,6 +967,7 @@ async fn meta_handler(State(state): State<AppState>) -> Response {
 
 #[utoipa::path(
     get, path = "/health",
+    tag = "Probes",
     description = "Liveness probe. Always returns 200 with {\"status\": \"ok\"}. Exempt from rate limiting.",
     responses((status = 200, description = "Liveness probe"))
 )]
@@ -913,6 +979,7 @@ async fn health_handler() -> Response {
 
 #[utoipa::path(
     get, path = "/ready",
+    tag = "Probes",
     description = "Readiness probe. Returns 200 when GeoIP databases and UA parser are loaded, 503 otherwise. Exempt from rate limiting.",
     responses(
         (status = 200, description = "All backends loaded"),
