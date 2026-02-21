@@ -21,6 +21,12 @@ fn generate_request_id() -> String {
     format!("{:016x}", REQUEST_ID_SEED.wrapping_add(count))
 }
 
+fn is_valid_request_id(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 64
+        && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+
 pub async fn record_metrics(req: Request<axum::body::Body>, next: Next) -> Response {
     let method = req.method().to_string();
     let start = std::time::Instant::now();
@@ -37,6 +43,7 @@ pub async fn request_id(mut req: Request<axum::body::Body>, next: Next) -> Respo
         .headers()
         .get("x-request-id")
         .and_then(|v| v.to_str().ok())
+        .filter(|s| is_valid_request_id(s))
         .map(String::from)
         .unwrap_or_else(generate_request_id);
 

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Show, For } from "solid-js";
+import { createSignal, createEffect, onCleanup, Show, For } from "solid-js";
 
 export default function RequestHeaders() {
   const [open, setOpen] = createSignal(false);
@@ -6,12 +6,17 @@ export default function RequestHeaders() {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   let fetched = false;
+  let controller: AbortController | undefined;
+
+  // Cancel any in-flight request when the component unmounts.
+  onCleanup(() => controller?.abort());
 
   createEffect(() => {
     if (!open() || fetched) return;
     fetched = true;
     setLoading(true);
-    fetch("/headers/json", { headers: { Accept: "application/json" } })
+    controller = new AbortController();
+    fetch("/headers/json", { headers: { Accept: "application/json" }, signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         return res.json();
@@ -19,7 +24,8 @@ export default function RequestHeaders() {
       .then((data: Record<string, string>) => {
         setHeaders(Object.entries(data).sort(([a], [b]) => a.localeCompare(b)));
       })
-      .catch((e) => {
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name === "AbortError") return;
         setError(e instanceof Error ? e.message : "Request failed");
       })
       .finally(() => {

@@ -47,6 +47,16 @@ impl AppState {
             site_name: config.site_name.clone().unwrap_or_else(|| config.base_url.clone()),
         };
 
+        if config.batch.enabled {
+            assert!(config.batch.max_size > 0, "batch.max_size must be > 0 when batch is enabled");
+            if config.batch.max_size > 10_000 {
+                warn!(
+                    "batch.max_size={} is very large; values above 10000 risk resource exhaustion under load",
+                    config.batch.max_size
+                );
+            }
+        }
+
         let per_minute =
             NonZeroU32::new(config.rate_limit.per_ip_per_minute).expect("per_ip_per_minute must be > 0");
         let burst = NonZeroU32::new(config.rate_limit.per_ip_burst).expect("per_ip_burst must be > 0");
@@ -104,5 +114,72 @@ impl AppState {
             header_filters: Arc::new(header_filters),
             trusted_proxies: Arc::new(trusted_proxies),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{BatchConfig, Config};
+
+    async fn build_state(f: impl FnOnce(&mut Config)) -> AppState {
+        let mut config = Config::load(None).unwrap();
+        f(&mut config);
+        AppState::new(&config).await
+    }
+
+    #[tokio::test]
+    async fn invalid_trusted_proxy_cidr_is_skipped() {
+        let state = build_state(|c| {
+            c.server.trusted_proxies = vec!["10.0.0.0/8".to_string(), "not-a-cidr".to_string()];
+        })
+        .await;
+        assert_eq!(state.trusted_proxies.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn valid_trusted_proxies_are_parsed() {
+        let state = build_state(|c| {
+            c.server.trusted_proxies = vec!["192.168.0.0/24".to_string(), "10.0.0.1".to_string()];
+        })
+        .await;
+        assert_eq!(state.trusted_proxies.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn invalid_header_filter_regex_is_skipped() {
+        let state = build_state(|c| {
+            c.filtered_headers = vec!["^X-Valid-.*".to_string(), "[invalid regex".to_string()];
+        })
+        .await;
+        assert_eq!(state.header_filters.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn all_header_filter_regexes_valid() {
+        let state = build_state(|c| {
+            c.filtered_headers = vec!["^Authorization$".to_string(), "^X-Api-Key$".to_string()];
+        })
+        .await;
+        assert_eq!(state.header_filters.len(), 2);
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "batch.max_size must be > 0")]
+    async fn batch_max_size_zero_panics() {
+        build_state(|c| {
+            c.batch = BatchConfig { enabled: true, max_size: 0 };
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn batch_max_size_zero_ok_when_disabled() {
+        // max_size=0 is not validated when batch is disabled
+        let state = build_state(|c| {
+            c.batch = BatchConfig { enabled: false, max_size: 0 };
+        })
+        .await;
+        assert_eq!(state.config.batch.max_size, 0);
     }
 }

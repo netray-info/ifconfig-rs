@@ -216,3 +216,54 @@ impl EnrichmentContext {
         Ok(ctx)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    #[tokio::test]
+    async fn load_with_no_paths_succeeds() {
+        let config = Config::load(None).unwrap();
+        let ctx = EnrichmentContext::load(&config).await;
+        assert!(ctx.is_ok());
+        let ctx = ctx.unwrap();
+        assert!(ctx.geoip_city_db.is_none());
+        assert!(ctx.geoip_asn_db.is_none());
+        assert!(ctx.user_agent_parser.is_none());
+        assert!(ctx.cloud_provider_db.is_none());
+        assert!(ctx.vpn_ranges.is_none());
+        assert!(ctx.geoip_city_build_epoch.is_none());
+    }
+
+    #[tokio::test]
+    async fn nonexistent_geoip_city_path_yields_none() {
+        let mut config = Config::load(None).unwrap();
+        config.geoip_city_db = Some("/nonexistent/GeoLite2-City.mmdb".to_string());
+        let ctx = EnrichmentContext::load(&config).await.unwrap();
+        assert!(ctx.geoip_city_db.is_none());
+    }
+
+    #[tokio::test]
+    async fn nonexistent_geoip_asn_path_yields_none() {
+        let mut config = Config::load(None).unwrap();
+        config.geoip_asn_db = Some("/nonexistent/GeoLite2-ASN.mmdb".to_string());
+        let ctx = EnrichmentContext::load(&config).await.unwrap();
+        assert!(ctx.geoip_asn_db.is_none());
+    }
+
+    #[tokio::test]
+    async fn nonexistent_ua_regex_path_yields_none() {
+        let mut config = Config::load(None).unwrap();
+        config.user_agent_regexes = Some("/nonexistent/regexes.yaml".to_string());
+        let ctx = EnrichmentContext::load(&config).await.unwrap();
+        assert!(ctx.user_agent_parser.is_none());
+    }
+
+    #[tokio::test]
+    async fn no_geoip_means_build_epoch_is_none() {
+        let config = Config::load(None).unwrap();
+        let ctx = EnrichmentContext::load(&config).await.unwrap();
+        assert!(ctx.geoip_city_build_epoch.is_none());
+    }
+}

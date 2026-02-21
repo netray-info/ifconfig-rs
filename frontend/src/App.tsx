@@ -16,7 +16,19 @@ export default function App() {
 
   const siteName = () => meta()?.site_name ?? location.hostname;
 
-  onMount(async () => {
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await fetchIfconfig());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  onMount(() => {
     // Fetch meta independently — failure should not block the main data load
     fetchMeta()
       .then((siteMeta) => {
@@ -25,13 +37,7 @@ export default function App() {
       })
       .catch(() => {}); // fall back to location.hostname via siteName()
 
-    try {
-      setData(await fetchIfconfig());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
-    } finally {
-      setLoading(false);
-    }
+    loadData();
   });
 
   return (
@@ -50,7 +56,11 @@ export default function App() {
         </Show>
 
         <Show when={error()}>
-          <div class="error-msg">{error()}</div>
+          <div class="error-msg">
+            {error()}
+            {" "}
+            <button class="retry-btn" onClick={loadData}>Try again</button>
+          </div>
         </Show>
 
         <Show when={data()}>

@@ -625,10 +625,7 @@ async fn batch_dispatch(
     }
 
     if ips.len() > state.config.batch.max_size {
-        return error_response(
-            StatusCode::BAD_REQUEST,
-            &format!("batch size {} exceeds maximum {}", ips.len(), state.config.batch.max_size),
-        );
+        return error_response(StatusCode::BAD_REQUEST, "batch size exceeds limit");
     }
 
     // Rate-limit: consume N tokens for N IPs
@@ -674,26 +671,29 @@ async fn batch_dispatch(
     // Pre-validate IPs and spawn concurrent lookups
     let mut results: Vec<serde_json::Value> = vec![json!(null); ips.len()];
     let mut set = tokio::task::JoinSet::new();
+    // Bound concurrency to avoid overwhelming the DNS resolver and GeoIP databases.
+    let sem = std::sync::Arc::new(tokio::sync::Semaphore::new(10));
 
     for (i, ip_str) in ips.iter().enumerate() {
-        let safe_input: String = if ip_str.len() > 45 { ip_str.chars().take(45).collect() } else { ip_str.clone() };
         let ip: IpAddr = match ip_str.parse() {
             Ok(ip) => ip,
             Err(_) => {
-                results[i] = json!({"error": "invalid IP address", "input": safe_input});
+                results[i] = json!({"error": "invalid IP address", "index": i});
                 continue;
             }
         };
 
         if !is_global_ip(ip) {
-            results[i] = json!({"error": "private/loopback IP not allowed", "input": safe_input});
+            results[i] = json!({"error": "private/loopback IP not allowed", "index": i});
             continue;
         }
 
         let ctx = std::sync::Arc::clone(&ctx);
         let ua = ua_owned.clone();
         let fields = fields.clone();
+        let permit = std::sync::Arc::clone(&sem).acquire_owned().await.unwrap();
         set.spawn(async move {
+            let _permit = permit;
             let uap = ctx.user_agent_parser.as_deref().unwrap();
             let city = ctx.geoip_city_db.as_deref().unwrap();
             let asn = ctx.geoip_asn_db.as_deref().unwrap();
