@@ -170,7 +170,7 @@ pub struct Network {
 pub struct Ifconfig {
     pub host: Option<Host>,
     pub ip: Ip,
-    pub tcp: Tcp,
+    pub tcp: Option<Tcp>,
     pub location: Location,
     pub isp: Isp,
     pub network: Option<Network>,
@@ -222,8 +222,10 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         version: ip_version.to_string(),
     };
 
-    let tcp = Tcp {
-        port: param.remote.port(),
+    let tcp = if param.skip_dns {
+        None // ?ip= query — port is synthetic (0), omit from response
+    } else {
+        Some(Tcp { port: param.remote.port() })
     };
 
     let location = param

@@ -23,7 +23,7 @@ use crate::state::AppState;
     info(
         title = "ifconfig-rs",
         description = "IP address lookup and enrichment API",
-        version = "0.7.0",
+        version = "0.8.0",
         license(name = "MIT"),
     ),
     paths(

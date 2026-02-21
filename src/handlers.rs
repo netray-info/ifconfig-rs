@@ -69,11 +69,14 @@ pub mod tcp {
     use super::*;
 
     pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
-        serde_json::to_value(&ifconfig.tcp).ok()
+        ifconfig.tcp.as_ref().and_then(|t| serde_json::to_value(t).ok())
     }
 
     pub fn to_plain(ifconfig: &Ifconfig) -> String {
-        format!("{}\n", ifconfig.tcp.port)
+        match &ifconfig.tcp {
+            Some(t) => format!("{}\n", t.port),
+            None => "\n".to_string(),
+        }
     }
 }
 
@@ -241,7 +244,9 @@ pub mod all {
             lines.push(format!("bot:        {}", n.is_bot));
             lines.push(format!("threat:     {}", n.is_threat));
         }
-        lines.push(format!("port:       {}", ifconfig.tcp.port));
+        if let Some(ref t) = ifconfig.tcp {
+            lines.push(format!("port:       {}", t.port));
+        }
         if let Some(ref ua) = ifconfig.user_agent {
             lines.push(format!("browser:    {} {}", ua.browser.family, ua.browser.version));
             lines.push(format!("os:         {} {}", ua.os.family, ua.os.version));

@@ -40,10 +40,12 @@ export default function InfoCards(props: Props) {
           <span class="card-label">IP Version</span>
           <span class="card-value">IPv{props.data.ip.version}</span>
         </div>
-        <div class="card-row">
-          <span class="card-label">TCP Port</span>
-          <span class="card-value">{props.data.tcp.port}</span>
-        </div>
+        <Show when={props.data.tcp}>
+          <div class="card-row">
+            <span class="card-label">TCP Port</span>
+            <span class="card-value">{props.data.tcp!.port}</span>
+          </div>
+        </Show>
         <Show when={props.data.host}>
           <div class="card-row card-row-stackable">
             <span class="card-label">Hostname</span>

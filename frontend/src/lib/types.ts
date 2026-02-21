@@ -8,7 +8,7 @@ export interface SiteMeta {
 export interface Ifconfig {
   host: Host | null;
   ip: Ip;
-  tcp: Tcp;
+  tcp: Tcp | null;
   location: Location;
   isp: Isp;
   network: Network | null;
