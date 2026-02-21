@@ -1042,3 +1042,76 @@ async fn handle_ip_cidr_no_accept() {
     assert!(is_plain(&ct), "Expected text/plain, got {:?}", ct);
     assert!(body.contains("/32"));
 }
+
+// --- ?ip= arbitrary IP lookup tests ---
+
+#[tokio::test]
+async fn ip_param_all_json() {
+    let req = get_with_headers("/all/json?ip=8.8.8.8", &[("user-agent", "curl/7.54.0")]);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["ip"]["addr"], "8.8.8.8");
+}
+
+#[tokio::test]
+async fn ip_param_ip_json() {
+    let req = get_with_headers("/ip/json?ip=1.1.1.1", &[("user-agent", "curl/7.54.0")]);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["addr"], "1.1.1.1");
+}
+
+#[tokio::test]
+async fn ip_param_rejects_private() {
+    let req = get_with_headers("/all/json?ip=10.0.0.1", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body.contains("private/loopback"));
+}
+
+#[tokio::test]
+async fn ip_param_rejects_loopback() {
+    let req = get_with_headers("/ip/json?ip=127.0.0.1", &[("user-agent", "curl/7.54.0")]);
+    let (status, _headers, _body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn ip_param_skips_dns_by_default() {
+    let req = get_with_headers("/all/json?ip=8.8.8.8", &[("user-agent", "curl/7.54.0")]);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    // DNS skipped → host should be null
+    assert!(json["host"].is_null());
+}
+
+#[tokio::test]
+async fn ip_param_plain_text() {
+    let req = get_with_headers("/ip?ip=8.8.8.8", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body.trim(), "8.8.8.8");
+}
+
+#[tokio::test]
+async fn ip_param_network_json() {
+    let req = get_with_headers("/network/json?ip=8.8.8.8", &[("user-agent", "curl/7.54.0")]);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(json["type"].is_string());
+}
+
+#[tokio::test]
+async fn ip_param_invalid_ignored() {
+    // Invalid IP → param is None → falls back to caller's IP
+    let req = get_with_headers("/ip/json?ip=notanip", &[("user-agent", "curl/7.54.0")]);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    // Falls back to loopback since test connects locally
+    assert_eq!(json["addr"], "127.0.0.1");
+}

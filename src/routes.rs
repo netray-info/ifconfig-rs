@@ -4,6 +4,7 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use serde_json::json;
+use std::net::{IpAddr, SocketAddr};
 
 use crate::backend::*;
 use crate::enrichment::EnrichmentContext;
@@ -95,6 +96,35 @@ fn serve_spa() -> Response {
     }
 }
 
+// ---- Query parameter helpers ----
+
+fn parse_query_param<'a>(uri: &'a str, key: &str) -> Option<&'a str> {
+    let query = uri.split('?').nth(1)?;
+    query
+        .split('&')
+        .find_map(|p| p.strip_prefix(key).and_then(|rest| rest.strip_prefix('=')))
+}
+
+fn parse_ip_param(uri: &str) -> Option<IpAddr> {
+    parse_query_param(uri, "ip").and_then(|s| s.parse().ok())
+}
+
+fn parse_dns_param(uri: &str) -> bool {
+    parse_query_param(uri, "dns")
+        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+        .unwrap_or(false)
+}
+
+fn is_global_ip(ip: IpAddr) -> bool {
+    if ip.is_loopback() || ip.is_unspecified() {
+        return false;
+    }
+    match ip {
+        IpAddr::V4(v4) => !v4.is_private() && !v4.is_link_local(),
+        IpAddr::V6(_) => true,
+    }
+}
+
 // ---- Compute-once dispatch ----
 
 fn resolve_backends(ctx: &EnrichmentContext) -> Option<(&UserAgentParser, &GeoIpCityDb, &GeoIpAsnDb, &TorExitNodes)> {
@@ -116,6 +146,18 @@ async fn dispatch_standard(
         return serve_spa();
     }
 
+    // Parse ?ip= to override target IP
+    let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
+        Some(ip) => {
+            if !is_global_ip(ip) {
+                return (StatusCode::BAD_REQUEST, "private/loopback IP not allowed\n").into_response();
+            }
+            let dns_opt_in = parse_dns_param(&req_info.uri);
+            (SocketAddr::new(ip, 0), !dns_opt_in)
+        }
+        None => (req_info.remote, false),
+    };
+
     let ctx = state.enrichment.load();
 
     let (uap, city, asn, tor) = match resolve_backends(&ctx) {
@@ -125,7 +167,7 @@ async fn dispatch_standard(
 
     let ua_ref = req_info.user_agent.as_deref();
     let ua_opt: Option<&str> = ua_ref;
-    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, skip_dns).await;
 
     match format {
         NegotiatedFormat::Html => unreachable!(),
@@ -546,6 +588,18 @@ async fn ip_version_dispatch(
         return serve_spa();
     }
 
+    // Parse ?ip= to override target IP
+    let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
+        Some(ip) => {
+            if !is_global_ip(ip) {
+                return (StatusCode::BAD_REQUEST, "private/loopback IP not allowed\n").into_response();
+            }
+            let dns_opt_in = parse_dns_param(&req_info.uri);
+            (SocketAddr::new(ip, 0), !dns_opt_in)
+        }
+        None => (req_info.remote, false),
+    };
+
     let ctx = state.enrichment.load();
 
     let (uap, city, asn, tor) = match resolve_backends(&ctx) {
@@ -555,7 +609,7 @@ async fn ip_version_dispatch(
 
     let ua_ref = req_info.user_agent.as_deref();
     let ua_opt: Option<&str> = ua_ref;
-    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, skip_dns).await;
 
     if ifconfig.ip.version != version {
         return (StatusCode::NOT_FOUND, "not implemented").into_response();
@@ -680,5 +734,64 @@ fn serve_spa_with_no_cache() -> Response {
                 .into_response()
         }
         None => (StatusCode::INTERNAL_SERVER_ERROR, "SPA not found").into_response(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ip_param_v4() {
+        assert_eq!(
+            parse_ip_param("/all/json?ip=8.8.8.8"),
+            Some("8.8.8.8".parse().unwrap())
+        );
+    }
+
+    #[test]
+    fn parse_ip_param_v6() {
+        assert_eq!(
+            parse_ip_param("/all/json?ip=2001:db8::1"),
+            Some("2001:db8::1".parse().unwrap())
+        );
+    }
+
+    #[test]
+    fn parse_ip_param_missing() {
+        assert_eq!(parse_ip_param("/all/json"), None);
+        assert_eq!(parse_ip_param("/all/json?fields=ip"), None);
+    }
+
+    #[test]
+    fn parse_ip_param_invalid() {
+        assert_eq!(parse_ip_param("/all/json?ip=notanip"), None);
+    }
+
+    #[test]
+    fn parse_dns_param_values() {
+        assert!(parse_dns_param("/all/json?ip=8.8.8.8&dns=true"));
+        assert!(parse_dns_param("/all/json?dns=1&ip=8.8.8.8"));
+        assert!(!parse_dns_param("/all/json?ip=8.8.8.8"));
+        assert!(!parse_dns_param("/all/json?ip=8.8.8.8&dns=false"));
+    }
+
+    #[test]
+    fn is_global_ip_rejects_private() {
+        assert!(!is_global_ip("127.0.0.1".parse().unwrap()));
+        assert!(!is_global_ip("10.0.0.1".parse().unwrap()));
+        assert!(!is_global_ip("192.168.1.1".parse().unwrap()));
+        assert!(!is_global_ip("172.16.0.1".parse().unwrap()));
+        assert!(!is_global_ip("169.254.1.1".parse().unwrap()));
+        assert!(!is_global_ip("0.0.0.0".parse().unwrap()));
+        assert!(!is_global_ip("::1".parse().unwrap()));
+        assert!(!is_global_ip("::".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_global_ip_accepts_public() {
+        assert!(is_global_ip("8.8.8.8".parse().unwrap()));
+        assert!(is_global_ip("1.1.1.1".parse().unwrap()));
+        assert!(is_global_ip("2001:db8::1".parse().unwrap()));
     }
 }

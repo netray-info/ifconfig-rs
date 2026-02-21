@@ -176,21 +176,28 @@ pub struct IfconfigParam<'a> {
     pub bot_db: Option<&'a BotDb>,
     pub spamhaus_drop: Option<&'a SpamhausDrop>,
     pub dns_resolver: &'a ResolverGroup,
+    /// When true, skip the reverse DNS (PTR) lookup. Used for `?ip=` lookups
+    /// where PTR is slow and usually unwanted.
+    pub skip_dns: bool,
 }
 
 pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
-    let host = async {
-        let resolver = param.dns_resolver.resolvers().first()?;
-        let query = MultiQuery::single(param.remote.ip(), RecordType::PTR).ok()?;
-        let lookups = resolver.lookup(query).await.ok()?;
-        lookups.ptr().into_iter().next().map(|name| {
-            let s = name.to_string();
-            Host {
-                name: s.strip_suffix('.').unwrap_or(&s).to_string(),
-            }
-        })
-    }
-    .await;
+    let host = if param.skip_dns {
+        None
+    } else {
+        async {
+            let resolver = param.dns_resolver.resolvers().first()?;
+            let query = MultiQuery::single(param.remote.ip(), RecordType::PTR).ok()?;
+            let lookups = resolver.lookup(query).await.ok()?;
+            lookups.ptr().into_iter().next().map(|name| {
+                let s = name.to_string();
+                Host {
+                    name: s.strip_suffix('.').unwrap_or(&s).to_string(),
+                }
+            })
+        }
+        .await
+    };
 
     let ip_addr = param.remote.ip().to_string();
     let ip_version = if param.remote.is_ipv4() { "4" } else { "6" };

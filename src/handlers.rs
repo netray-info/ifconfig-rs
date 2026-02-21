@@ -19,6 +19,7 @@ pub(crate) async fn make_ifconfig(
     bot_db: Option<&BotDb>,
     spamhaus_drop: Option<&SpamhausDrop>,
     dns_resolver: &ResolverGroup,
+    skip_dns: bool,
 ) -> Ifconfig {
     let param = IfconfigParam {
         remote,
@@ -34,6 +35,7 @@ pub(crate) async fn make_ifconfig(
         bot_db,
         spamhaus_drop,
         dns_resolver,
+        skip_dns,
     };
     get_ifconfig(&param).await
 }
