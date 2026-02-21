@@ -832,16 +832,17 @@ async fn batch_dispatch(
 
     let mut results: Vec<serde_json::Value> = Vec::with_capacity(ips.len());
     for ip_str in &ips {
+        let safe_input: &str = if ip_str.len() > 45 { &ip_str[..45] } else { ip_str };
         let ip: IpAddr = match ip_str.parse() {
             Ok(ip) => ip,
             Err(_) => {
-                results.push(json!({"error": "invalid IP address", "input": ip_str}));
+                results.push(json!({"error": "invalid IP address", "input": safe_input}));
                 continue;
             }
         };
 
         if !is_global_ip(ip) {
-            results.push(json!({"error": "private/loopback IP not allowed", "input": ip_str}));
+            results.push(json!({"error": "private/loopback IP not allowed", "input": safe_input}));
             continue;
         }
 
