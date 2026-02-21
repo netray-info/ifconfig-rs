@@ -85,7 +85,9 @@ pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::
 }
 
 pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Response {
-    let is_health = req.uri().path() == "/health" || req.uri().path() == "/ready";
+    let path = req.uri().path().to_owned();
+    let is_health = path == "/health" || path == "/ready";
+    let is_docs = path == "/docs";
     let mut response = next.run(req).await;
 
     let is_error = !response.status().is_success();
@@ -105,6 +107,22 @@ pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Res
         "max-age=63072000; includeSubDomains".parse().unwrap(),
     );
     headers.insert("vary", "Accept, User-Agent".parse().unwrap());
+
+    if is_docs {
+        headers.insert(
+            "content-security-policy",
+            "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"
+                .parse()
+                .unwrap(),
+        );
+    } else {
+        headers.insert(
+            "content-security-policy",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"
+                .parse()
+                .unwrap(),
+        );
+    }
 
     if is_error || is_health || is_html {
         headers.insert("cache-control", "no-cache".parse().unwrap());
