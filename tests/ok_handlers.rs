@@ -1115,3 +1115,43 @@ async fn ip_param_invalid_ignored() {
     // Falls back to loopback since test connects locally
     assert_eq!(json["addr"], "127.0.0.1");
 }
+
+// --- ?fields= filtering tests ---
+
+#[tokio::test]
+async fn fields_param_filters_json() {
+    let req = get_with_headers("/all/json?fields=ip,tcp", &[("user-agent", "curl/7.54.0")]);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(json["ip"].is_object(), "ip field should be present");
+    assert!(json["tcp"].is_object(), "tcp field should be present");
+    assert!(json.get("location").is_none(), "location should be filtered out");
+    assert!(json.get("isp").is_none(), "isp should be filtered out");
+}
+
+#[tokio::test]
+async fn fields_param_with_ip_param() {
+    let req = get_with_headers(
+        "/all/json?ip=8.8.8.8&fields=ip,isp",
+        &[("user-agent", "curl/7.54.0")],
+    );
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["ip"]["addr"], "8.8.8.8");
+    assert!(json["isp"].is_object());
+    assert!(json.get("location").is_none());
+}
+
+#[tokio::test]
+async fn fields_param_yaml_format() {
+    let req = get_with_headers("/all/yaml?fields=ip", &[("user-agent", "curl/7.54.0")]);
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_yaml(&ct));
+    assert!(body.contains("addr:"));
+    // Should NOT contain location/isp since we filtered to ip only
+    assert!(!body.contains("city:"), "city should be filtered out");
+}

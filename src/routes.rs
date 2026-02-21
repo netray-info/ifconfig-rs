@@ -9,7 +9,7 @@ use std::net::{IpAddr, SocketAddr};
 use crate::backend::*;
 use crate::enrichment::EnrichmentContext;
 use crate::extractors::{extract_headers, filter_headers, RequesterInfo};
-use crate::format::OutputFormat;
+use crate::format::{self, OutputFormat};
 use crate::handlers;
 use crate::negotiate::{negotiate, NegotiatedFormat};
 use crate::state::AppState;
@@ -169,11 +169,19 @@ async fn dispatch_standard(
     let ua_opt: Option<&str> = ua_ref;
     let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, skip_dns).await;
 
+    let fields = format::parse_fields_param(&req_info.uri);
+
     match format {
         NegotiatedFormat::Html => unreachable!(),
         NegotiatedFormat::Plain => respond_plain(to_plain_fn(&ifconfig)),
         NegotiatedFormat::Json => match to_json_fn(&ifconfig) {
-            Some(val) => respond_json_value(val),
+            Some(val) => {
+                let val = match &fields {
+                    Some(f) => format::filter_fields(val, f),
+                    None => val,
+                };
+                respond_json_value(val)
+            }
             None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
         },
         fmt => {
@@ -183,7 +191,10 @@ async fn dispatch_standard(
                 NegotiatedFormat::Csv => OutputFormat::Csv,
                 _ => unreachable!(),
             };
-            match to_json_fn(&ifconfig).and_then(|v| output_fmt.serialize_body(&v)) {
+            match to_json_fn(&ifconfig).map(|v| match &fields {
+                Some(f) => format::filter_fields(v, f),
+                None => v,
+            }).and_then(|v| output_fmt.serialize_body(&v)) {
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
                 None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
             }

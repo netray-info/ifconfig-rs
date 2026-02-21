@@ -1,5 +1,6 @@
 use serde_json::Value;
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 pub enum OutputFormat {
     Json,
@@ -52,6 +53,26 @@ impl OutputFormat {
     pub fn serialize(&self, value: &Value) -> Option<(&'static str, String)> {
         let body = self.serialize_body(value)?;
         Some((self.content_type(), body))
+    }
+}
+
+/// Parse `?fields=ip,location,isp` from a URI string into a set of field names.
+pub fn parse_fields_param(uri: &str) -> Option<HashSet<String>> {
+    let query = uri.split('?').nth(1)?;
+    query
+        .split('&')
+        .find_map(|p| p.strip_prefix("fields="))
+        .map(|f| f.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+}
+
+/// Keep only the specified top-level keys from a JSON object.
+pub fn filter_fields(value: Value, fields: &HashSet<String>) -> Value {
+    match value {
+        Value::Object(map) => {
+            let filtered = map.into_iter().filter(|(k, _)| fields.contains(k)).collect();
+            Value::Object(filtered)
+        }
+        other => other,
     }
 }
 
@@ -239,5 +260,51 @@ mod tests {
         assert_eq!(csv_escape("hello"), "hello");
         assert_eq!(csv_escape("hello,world"), "\"hello,world\"");
         assert_eq!(csv_escape("say \"hi\""), "\"say \"\"hi\"\"\"");
+    }
+
+    #[test]
+    fn parse_fields_param_basic() {
+        let fields = parse_fields_param("/all/json?fields=ip,location").unwrap();
+        assert_eq!(fields.len(), 2);
+        assert!(fields.contains("ip"));
+        assert!(fields.contains("location"));
+    }
+
+    #[test]
+    fn parse_fields_param_with_other_params() {
+        let fields = parse_fields_param("/all/json?ip=8.8.8.8&fields=ip,isp&dns=true").unwrap();
+        assert_eq!(fields.len(), 2);
+        assert!(fields.contains("ip"));
+        assert!(fields.contains("isp"));
+    }
+
+    #[test]
+    fn parse_fields_param_missing() {
+        assert!(parse_fields_param("/all/json").is_none());
+        assert!(parse_fields_param("/all/json?ip=8.8.8.8").is_none());
+    }
+
+    #[test]
+    fn parse_fields_param_empty_value() {
+        let fields = parse_fields_param("/all/json?fields=").unwrap();
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn filter_fields_keeps_selected() {
+        let val = json!({"ip": {"addr": "1.2.3.4"}, "location": {"city": "Test"}, "isp": {"name": "ISP"}});
+        let fields: HashSet<String> = ["ip", "location"].iter().map(|s| s.to_string()).collect();
+        let filtered = filter_fields(val, &fields);
+        assert!(filtered["ip"].is_object());
+        assert!(filtered["location"].is_object());
+        assert!(filtered.get("isp").is_none());
+    }
+
+    #[test]
+    fn filter_fields_non_object() {
+        let val = json!("just a string");
+        let fields: HashSet<String> = ["ip"].iter().map(|s| s.to_string()).collect();
+        let filtered = filter_fields(val.clone(), &fields);
+        assert_eq!(filtered, val);
     }
 }
