@@ -125,6 +125,23 @@ impl Isp {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Hosting {
+    /// Primary classification: "cloud", "vpn", "tor", "botnet_c2", "hosting", or "residential".
+    #[serde(rename = "type")]
+    pub hosting_type: String,
+    /// Cloud / VPN / hosting provider name, if identified.
+    pub provider: Option<String>,
+    /// Cloud service name (e.g. "EC2", "Cloud Functions").
+    pub service: Option<String>,
+    /// Cloud region (e.g. "us-east-1").
+    pub region: Option<String>,
+    pub is_datacenter: bool,
+    pub is_vpn: bool,
+    pub is_tor: bool,
+    pub is_proxy: bool,
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Ifconfig {
     pub host: Option<Host>,
@@ -132,10 +149,7 @@ pub struct Ifconfig {
     pub tcp: Tcp,
     pub location: Location,
     pub isp: Isp,
-    pub is_tor: Option<bool>,
-    pub is_botnet_c2: Option<bool>,
-    pub is_vpn: Option<bool>,
-    pub cloud: Option<CloudProvider>,
+    pub hosting: Option<Hosting>,
     pub user_agent: Option<UserAgent>,
     pub user_agent_header: Option<String>,
 }
@@ -203,32 +217,75 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         })
         .unwrap_or(Isp::unknown());
 
-    let is_tor = param.tor_exit_nodes.lookup(&param.remote.ip());
+    // --- Classification flags ---
+    let is_tor = param
+        .tor_exit_nodes
+        .lookup(&param.remote.ip())
+        .unwrap_or(false);
 
     let is_botnet_c2 = param
         .feodo_botnet_ips
-        .and_then(|db| db.lookup(&param.remote.ip()));
+        .and_then(|db| db.lookup(&param.remote.ip()))
+        .unwrap_or(false);
 
     let cloud = param
         .cloud_provider_db
         .and_then(|db| db.lookup(param.remote.ip()).cloned());
 
-    let is_vpn = {
-        let cidr_match = param
-            .vpn_ranges
-            .map(|db| db.lookup(param.remote.ip()))
-            .unwrap_or(false);
-        if cidr_match {
-            Some(true)
+    let vpn_cidr = param
+        .vpn_ranges
+        .map(|db| db.lookup(param.remote.ip()))
+        .unwrap_or(false);
+
+    let asn_class = isp
+        .name
+        .as_deref()
+        .map(asn_heuristic::classify_asn)
+        .unwrap_or(asn_heuristic::AsnClassification::None);
+
+    let is_vpn = vpn_cidr
+        || matches!(asn_class, asn_heuristic::AsnClassification::Vpn { .. });
+
+    let is_datacenter = cloud.is_some()
+        || matches!(asn_class, asn_heuristic::AsnClassification::Hosting { .. });
+
+    // Build hosting object — primary type uses priority order
+    let hosting = {
+        let (hosting_type, provider) = if cloud.is_some() {
+            ("cloud".to_string(), cloud.as_ref().map(|c| c.provider.clone()))
+        } else if is_vpn {
+            let vpn_provider = match &asn_class {
+                asn_heuristic::AsnClassification::Vpn { provider } => {
+                    Some(provider.to_string())
+                }
+                _ => None,
+            };
+            ("vpn".to_string(), vpn_provider)
+        } else if is_tor {
+            ("tor".to_string(), None)
+        } else if is_botnet_c2 {
+            ("botnet_c2".to_string(), None)
+        } else if is_datacenter {
+            let hosting_provider = match &asn_class {
+                asn_heuristic::AsnClassification::Hosting { provider } => {
+                    Some(provider.to_string())
+                }
+                _ => None,
+            };
+            ("hosting".to_string(), hosting_provider)
         } else {
-            // Fallback: ASN heuristic
-            match &isp.name {
-                Some(name) => match asn_heuristic::classify_asn(name) {
-                    asn_heuristic::AsnClassification::Vpn { .. } => Some(true),
-                    _ => param.vpn_ranges.map(|_| false),
-                },
-                None => param.vpn_ranges.map(|_| false),
-            }
+            ("residential".to_string(), None)
+        };
+
+        Hosting {
+            hosting_type,
+            provider,
+            service: cloud.as_ref().and_then(|c| c.service.clone()),
+            region: cloud.as_ref().and_then(|c| c.region.clone()),
+            is_datacenter,
+            is_vpn,
+            is_tor,
+            is_proxy: false,
         }
     };
 
@@ -240,10 +297,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         tcp,
         location,
         isp,
-        is_tor,
-        is_botnet_c2,
-        is_vpn,
-        cloud,
+        hosting: Some(hosting),
         user_agent,
         user_agent_header: param.user_agent_header.map(|s| s.to_string()),
     }

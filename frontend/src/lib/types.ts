@@ -11,9 +11,20 @@ export interface Ifconfig {
   tcp: Tcp;
   location: Location;
   isp: Isp;
-  is_tor: boolean | null;
+  hosting: Hosting | null;
   user_agent: UserAgent | null;
   user_agent_header: string | null;
+}
+
+export interface Hosting {
+  type: string;
+  provider: string | null;
+  service: string | null;
+  region: string | null;
+  is_datacenter: boolean;
+  is_vpn: boolean;
+  is_tor: boolean;
+  is_proxy: boolean;
 }
 
 export interface Host {

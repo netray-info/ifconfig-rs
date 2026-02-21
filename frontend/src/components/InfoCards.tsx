@@ -50,15 +50,33 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{props.data.host!.name}</span>
           </div>
         </Show>
-        <Show when={props.data.is_tor != null}>
+        <Show when={props.data.hosting}>
           <div class="card-row">
-            <span class="card-label">Tor Exit Node</span>
-            <span class="card-value">
-              <span class={`tor-badge ${props.data.is_tor ? "tor" : "safe"}`}>
-                {props.data.is_tor ? "yes" : "no"}
-              </span>
-            </span>
+            <span class="card-label">Hosting</span>
+            <span class="card-value">{props.data.hosting!.type}</span>
           </div>
+          <Show when={props.data.hosting!.provider}>
+            <div class="card-row">
+              <span class="card-label">Provider</span>
+              <span class="card-value">{props.data.hosting!.provider}</span>
+            </div>
+          </Show>
+          <Show when={props.data.hosting!.is_tor}>
+            <div class="card-row">
+              <span class="card-label">Tor Exit Node</span>
+              <span class="card-value">
+                <span class="tor-badge tor">yes</span>
+              </span>
+            </div>
+          </Show>
+          <Show when={props.data.hosting!.is_vpn}>
+            <div class="card-row">
+              <span class="card-label">VPN</span>
+              <span class="card-value">
+                <span class="tor-badge tor">yes</span>
+              </span>
+            </div>
+          </Show>
         </Show>
       </div>
 

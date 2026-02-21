@@ -166,20 +166,21 @@ pub mod all {
         if let Some(asn) = ifconfig.isp.asn {
             lines.push(format!("asn:        AS{}", asn));
         }
-        if let Some(is_tor) = ifconfig.is_tor {
-            lines.push(format!("tor:        {}", is_tor));
-        }
-        if let Some(is_vpn) = ifconfig.is_vpn {
-            lines.push(format!("vpn:        {}", is_vpn));
-        }
-        if let Some(ref cloud) = ifconfig.cloud {
-            lines.push(format!("cloud:      {}", cloud.provider));
-            if let Some(ref service) = cloud.service {
-                lines.push(format!("cloud_svc:  {}", service));
+        if let Some(ref h) = ifconfig.hosting {
+            lines.push(format!("hosting:    {}", h.hosting_type));
+            if let Some(ref provider) = h.provider {
+                lines.push(format!("provider:   {}", provider));
             }
-            if let Some(ref region) = cloud.region {
-                lines.push(format!("cloud_rgn:  {}", region));
+            if let Some(ref service) = h.service {
+                lines.push(format!("service:    {}", service));
             }
+            if let Some(ref region) = h.region {
+                lines.push(format!("region:     {}", region));
+            }
+            lines.push(format!("datacenter: {}", h.is_datacenter));
+            lines.push(format!("vpn:        {}", h.is_vpn));
+            lines.push(format!("tor:        {}", h.is_tor));
+            lines.push(format!("proxy:      {}", h.is_proxy));
         }
         lines.push(format!("port:       {}", ifconfig.tcp.port));
         if let Some(ref ua) = ifconfig.user_agent {

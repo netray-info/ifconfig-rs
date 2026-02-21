@@ -546,20 +546,24 @@ async fn handle_all_json_json() {
 }
 
 #[tokio::test]
-async fn handle_root_json_has_is_tor() {
+async fn handle_root_json_has_hosting() {
     let req = get_with_headers("/", &[("accept", "application/json")]);
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    // is_tor should be present (either true or false)
-    assert!(json["is_tor"].is_boolean());
+    // hosting object should be present with classification fields
+    assert!(json["hosting"]["type"].is_string());
+    assert!(json["hosting"]["is_tor"].is_boolean());
+    assert!(json["hosting"]["is_vpn"].is_boolean());
+    assert!(json["hosting"]["is_datacenter"].is_boolean());
 }
 
 #[tokio::test]
-async fn handle_all_plain_includes_tor() {
+async fn handle_all_plain_includes_hosting() {
     let req = get_with_headers("/all", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("hosting:"));
     assert!(body.contains("tor:"));
 }
 
