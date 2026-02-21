@@ -798,8 +798,8 @@ async fn batch_dispatch(
     let req_info = get_requester_info(headers, extensions);
     let caller_ip = req_info.remote.ip();
     let n = NonZeroU32::new(ips.len() as u32).unwrap_or(NonZeroU32::MIN);
-    let rate_ok = match state.rate_limiter.check_key_n(&caller_ip, n) {
-        Ok(Ok(_snapshot)) => true,
+    match state.rate_limiter.check_key_n(&caller_ip, n) {
+        Ok(Ok(_snapshot)) => {}
         Ok(Err(not_until)) => {
             let wait = not_until.wait_time_from(DefaultClock::default().now());
             let retry_after = wait.as_secs().saturating_add(1);
@@ -812,12 +812,15 @@ async fn batch_dispatch(
             return resp;
         }
         Err(_insufficient) => {
-            // Batch size exceeds burst capacity — process anyway but log.
-            // This is expected when batch.max_size > rate_limit.per_ip_burst.
-            true
+            let limit = state.config.rate_limit.per_ip_burst;
+            let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "rate limit exceeded");
+            let h = resp.headers_mut();
+            h.insert("x-ratelimit-limit", HeaderValue::from(limit));
+            h.insert("x-ratelimit-remaining", HeaderValue::from(0u32));
+            h.insert("retry-after", HeaderValue::from(1u64));
+            return resp;
         }
     };
-    let _ = rate_ok;
 
     let ctx = state.enrichment.load();
     let (uap, city, asn, tor) = match resolve_backends(&ctx) {
