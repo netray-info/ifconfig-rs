@@ -137,6 +137,25 @@ pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Res
     response
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generate_request_id_is_16_hex_chars() {
+        let id = generate_request_id();
+        assert_eq!(id.len(), 16);
+        assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn generate_request_id_is_unique() {
+        let id1 = generate_request_id();
+        let id2 = generate_request_id();
+        assert_ne!(id1, id2);
+    }
+}
+
 pub async fn geoip_date_headers(State(state): State<AppState>, req: Request<axum::body::Body>, next: Next) -> Response {
     let mut response = next.run(req).await;
 
