@@ -1,6 +1,6 @@
 # Software Design Document: ifconfig-rs Enrichment Evolution
 
-**Status:** Phases 1a, 1b, 2, 3, 4 complete
+**Status:** Phases 1a, 1b, 2, 3, 4, 5 complete
 **Date:** 2026-02-21 (updated)
 **Input:** [RFC crucible-rfc.md](crucible-rfc.md), multi-perspective design review, async migration analysis
 
@@ -350,6 +350,33 @@ This is a **breaking change** from the current API where `is_tor` is a top-level
 
 ---
 
+### Phase 5: Production Readiness ✓
+
+*Middleware and operational features for running behind load balancers at scale. **COMPLETED** 2026-02-21.*
+
+| # | Item | LOC | Status |
+|---|------|-----|--------|
+| 1 | Response compression via CompressionLayer | ~5 | Done |
+| 2 | Configurable CORS via tower-http CorsLayer | ~40 | Done |
+| 3 | Request ID middleware (X-Request-Id) | ~30 | Done |
+| 4 | Application-level Prometheus metrics | ~60 | Done |
+
+**Milestone:** All 213 tests pass. No breaking API changes. Version bumped to 0.8.0.
+
+**Implementation notes:**
+
+- **Compression:** `tower_http::compression::CompressionLayer` wired as outermost layer. The `compression-gzip` feature was already declared in `Cargo.toml` but unused. Respects `Accept-Encoding` — transparent to clients that don't request compression.
+
+- **CORS:** Replaced hardcoded `access-control-allow-origin: *` header in `security_headers` with `tower_http::cors::CorsLayer`. Added `cors_allowed_origins` config option (default `["*"]`). CorsLayer handles OPTIONS preflight automatically — an improvement over the previous implementation which had no OPTIONS handler.
+
+- **Request ID:** `X-Request-Id` header on every response. Propagates client-sent IDs; generates 16-char hex IDs from `AtomicU64` counter + per-process `RandomState` seed. Included in `TraceLayer` spans via `make_span_with`. Zero external dependencies.
+
+- **Application metrics:** Added `metrics` 0.24 as direct dependency (already transitive via `metrics-exporter-prometheus`, zero compile cost). Instrumented: `http_requests_total{method,status}` counter, `http_request_duration_seconds{method}` histogram, `enrichment_sources_loaded{source}` gauge (updated on reload), `geoip_database_age_seconds` gauge. Labels kept to `method+status` to avoid unbounded cardinality from path-level labels.
+
+**Middleware stack (outermost → innermost):** CompressionLayer → request_id → record_metrics → TraceLayer → requester_info → rate_limit → geoip_date_headers → CorsLayer → security_headers → Router
+
+---
+
 ## 5. Rate Limiting Model
 
 The current rate limiter (governor, keyed by IP) is extended with a clear scoping model:
@@ -410,6 +437,7 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 | 2 | `notify` 7 | Filesystem watcher for automatic hot-reload (complement to SIGHUP) | **Added** in Phase 4 — opt-in via `watch_data_files = true` |
 | 4 | `httpdate` 1 | HTTP date formatting for X-GeoIP-Database-Date header | **Added** in Phase 4 — already transitive dep of hyper |
 | 3 | `utoipa` 5 (features: `axum_extras`) | OpenAPI 3.1 spec generation from code annotations | **Added** — works cleanly with explicit handler functions from Phase 1a |
+| 5 | `metrics` 0.24 | Application-level counters, histograms, gauges | **Added** — already transitive via `metrics-exporter-prometheus`, zero compile cost |
 
 `dns-lookup` was removed in Phase 1a.
 

@@ -60,8 +60,8 @@ make docker-build            # Production Docker image
 ## Architecture
 
 ```
-Request → TraceLayer (request logging)
-        → Middleware (requester info extraction, rate limiting, GeoIP date headers, security headers)
+Request → CompressionLayer → request_id → record_metrics → TraceLayer (request logging)
+        → Middleware (requester info extraction, rate limiting, GeoIP date headers, CORS, security headers)
         → Router (content negotiation via negotiate()) → Handlers → Response (text/json/yaml/toml/csv/html)
 ```
 
@@ -87,7 +87,7 @@ Key modules:
 - `src/handlers.rs` — Per-endpoint `to_json`/`to_plain` functions used as fn pointers by `dispatch_standard()`
 - `src/negotiate.rs` — Content negotiation: format suffix → CLI detection → Accept header → HTML default
 - `src/extractors.rs` — `RequesterInfo` extraction (IP from ConnectInfo/XFF with CIDR-aware trusted proxy matching, UA, URI)
-- `src/middleware.rs` — Security headers, cache control, rate limiting with `X-RateLimit-*` / `Retry-After` headers, `X-GeoIP-Database-Date` / `X-GeoIP-Database-Age-Days` headers
+- `src/middleware.rs` — Request ID generation (`X-Request-Id`), application metrics (`record_metrics`), security headers, cache control, rate limiting with `X-RateLimit-*` / `Retry-After` headers, `X-GeoIP-Database-Date` / `X-GeoIP-Database-Age-Days` headers
 - `src/error.rs` — `AppError` enum with `IntoResponse` impl
 - `src/format.rs` — `OutputFormat` enum with serialization to JSON/YAML/TOML/CSV/plain
 
@@ -130,6 +130,7 @@ tor_exit_nodes = "data/tor_exit_nodes.txt"
 bind = "127.0.0.1:8080"
 # admin_bind = "127.0.0.1:9090"  # Optional: Prometheus /metrics + /health
 # trusted_proxies = ["10.0.0.0/8"]
+# cors_allowed_origins = ["*"]   # Default: allow all; handles OPTIONS preflight
 
 [rate_limit]
 per_ip_per_minute = 60
@@ -161,4 +162,8 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 - `AppState` is shared via Axum's `State` extractor; all backends are `Arc`-wrapped.
 - `build_app()` returns `AppBundle { app, admin_app }` — `admin_app` is `Some` only when `server.admin_bind` is configured and the metrics recorder installs successfully. In tests, multiple `build_app()` calls silently skip metrics (global recorder can only be set once).
 - Rate limit middleware emits `X-RateLimit-Limit`, `X-RateLimit-Remaining` on all responses and `Retry-After` on 429s. `/health` and `/ready` are exempt.
+- Response compression via `CompressionLayer` (gzip) — outermost layer, respects `Accept-Encoding`.
+- `X-Request-Id` header on every response — propagates client-sent IDs, otherwise generates 16-char hex IDs via atomic counter + random seed. Included in `TraceLayer` spans for log correlation.
+- CORS via `tower_http::cors::CorsLayer` — configurable origins (default `["*"]`), handles OPTIONS preflight.
+- Application-level Prometheus metrics: `http_requests_total{method,status}`, `http_request_duration_seconds{method}`, `enrichment_sources_loaded{source}`, `geoip_database_age_seconds`. `metrics` macros are no-op when no recorder is installed (safe in tests).
 - Frontend assets are embedded at compile time via `rust-embed` — `cargo build` requires `frontend/dist/` to exist.
