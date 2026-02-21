@@ -146,3 +146,55 @@ impl Config {
         builder.build()?.try_deserialize()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_without_file_uses_defaults() {
+        let config = Config::load(None).unwrap();
+        assert_eq!(config.server.bind, "127.0.0.1:8080");
+        assert_eq!(config.base_url, "localhost");
+        assert_eq!(config.rate_limit.per_ip_per_minute, 60);
+        assert_eq!(config.rate_limit.per_ip_burst, 10);
+        assert!(!config.batch.enabled);
+        assert_eq!(config.batch.max_size, 100);
+    }
+
+    #[test]
+    fn load_nonexistent_file_errors() {
+        let result = Config::load(Some("/nonexistent/config.toml"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn server_config_default() {
+        let server = ServerConfig::default();
+        assert_eq!(server.bind, "127.0.0.1:8080");
+        assert!(server.admin_bind.is_none());
+        assert!(server.trusted_proxies.is_empty());
+        assert_eq!(server.cors_allowed_origins, vec!["*"]);
+    }
+
+    #[test]
+    fn rate_limit_config_default() {
+        let rl = RateLimitConfig::default();
+        assert_eq!(rl.per_ip_per_minute, 60);
+        assert_eq!(rl.per_ip_burst, 10);
+    }
+
+    #[test]
+    fn batch_config_default() {
+        let batch = BatchConfig::default();
+        assert!(!batch.enabled);
+        assert_eq!(batch.max_size, 100);
+    }
+
+    #[test]
+    fn config_round_trip_toml() {
+        let config = Config::load(None).unwrap();
+        let toml_str = toml::to_string(&config).unwrap();
+        let _parsed: Config = toml::from_str(&toml_str).unwrap();
+    }
+}
