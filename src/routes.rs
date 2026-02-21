@@ -45,8 +45,9 @@ pub fn router(_state: AppState) -> Router<AppState> {
         .route("/ipv6/{fmt}", get(ipv6_format_handler))
         // Meta endpoint (site info for SPA)
         .route("/meta", get(meta_handler))
-        // Health endpoint (no content negotiation)
+        // Probe endpoints (no content negotiation)
         .route("/health", get(health_handler))
+        .route("/ready", get(ready_handler))
 }
 
 fn get_requester_info(headers: &HeaderMap, extensions: &axum::http::Extensions) -> RequesterInfo {
@@ -554,6 +555,33 @@ async fn health_handler(State(state): State<AppState>) -> Response {
             StatusCode::SERVICE_UNAVAILABLE,
             axum::Json(json!({
                 "status": "unhealthy",
+                "reason": missing.join("; ")
+            })),
+        )
+            .into_response()
+    }
+}
+
+// ---- Readiness handler ----
+
+async fn ready_handler(State(state): State<AppState>) -> Response {
+    let has_city_db = state.geoip_city_db.is_some();
+    let has_asn_db = state.geoip_asn_db.is_some();
+
+    if has_city_db && has_asn_db {
+        (StatusCode::OK, axum::Json(json!({ "status": "ready" }))).into_response()
+    } else {
+        let mut missing = Vec::new();
+        if !has_city_db {
+            missing.push("GeoIP City database not loaded");
+        }
+        if !has_asn_db {
+            missing.push("GeoIP ASN database not loaded");
+        }
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            axum::Json(json!({
+                "status": "not_ready",
                 "reason": missing.join("; ")
             })),
         )

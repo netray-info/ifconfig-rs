@@ -8,7 +8,7 @@ use crate::extractors::RequesterInfo;
 use crate::state::AppState;
 
 pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::Body>, next: Next) -> Response {
-    if req.uri().path() == "/health" {
+    if req.uri().path() == "/health" || req.uri().path() == "/ready" {
         return next.run(req).await;
     }
 
@@ -23,7 +23,7 @@ pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::
 }
 
 pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Response {
-    let is_health = req.uri().path() == "/health";
+    let is_health = req.uri().path() == "/health" || req.uri().path() == "/ready";
     let mut response = next.run(req).await;
 
     let is_error = !response.status().is_success();
