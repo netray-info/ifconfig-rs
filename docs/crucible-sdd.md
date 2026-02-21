@@ -1,6 +1,6 @@
 # Software Design Document: ifconfig-rs Enrichment Evolution
 
-**Status:** Phase 2 design in progress
+**Status:** Phases 1a, 1b, 2, 3 complete
 **Date:** 2026-02-21 (updated)
 **Input:** [RFC crucible-rfc.md](crucible-rfc.md), multi-perspective design review, async migration analysis
 
@@ -157,22 +157,24 @@ Each handler module (`handlers::ip`, `handlers::location`, etc.) exposes `to_jso
 
 - **Admin port:** Uses `metrics-exporter-prometheus` directly (not `axum-prometheus` — the latter panics on repeated global recorder installation, breaking integration tests that call `build_app()` multiple times per process). `build_app()` now returns `AppBundle { app, admin_app }` where `admin_app` is `Some` only when `server.admin_bind` is configured and the recorder installs successfully. `metrics-process` provides OS-level metrics (CPU, memory, FDs). Disabled by default.
 
-### Phase 2: The Differentiator
+### Phase 2: The Differentiator ✓
 
-*Features that create competitive separation. 1-2 months.*
+*Features that create competitive separation. **COMPLETED** 2026-02-21.*
 
 **Commit ordering** — each commit is independently testable with all tests passing:
 
-| # | Commit | Est. LOC | Scope |
-|---|--------|----------|-------|
-| 1 | Data pipeline | Makefile | `data/Makefile` targets for `cloud_provider_ranges.jsonl`, `feodo_botnet_ips.txt`, `vpn_ranges.txt`. No Rust changes. See §4.1. |
-| 2 | EnrichmentContext + ArcSwap + SIGHUP | ~300 | Group `{geoip_city, geoip_asn, tor, dns_resolver, ua_parser}` into `EnrichmentContext` struct with `load(&Config)` constructor. Store behind `ArcSwap` in `AppState`. SIGHUP handler calls `load()`, validates, swaps. Pure refactor of existing backends — no new features, no behavioral change. Future backends automatically participate in hot-reload. |
-| 3 | Cloud provider fingerprinting | ~400 | Add `CloudProviderDb` to `EnrichmentContext`. `ip_network_table` dep for CIDR trie. JSONL parser for `cloud_provider_ranges.jsonl`. New `cloud` field on `Ifconfig` response. AWS + GCP + Cloudflare; Azure next. |
-| 4 | Feodo C2 botnet list | ~50 | Add `FeodoBotnetIps` to `EnrichmentContext`. `HashSet<IpAddr>` from `feodo_botnet_ips.txt`. Same file-parsing pattern as existing `TorExitNodes`. |
-| 5 | ASN heuristic module | ~100 | New `src/backend/asn_heuristic.rs`. Pure functions: `classify_asn(asn_org: &str) -> AsnClassification`. Lookup table mapping ASN name patterns to hosting/VPN tags. No state in `EnrichmentContext`. Unit tests for known patterns. |
-| 6 | VPN detection | ~200 | Add `VpnRanges` to `EnrichmentContext`. CIDR prefix matching via `ip_network_table` (same trie type as cloud). Falls back to ASN heuristic from commit 5. |
-| 7 | `is_tor` → `network` object | ~150 | **Breaking change.** Consolidate cloud (commit 3), Feodo (commit 4), ASN heuristic (commit 5), VPN (commit 6), and existing Tor into `Network` struct. Remove top-level `is_tor` from `Ifconfig`. Update frontend `types.ts`. Version bump to 0.5.0. |
-| 8 | docker-compose.yml | docs | Example deployment with geoipupdate sidecar + data volume. |
+| # | Commit | Est. LOC | Scope | Status |
+|---|--------|----------|-------|--------|
+| 1 | Data pipeline | Makefile | `data/Makefile` targets for `cloud_provider_ranges.jsonl`, `feodo_botnet_ips.txt`, `vpn_ranges.txt`. No Rust changes. See §4.1. | Done |
+| 2 | EnrichmentContext + ArcSwap + SIGHUP | ~300 | Group `{geoip_city, geoip_asn, tor, dns_resolver, ua_parser}` into `EnrichmentContext` struct with `load(&Config)` constructor. Store behind `ArcSwap` in `AppState`. SIGHUP handler calls `load()`, validates, swaps. Pure refactor of existing backends — no new features, no behavioral change. Future backends automatically participate in hot-reload. | Done |
+| 3 | Cloud provider fingerprinting | ~400 | Add `CloudProviderDb` to `EnrichmentContext`. `ip_network_table` dep for CIDR trie. JSONL parser for `cloud_provider_ranges.jsonl`. New `cloud` field on `Ifconfig` response. AWS + GCP + Cloudflare; Azure next. | Done |
+| 4 | Feodo C2 botnet list | ~50 | Add `FeodoBotnetIps` to `EnrichmentContext`. `HashSet<IpAddr>` from `feodo_botnet_ips.txt`. Same file-parsing pattern as existing `TorExitNodes`. | Done |
+| 5 | ASN heuristic module | ~100 | New `src/backend/asn_heuristic.rs`. Pure functions: `classify_asn(asn_org: &str) -> AsnClassification`. Lookup table mapping ASN name patterns to hosting/VPN tags. No state in `EnrichmentContext`. Unit tests for known patterns. | Done |
+| 6 | VPN detection | ~200 | Add `VpnRanges` to `EnrichmentContext`. CIDR prefix matching via `ip_network_table` (same trie type as cloud). Falls back to ASN heuristic from commit 5. | Done |
+| 7 | `is_tor` → `network` object | ~150 | **Breaking change.** Consolidate cloud (commit 3), Feodo (commit 4), ASN heuristic (commit 5), VPN (commit 6), and existing Tor into `Network` struct. Remove top-level `is_tor` from `Ifconfig`. Update frontend `types.ts`. Version bump to 0.5.0. | Done |
+| 8 | docker-compose.yml | docs | Example deployment with geoipupdate sidecar + data volume. | Done |
+
+**Milestone:** All 170+ tests pass after each commit. Version bumped to 0.5.0. Frontend updated for `Network` object. Data pipeline operational with AWS, GCP, Cloudflare, Oracle, Fastly, DigitalOcean, Linode, GitHub, Azure cloud providers, Feodo C2, VPN ranges, datacenter ranges, bot ranges, and Spamhaus DROP lists.
 
 **Why this order:**
 
@@ -294,28 +296,31 @@ The `network` object includes `is_bot` (true when IP matches known bot CIDR from
 
 This is a **breaking change** from the current API where `is_tor` is a top-level boolean on `Ifconfig`. The `network` object consolidates all IP classification into a single structure. Version bump to 0.5.0.
 
-### Phase 3: Pipeline Integration
+### Phase 3: Pipeline Integration ✓
 
-*Features for SIEM/automation consumers. 1 quarter.*
+*Features for SIEM/automation consumers. **COMPLETED** 2026-02-21.*
 
-| Item | LOC | Notes |
-|------|-----|-------|
-| Batch endpoint (`POST /batch`) | ~400 | Max 100 IPs. Rate-limit by IP count (N IPs = N tokens). Skip reverse DNS by default (opt-in via `?dns=true`). Reject RFC 1918/loopback. Disabled by default (`batch.enabled = true` in config). Full content negotiation: JSON, YAML, TOML, CSV output via Accept header or format suffix. |
-| OpenAPI spec via utoipa | ~200 | Evaluate utoipa compatibility with the explicit handler functions from Phase 1a. If utoipa works: auto-generated spec from code annotations, served at `/api-docs/openapi.json`, Swagger UI at `/docs`. If utoipa doesn't fit: fall back to hand-written YAML (~300 LOC). |
-| Field filtering (`?fields=ip,country,asn`) | ~60 | Filter `serde_json::Value` after serialization. Works for all endpoints uniformly, including batch. |
-| `/ip/cidr` endpoint | ~10 | Returns `203.0.113.42/32`. Terraform/Ansible convenience. |
+| # | Item | LOC | Status |
+|---|------|-----|--------|
+| 1 | `/ip/cidr` endpoint | ~15 | Done |
+| 2 | `?ip=` arbitrary IP lookup | ~80 | Done |
+| 3 | Field filtering (`?fields=`) | ~80 | Done |
+| 4 | Batch endpoint (`POST /batch`) | ~300 | Done |
+| 5 | OpenAPI spec via utoipa | ~250 | Done |
 
-**Batch endpoint details:**
+**Milestone:** All 209 tests pass (105 unit + 99 ok_handlers + 5 rate_limit). No breaking API changes from Phase 2.
 
-- Full content negotiation: JSON (default), YAML, TOML, CSV via Accept header or `POST /batch/csv` suffix
-- CSV output is particularly useful: one row per IP, columns for fields — directly importable into spreadsheets and SIEM tools
-- Opt-in via config (`batch.enabled = true`)
-- Batch of N IPs costs N rate-limit tokens
-- Input validation: reject RFC 1918, link-local, loopback (leaks internal topology)
-- Per-IP error handling in response array, never global 500
-- Reverse DNS skipped by default (expensive for batch), opt-in via `?dns=true`
+**Implementation notes:**
 
-**OpenAPI decision record:** The original SDD specified hand-written YAML because the `handler!` macro architecture conflicted with utoipa's proc macros. Phase 1a flattens these macros to explicit functions, which should make utoipa viable. Evaluate after Phase 1a ships. If utoipa annotations work cleanly on the new handler functions, use utoipa (auto-generated, won't drift). If not, hand-write the spec.
+- **`/ip/cidr`:** Returns `{ip}/32` (IPv4) or `{ip}/128` (IPv6) as plain text. Terraform/Ansible convenience endpoint.
+
+- **`?ip=` arbitrary IP lookup:** All endpoints using `dispatch_standard()` gained an optional `?ip=` query parameter. When present, lookup targets that IP instead of the caller's. Input validation rejects RFC 1918, link-local, loopback, and unspecified addresses (400 Bad Request). PTR/reverse DNS is skipped by default for arbitrary IPs (opt-in via `?dns=true`). `IfconfigParam` gained `skip_dns: bool` to support this.
+
+- **Field filtering (`?fields=`):** Parses `?fields=ip,location,isp` from the URI, filters the `serde_json::Value` after `to_json_fn()` produces it. Top-level field names only. Applies to JSON, YAML, TOML, CSV formats. Combines with `?ip=`: `GET /all/json?ip=8.8.8.8&fields=ip,location`.
+
+- **Batch endpoint:** `POST /batch` accepts a JSON array of IP addresses (max configurable, default 100). Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens (checked before processing). Per-IP error handling: invalid/private IPs return `{"error": "...", "input": "..."}` inline. Full content negotiation: `/batch/json`, `/batch/yaml`, `/batch/toml`, `/batch/csv`. Batch CSV uses tabular format (one row per IP, dot-notated column headers). Exempt from standard per-request rate limiting middleware; batch handler applies its own N-token check via `check_key_n`.
+
+- **OpenAPI via utoipa:** The macro-free handler architecture from Phase 1a made utoipa viable (decision record confirmed). All 16 public handlers annotated with `#[utoipa::path]`. Response types derive `ToSchema`: `Ifconfig`, `Ip`, `Tcp`, `Host`, `Location`, `Isp`, `Network`, `UserAgent`, `Browser`, `OS`, `Device`. Spec served at `GET /api-docs/openapi.json`. Swagger UI deferred (adds too many deps for marginal value).
 
 ---
 
@@ -327,7 +332,7 @@ The current rate limiter (governor, keyed by IP) is extended with a clear scopin
 |-------|----------|--------|
 | **Main port (8080)** | All API endpoints rate-limited per IP. `/health` and `/ready` exempt. | **Done** |
 | **Admin port (configurable)** | No rate limiter. Not publicly exposed — protected by network policy. Serves `/metrics` (Prometheus) and `/health`. | **Done** |
-| **Batch endpoint** | A batch of N IPs costs N rate-limit tokens. Rate-limit check happens before processing. | Phase 3 |
+| **Batch endpoint** | A batch of N IPs costs N rate-limit tokens. Rate-limit check happens before processing. `/batch` exempt from standard middleware; handler applies its own N-token check via `check_key_n`. | **Done** |
 | **Response headers** | `X-RateLimit-Limit`, `X-RateLimit-Remaining` on all rate-limited responses. `Retry-After` on 429 responses. | **Done** |
 
 Note: `X-RateLimit-Reset` was dropped from the plan — governor's `StateInformationMiddleware` exposes `remaining_burst_capacity()` but not a reset timestamp. `Retry-After` (seconds-to-wait) on 429 responses serves the same purpose for clients that need backoff information.
@@ -373,10 +378,11 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 | 1b | `metrics-exporter-prometheus` 0.16 | Prometheus metrics recorder + `/metrics` render handle | **Added** — `axum-prometheus` was originally planned but panics on repeated global recorder installation (breaks integration tests) |
 | 1b | `metrics-process` 2.3 | OS-level process metrics (CPU, memory, FDs) for `/metrics` | **Added** |
 | 1b | `tracing-subscriber` json feature | Structured JSON log output via `IFCONFIG_LOG_FORMAT=json` | **Added** (feature flag on existing dep) |
-| 2 | `arc-swap` | Atomic pointer swap for `EnrichmentContext` hot-reload via SIGHUP | Planned (commit 2) |
-| 2 | `ip_network_table` | IP prefix trie for cloud provider + VPN CIDR matching | Planned (commit 3) |
+| 2 | `arc-swap` 1 | Atomic pointer swap for `EnrichmentContext` hot-reload via SIGHUP | **Added** |
+| 2 | `ip_network` 0.4 + `ip_network_table` 0.2 | IP prefix trie for cloud provider + VPN CIDR matching | **Added** |
+| 2 | `regex` 1 | ASN name pattern matching in heuristic classifier | **Added** |
 | 2 | `notify` | Filesystem watcher for automatic hot-reload (complement to SIGHUP) | Deferred — SIGHUP-only first |
-| 3 | `utoipa` + `utoipa-axum` | OpenAPI spec generation (if compatible with handler functions) | Evaluate after Phase 1a (now eligible) |
+| 3 | `utoipa` 5 (features: `axum_extras`) | OpenAPI 3.1 spec generation from code annotations | **Added** — works cleanly with explicit handler functions from Phase 1a |
 
 `dns-lookup` was removed in Phase 1a.
 

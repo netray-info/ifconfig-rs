@@ -15,7 +15,7 @@ bot_ranges = "data/bot_ranges.jsonl"
 spamhaus_drop = "data/spamhaus_drop.txt"
 
 # Regex patterns to exclude from /headers responses (matched against header names).
-# filtered_headers = ["^x-koyeb-", "^cf-"]
+filtered_headers = ["^x-koyeb-", "^cf-"]
 
 [server]
 bind = "127.0.0.1:8080"

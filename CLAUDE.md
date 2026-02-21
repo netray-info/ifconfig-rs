@@ -52,7 +52,7 @@ make docker-build            # Production Docker image
 ### Test Guidelines
 
 - `cargo test --lib` is the fast reliable check — no network or external services needed.
-- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (74 tests covering all endpoints and content types), `tests/error_handler.rs`, and `tests/rate_limit.rs` (5 tests covering rate limit headers, 429 behavior, and probe exemptions).
+- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (99 tests covering all endpoints, content types, `?ip=` lookups, `?fields=` filtering, batch, and OpenAPI), `tests/error_handler.rs`, and `tests/rate_limit.rs` (5 tests covering rate limit headers, 429 behavior, and probe exemptions).
 - Integration tests spawn real TCP listeners with hyper_util for each test case.
 - Docker integration tests (`make integration`) build and test inside a container via `tests/Dockerfile.tests`.
 - Playwright E2E tests (`make acceptance`) run against production at `https://ip.pdt.sh` across Chromium, Firefox, and WebKit.
@@ -72,10 +72,18 @@ Key modules:
 - `src/main.rs` — tokio entry point, config loading, `--print-config` flag, `IFCONFIG_LOG_FORMAT=json` support, optional admin port, graceful shutdown
 - `src/config.rs` — `Config` struct (derives `Serialize` + `Deserialize`) loaded from config file + `IFCONFIG_` env vars via `config` crate
 - `src/state.rs` — `AppState` wrapping Arc'd backends (GeoIP, UA parser, Tor nodes); `KeyedRateLimiter` uses `StateInformationMiddleware` for burst-capacity tracking
-- `src/backend/mod.rs` — Core logic: `get_ifconfig()` orchestrates GeoIP, reverse DNS, UA parsing
+- `src/backend/mod.rs` — Core logic: `get_ifconfig()` orchestrates GeoIP, reverse DNS, UA parsing, network classification
 - `src/backend/user_agent.rs` — UA parsing wrapper around `uaparser`
-- `src/routes.rs` — Axum router with endpoint macros, static file serving via rust-embed
-- `src/handlers.rs` — Macro-generated response formatters for each content type
+- `src/backend/asn_heuristic.rs` — ASN name-based classification (hosting/VPN detection by ISP name)
+- `src/backend/cloud_provider.rs` — Cloud provider CIDR matching (AWS, GCP, Azure, Cloudflare, etc.)
+- `src/backend/vpn.rs` — VPN range CIDR matching
+- `src/backend/bot.rs` — Bot IP range matching (Googlebot, Bingbot, etc.)
+- `src/backend/datacenter.rs` — Datacenter IP range matching
+- `src/backend/feodo.rs` — Feodo C2 botnet IP matching
+- `src/backend/spamhaus.rs` — Spamhaus DROP/EDROP threat list matching
+- `src/enrichment.rs` — `EnrichmentContext` struct with `ArcSwap` hot-reload via SIGHUP
+- `src/routes.rs` — Axum router with explicit handler functions, `dispatch_standard()` compute-once dispatch, batch handler, OpenAPI spec via utoipa, static file serving via rust-embed
+- `src/handlers.rs` — Per-endpoint `to_json`/`to_plain` functions used as fn pointers by `dispatch_standard()`
 - `src/negotiate.rs` — Content negotiation: format suffix → CLI detection → Accept header → HTML default
 - `src/extractors.rs` — `RequesterInfo` extraction (IP from ConnectInfo/XFF, UA, URI)
 - `src/middleware.rs` — Security headers, cache control, rate limiting with `X-RateLimit-*` / `Retry-After` headers
@@ -84,7 +92,13 @@ Key modules:
 
 **Content negotiation priority**: Format suffix (`/ip/json`) → CLI detection (curl/wget/httpie + Accept: */*) → Accept header → HTML (serve SPA).
 
-**API endpoints**: `/`, `/ip`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/health`, `/ready` — all (except probes) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability.
+**API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/health`, `/ready` — all (except probes and `/ip/cidr`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability.
+
+**Batch endpoint**: `POST /batch` (and `/batch/{format}`) accepts a JSON array of IP addresses and returns enrichment results for each. Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens. Supports `?fields=` and `?dns=true`.
+
+**Query parameters**: Most endpoints support `?ip=` (look up an arbitrary global IP instead of the caller's), `?fields=` (comma-separated top-level field names to include in response), and `?dns=true` (opt-in PTR lookup for `?ip=` queries; PTR is skipped by default for arbitrary IPs).
+
+**OpenAPI**: Spec served at `GET /api-docs/openapi.json` via utoipa. All public endpoints are annotated with `#[utoipa::path]` and response types derive `ToSchema`.
 
 ## Frontend
 
@@ -119,6 +133,10 @@ bind = "127.0.0.1:8080"
 [rate_limit]
 per_ip_per_minute = 60
 per_ip_burst = 10
+
+[batch]
+enabled = true     # disabled by default
+max_size = 100     # max IPs per batch request
 ```
 
 Env var examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.pdt.sh`.
@@ -133,7 +151,7 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 
 ## Common Patterns
 
-- Routes and handlers are generated via declarative macros — follow existing macro invocations when adding new endpoints.
+- Routes use explicit handler functions with `dispatch_standard()` for compute-once dispatch. Each handler module in `handlers.rs` exposes `to_json(&Ifconfig) -> Option<Value>` and `to_plain(&Ifconfig) -> String` fn pointers.
 - `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `Location` includes `accuracy_radius_km: Option<u16>` from GeoIP. `Network` struct holds IP classification (type, provider, flags).
 - CLI client detection in `negotiate.rs` checks User-Agent patterns and `Accept: */*` header.
 - Config values are loaded from a TOML file (`ifconfig.dev.toml` for local dev) via the `config` crate with env var overrides.

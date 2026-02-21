@@ -17,7 +17,7 @@ site_name = "ip.pdt.sh"
 
 # Project version returned by the /meta endpoint.
 # Default: crate version from Cargo.toml
-# project_version = "0.3.0"
+# project_version = "0.5.0"
 
 # Path to MaxMind GeoLite2 City database (.mmdb).
 # If omitted, geolocation lookups are disabled.
@@ -43,6 +43,15 @@ feodo_botnet_ips = "data/feodo_botnet_ips.txt"
 
 # VPN CIDR ranges.
 vpn_ranges = "data/vpn_ranges.txt"
+
+# Datacenter CIDR ranges (X4BNet).
+datacenter_ranges = "data/datacenter_ranges.txt"
+
+# Known bot CIDR ranges (Googlebot, Bingbot, Applebot, GPTBot).
+bot_ranges = "data/bot_ranges.jsonl"
+
+# Spamhaus DROP+EDROP+DROPv6 combined CIDR list.
+spamhaus_drop = "data/spamhaus_drop.txt"
 
 # Regex patterns matched against header names. Any header whose name matches
 # a pattern is excluded from /headers responses. Useful for hiding infrastructure
@@ -72,3 +81,10 @@ per_ip_per_minute = 60
 # rate limiting kicks in.
 # Default: 10
 per_ip_burst = 10
+
+[batch]
+# Enable the POST /batch endpoint for bulk IP lookups.
+enabled = true
+
+# Maximum number of IPs per batch request.
+max_size = 10
