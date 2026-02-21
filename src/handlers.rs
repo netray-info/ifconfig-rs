@@ -106,7 +106,10 @@ pub mod location {
         let iso = ifconfig.location.country_iso.as_deref().unwrap_or(UNKNOWN_STR);
         let continent = ifconfig.location.continent.as_deref().unwrap_or(UNKNOWN_STR);
         let timezone = ifconfig.location.timezone.as_deref().unwrap_or(UNKNOWN_STR);
-        format!("{}, {} ({}), {}, {}\n", city, country, iso, continent, timezone)
+        match ifconfig.location.accuracy_radius_km {
+            Some(radius) => format!("{}, {} ({}), {}, {}, ~{}km\n", city, country, iso, continent, timezone, radius),
+            None => format!("{}, {} ({}), {}, {}\n", city, country, iso, continent, timezone),
+        }
     }
 }
 
@@ -144,6 +147,9 @@ pub mod all {
         }
         if let Some(lon) = ifconfig.location.longitude {
             lines.push(format!("longitude:  {}", lon));
+        }
+        if let Some(radius) = ifconfig.location.accuracy_radius_km {
+            lines.push(format!("accuracy:   {}km", radius));
         }
         if let Some(ref name) = ifconfig.isp.name {
             lines.push(format!("isp:        {}", name));

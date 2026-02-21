@@ -83,6 +83,7 @@ pub struct Location {
     pub timezone: Option<String>,
     pub continent: Option<String>,
     pub continent_code: Option<String>,
+    pub accuracy_radius_km: Option<u16>,
 }
 
 impl Location {
@@ -96,6 +97,7 @@ impl Location {
             timezone: Some("unknown".to_string()),
             continent: Some("unknown".to_string()),
             continent_code: Some("unknown".to_string()),
+            accuracy_radius_km: None,
         }
     }
 }
@@ -175,6 +177,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             timezone: c.location.time_zone.map(|s| s.to_owned()),
             continent: c.continent.names.english.map(|s| s.to_owned()),
             continent_code: c.continent.code.map(|s| s.to_owned()),
+            accuracy_radius_km: c.location.accuracy_radius,
         })
         .unwrap_or(Location::unknown());
 
