@@ -17,7 +17,7 @@ site_name = "ip.pdt.sh"
 
 # Project version returned by the /meta endpoint.
 # Default: crate version from Cargo.toml
-# project_version = "0.5.0"
+# project_version = "0.6.0"
 
 # Path to MaxMind GeoLite2 City database (.mmdb).
 # If omitted, geolocation lookups are disabled.
