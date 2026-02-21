@@ -107,13 +107,13 @@ Key modules:
 ## Frontend
 
 SolidJS 1.9 SPA in `frontend/`:
-- `src/App.tsx` — Main component with data fetching
+- `src/App.tsx` — Main component with data fetching; footer links to GitHub, `/docs` (API reference), and author
 - `src/components/` — IpDisplay, InfoCards, ApiDocs, ThemeToggle
 - `src/lib/api.ts` — Fetches `/json` endpoint
 - `src/lib/types.ts` — TypeScript interfaces matching Rust `Ifconfig` struct
 - `src/styles/global.css` — Dark-mode-first design with CSS custom properties
 
-Dev: `cd frontend && npm run dev` (proxies API calls to localhost:8080).
+Dev: `cd frontend && npm run dev` (proxies API calls to localhost:8080, including `/docs` and `/api-docs`).
 Build: `cd frontend && npm run build` (outputs to `frontend/dist/`).
 
 ## Configuration

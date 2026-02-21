@@ -418,7 +418,7 @@ Three issues discovered from production testing after Phase 5 shipped:
 
 - **OpenAPI spec enrichment:** Added `#[schema(example = ...)]` annotations to all `ToSchema` struct fields in `backend/mod.rs` and `backend/user_agent.rs` using RFC 5737 IPs (`203.0.113.42`) and `example.com` domains. Added `ErrorResponse` to `components(schemas(...))`. Enriched all `#[utoipa::path]` annotations with: `description` strings, `params()` for `?ip=`, `?fields=`, `?dns=` query parameters, `responses()` for 400/429 with `body = ErrorResponse`. Note: utoipa's proc-macro resolves `json!()` in schema attributes internally — no `use serde_json::json` import needed in the module.
 
-- **Scalar API reference UI:** `GET /docs` serves a lightweight HTML page (~20 lines) embedded via `include_str!("scalar_docs.html")`. Loads [Scalar](https://github.com/scalar/scalar) from CDN (`@scalar/api-reference`), configured to read the OpenAPI spec from `/api-docs/openapi.json`. CDN dependency is client-side only — the API spec works fully offline. No new Rust dependencies.
+- **Scalar API reference UI:** `GET /docs` serves a lightweight HTML page (~20 lines) embedded via `include_str!("scalar_docs.html")`. Loads [Scalar](https://github.com/scalar/scalar) from CDN (`@scalar/api-reference`), configured to read the OpenAPI spec from `/api-docs/openapi.json`. CDN dependency is client-side only — the API spec works fully offline. No new Rust dependencies. The SPA footer links to `/docs` for discoverability; Vite dev proxy forwards `/docs` and `/api-docs` to the backend.
 
 - **Criterion benchmarks:** Four benchmark suites targeting hot-path functions:
   - `benches/negotiation.rs` — `negotiate()` with format suffix, CLI detection, Accept header, browser
