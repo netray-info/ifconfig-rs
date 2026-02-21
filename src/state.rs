@@ -94,6 +94,10 @@ impl AppState {
                     per_ip_per_minute: config.rate_limit.per_ip_per_minute,
                     per_ip_burst: config.rate_limit.per_ip_burst,
                 },
+                batch: crate::config::BatchConfig {
+                    enabled: config.batch.enabled,
+                    max_size: config.batch.max_size,
+                },
             }),
             project_info: Arc::new(project_info),
             enrichment: Arc::new(ArcSwap::from_pointee(enrichment)),

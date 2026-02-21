@@ -28,6 +28,8 @@ pub struct Config {
     pub filtered_headers: Vec<String>,
     #[serde(default)]
     pub rate_limit: RateLimitConfig,
+    #[serde(default)]
+    pub batch: BatchConfig,
 }
 
 impl Config {
@@ -90,6 +92,29 @@ impl RateLimitConfig {
     }
     fn default_per_ip_burst() -> u32 {
         10
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BatchConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "BatchConfig::default_max_size")]
+    pub max_size: usize,
+}
+
+impl Default for BatchConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            max_size: Self::default_max_size(),
+        }
+    }
+}
+
+impl BatchConfig {
+    fn default_max_size() -> usize {
+        100
     }
 }
 

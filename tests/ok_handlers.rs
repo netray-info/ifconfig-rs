@@ -71,6 +71,15 @@ fn get_with_headers(path: &str, headers: &[(&str, &str)]) -> Request<Body> {
     builder.body(Body::empty()).unwrap()
 }
 
+fn post_json(path: &str, body: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(path)
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
 fn remote_v4(ip: &str, port: u16) -> SocketAddr {
     format!("{}:{}", ip, port).parse().unwrap()
 }
@@ -1154,4 +1163,90 @@ async fn fields_param_yaml_format() {
     assert!(body.contains("addr:"));
     // Should NOT contain location/isp since we filtered to ip only
     assert!(!body.contains("city:"), "city should be filtered out");
+}
+
+// --- POST /batch tests ---
+
+#[tokio::test]
+async fn batch_json_basic() {
+    let req = post_json("/batch", r#"["8.8.8.8", "1.1.1.1"]"#);
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_json(&ct), "Expected JSON, got {:?}", ct);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(json.is_array());
+    let arr = json.as_array().unwrap();
+    assert_eq!(arr.len(), 2);
+    assert_eq!(arr[0]["ip"]["addr"], "8.8.8.8");
+    assert_eq!(arr[1]["ip"]["addr"], "1.1.1.1");
+}
+
+#[tokio::test]
+async fn batch_with_invalid_ip() {
+    let req = post_json("/batch", r#"["8.8.8.8", "10.0.0.1", "not-an-ip"]"#);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let arr = json.as_array().unwrap();
+    assert_eq!(arr.len(), 3);
+    // First: valid
+    assert_eq!(arr[0]["ip"]["addr"], "8.8.8.8");
+    // Second: private IP error
+    assert!(arr[1]["error"].is_string());
+    assert!(arr[1]["error"].as_str().unwrap().contains("private"));
+    // Third: invalid IP error
+    assert!(arr[2]["error"].is_string());
+    assert!(arr[2]["error"].as_str().unwrap().contains("invalid"));
+}
+
+#[tokio::test]
+async fn batch_empty_array() {
+    let req = post_json("/batch", "[]");
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body.contains("empty"));
+}
+
+#[tokio::test]
+async fn batch_invalid_body() {
+    let req = post_json("/batch", "not json");
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body.contains("JSON array"));
+}
+
+#[tokio::test]
+async fn batch_csv_format() {
+    let req = post_json("/batch/csv", r#"["8.8.8.8", "1.1.1.1"]"#);
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_csv(&ct), "Expected CSV, got {:?}", ct);
+    let lines: Vec<&str> = body.trim().split('\n').collect();
+    assert!(lines.len() >= 3, "Expected header + 2 rows, got: {:?}", lines);
+    assert!(lines[0].contains("ip.addr"), "Header should contain ip.addr");
+}
+
+#[tokio::test]
+async fn batch_with_fields() {
+    let req = post_json("/batch?fields=ip,isp", r#"["8.8.8.8"]"#);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let arr = json.as_array().unwrap();
+    assert_eq!(arr.len(), 1);
+    assert!(arr[0]["ip"].is_object());
+    assert!(arr[0]["isp"].is_object());
+    assert!(arr[0].get("location").is_none(), "location should be filtered out");
+}
+
+#[tokio::test]
+async fn batch_yaml_format() {
+    let req = post_json("/batch/yaml", r#"["8.8.8.8"]"#);
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_yaml(&ct), "Expected YAML, got {:?}", ct);
+    assert!(body.contains("addr:"));
 }

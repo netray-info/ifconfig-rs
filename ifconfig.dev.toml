@@ -24,3 +24,7 @@ admin_bind = "127.0.0.1:9090"
 [rate_limit]
 per_ip_per_minute = 60
 per_ip_burst = 10
+
+[batch]
+enabled = true
+max_size = 100

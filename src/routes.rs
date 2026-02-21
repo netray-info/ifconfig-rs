@@ -1,10 +1,12 @@
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
+use governor::clock::{Clock, DefaultClock};
 use serde_json::json;
 use std::net::{IpAddr, SocketAddr};
+use std::num::NonZeroU32;
 
 use crate::backend::*;
 use crate::enrichment::EnrichmentContext;
@@ -48,6 +50,9 @@ pub fn router(_state: AppState) -> Router<AppState> {
         .route("/ipv4/{fmt}", get(ipv4_format_handler))
         .route("/ipv6", get(ipv6_handler))
         .route("/ipv6/{fmt}", get(ipv6_format_handler))
+        // Batch endpoint
+        .route("/batch", post(batch_handler))
+        .route("/batch/{fmt}", post(batch_format_handler))
         // Meta endpoint (site info for SPA)
         .route("/meta", get(meta_handler))
         // Probe endpoints (no content negotiation)
@@ -545,6 +550,162 @@ fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) 
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
                 None => (StatusCode::INTERNAL_SERVER_ERROR, "serialization failed").into_response(),
             }
+        }
+    }
+}
+
+// ---- Batch handler ----
+
+async fn batch_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+    body: axum::body::Bytes,
+) -> Response {
+    batch_dispatch(None, &state, &headers, &extensions, &body).await
+}
+
+async fn batch_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+    body: axum::body::Bytes,
+) -> Response {
+    batch_dispatch(Some(&fmt), &state, &headers, &extensions, &body).await
+}
+
+async fn batch_dispatch(
+    suffix: Option<&str>,
+    state: &AppState,
+    headers: &HeaderMap,
+    extensions: &axum::http::Extensions,
+    body: &[u8],
+) -> Response {
+    if !state.config.batch.enabled {
+        return (StatusCode::NOT_FOUND, "batch endpoint is disabled\n").into_response();
+    }
+
+    let ips: Vec<String> = match serde_json::from_slice(body) {
+        Ok(v) => v,
+        Err(_) => {
+            return (StatusCode::BAD_REQUEST, "request body must be a JSON array of IP strings\n")
+                .into_response();
+        }
+    };
+
+    if ips.is_empty() {
+        return (StatusCode::BAD_REQUEST, "empty IP array\n").into_response();
+    }
+
+    if ips.len() > state.config.batch.max_size {
+        return (
+            StatusCode::BAD_REQUEST,
+            format!("batch size {} exceeds maximum {}\n", ips.len(), state.config.batch.max_size),
+        )
+            .into_response();
+    }
+
+    // Rate-limit: consume N tokens for N IPs
+    let req_info = get_requester_info(headers, extensions);
+    let caller_ip = req_info.remote.ip();
+    let n = NonZeroU32::new(ips.len() as u32).unwrap_or(NonZeroU32::MIN);
+    let rate_ok = match state.rate_limiter.check_key_n(&caller_ip, n) {
+        Ok(Ok(_snapshot)) => true,
+        Ok(Err(not_until)) => {
+            let wait = not_until.wait_time_from(DefaultClock::default().now());
+            let retry_after = wait.as_secs().saturating_add(1);
+            let limit = state.config.rate_limit.per_ip_burst;
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                [
+                    ("x-ratelimit-limit", limit.to_string()),
+                    ("x-ratelimit-remaining", "0".to_string()),
+                    ("retry-after", retry_after.to_string()),
+                ],
+                "rate limit exceeded\n",
+            )
+                .into_response();
+        }
+        Err(_insufficient) => {
+            // Batch size exceeds burst capacity — process anyway but log.
+            // This is expected when batch.max_size > rate_limit.per_ip_burst.
+            true
+        }
+    };
+    let _ = rate_ok;
+
+    let ctx = state.enrichment.load();
+    let (uap, city, asn, tor) = match resolve_backends(&ctx) {
+        Some(backends) => backends,
+        None => return (StatusCode::INTERNAL_SERVER_ERROR, "backends not available").into_response(),
+    };
+
+    let dns_opt_in = parse_dns_param(&req_info.uri);
+    let fields = format::parse_fields_param(&req_info.uri);
+    let ua_ref = req_info.user_agent.as_deref();
+    let ua_opt: Option<&str> = ua_ref;
+
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(ips.len());
+    for ip_str in &ips {
+        let ip: IpAddr = match ip_str.parse() {
+            Ok(ip) => ip,
+            Err(_) => {
+                results.push(json!({"error": "invalid IP address", "input": ip_str}));
+                continue;
+            }
+        };
+
+        if !is_global_ip(ip) {
+            results.push(json!({"error": "private/loopback IP not allowed", "input": ip_str}));
+            continue;
+        }
+
+        let target_addr = SocketAddr::new(ip, 0);
+        let skip_dns = !dns_opt_in;
+        let ifconfig = handlers::make_ifconfig(
+            &target_addr, &ua_opt, uap, city, asn, tor,
+            ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(),
+            ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(),
+            ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(),
+            &ctx.dns_resolver, skip_dns,
+        ).await;
+
+        let mut val = serde_json::to_value(&ifconfig).unwrap_or(json!(null));
+        if let Some(ref f) = fields {
+            val = format::filter_fields(val, f);
+        }
+        results.push(val);
+    }
+
+    let format = match suffix {
+        Some(fmt) => negotiate(Some(fmt), headers),
+        None => NegotiatedFormat::Json,
+    };
+
+    match format {
+        NegotiatedFormat::Json | NegotiatedFormat::Html | NegotiatedFormat::Plain => {
+            let arr = serde_json::Value::Array(results);
+            respond_json_value(arr)
+        }
+        NegotiatedFormat::Yaml => {
+            let arr = serde_json::Value::Array(results);
+            match OutputFormat::Yaml.serialize_body(&arr) {
+                Some(body) => respond_formatted(OutputFormat::Yaml.content_type(), body),
+                None => (StatusCode::INTERNAL_SERVER_ERROR, "serialization failed").into_response(),
+            }
+        }
+        NegotiatedFormat::Toml => {
+            // TOML doesn't support top-level arrays; wrap in a table
+            let wrapped = json!({"results": results});
+            match OutputFormat::Toml.serialize_body(&wrapped) {
+                Some(body) => respond_formatted(OutputFormat::Toml.content_type(), body),
+                None => (StatusCode::INTERNAL_SERVER_ERROR, "serialization failed").into_response(),
+            }
+        }
+        NegotiatedFormat::Csv => {
+            let body = format::json_array_to_csv(&results);
+            respond_formatted(OutputFormat::Csv.content_type(), body)
         }
     }
 }

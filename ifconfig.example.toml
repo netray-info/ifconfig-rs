@@ -92,3 +92,12 @@ per_ip_per_minute = 60
 # rate limiting kicks in.
 # Default: 10
 per_ip_burst = 10
+
+[batch]
+# Enable the POST /batch endpoint for bulk IP lookups.
+# Default: false (disabled)
+# enabled = true
+
+# Maximum number of IPs per batch request.
+# Default: 100
+# max_size = 100

@@ -9,7 +9,8 @@ use crate::extractors::RequesterInfo;
 use crate::state::AppState;
 
 pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::Body>, next: Next) -> Response {
-    if req.uri().path() == "/health" || req.uri().path() == "/ready" {
+    let path = req.uri().path();
+    if path == "/health" || path == "/ready" || path == "/batch" || path.starts_with("/batch/") {
         return next.run(req).await;
     }
 
