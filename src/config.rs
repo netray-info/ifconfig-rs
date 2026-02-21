@@ -143,11 +143,28 @@ impl Config {
 
         builder = builder.add_source(
             config::Environment::with_prefix("IFCONFIG")
+                .prefix_separator("_")
                 .separator("__")
                 .try_parsing(true),
         );
 
-        builder.build()?.try_deserialize()
+        let cfg: Self = builder.build()?.try_deserialize()?;
+        cfg.validate()?;
+        Ok(cfg)
+    }
+
+    pub fn validate(&self) -> Result<(), config::ConfigError> {
+        if self.rate_limit.per_ip_per_minute == 0 {
+            return Err(config::ConfigError::Message(
+                "rate_limit.per_ip_per_minute must be > 0".to_string(),
+            ));
+        }
+        if self.rate_limit.per_ip_burst == 0 {
+            return Err(config::ConfigError::Message(
+                "rate_limit.per_ip_burst must be > 0".to_string(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -157,6 +174,7 @@ mod tests {
 
     #[test]
     fn load_without_file_uses_defaults() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let config = Config::load(None).unwrap();
         assert_eq!(config.server.bind, "127.0.0.1:8080");
         assert_eq!(config.base_url, "localhost");
@@ -197,8 +215,55 @@ mod tests {
 
     #[test]
     fn config_round_trip_toml() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let config = Config::load(None).unwrap();
         let toml_str = toml::to_string(&config).unwrap();
         let _parsed: Config = toml::from_str(&toml_str).unwrap();
+    }
+
+    // Env-var tests share a mutex to prevent concurrent tests from clobbering
+    // each other's IFCONFIG_* env vars (set_var is process-global).
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn env_var_overrides_top_level_field() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("IFCONFIG_BASE_URL", "env-test.example.com");
+        let result = Config::load(None);
+        std::env::remove_var("IFCONFIG_BASE_URL");
+        let config = result.unwrap();
+        assert_eq!(config.base_url, "env-test.example.com");
+    }
+
+    #[test]
+    fn env_var_overrides_nested_field_with_double_underscore() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("IFCONFIG_SERVER__BIND", "0.0.0.0:9191");
+        let result = Config::load(None);
+        std::env::remove_var("IFCONFIG_SERVER__BIND");
+        let config = result.unwrap();
+        assert_eq!(config.server.bind, "0.0.0.0:9191");
+    }
+
+    #[test]
+    fn validate_rejects_zero_per_ip_per_minute() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let mut config = Config::load(None).unwrap();
+        config.rate_limit.per_ip_per_minute = 0;
+        assert!(
+            config.validate().is_err(),
+            "validate() should error when per_ip_per_minute is 0"
+        );
+    }
+
+    #[test]
+    fn validate_rejects_zero_per_ip_burst() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let mut config = Config::load(None).unwrap();
+        config.rate_limit.per_ip_burst = 0;
+        assert!(
+            config.validate().is_err(),
+            "validate() should error when per_ip_burst is 0"
+        );
     }
 }

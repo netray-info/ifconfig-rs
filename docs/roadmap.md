@@ -79,127 +79,90 @@ preflight response.
 
 ---
 
-## P3 — Backlog
+## P3 — Backlog ✅
 
 Lower urgency: either requires external data, adds incremental coverage, or is a minor
 improvement to existing behavior.
 
-### 10. No explicit `?dns=true` integration test
+### ~~10. No explicit `?dns=true` integration test~~ ✅
 
-**Source**: fixes.md
-**File**: `tests/ok_handlers.rs`
-
-DNS opt-in for `?ip=` queries is only implicitly covered. A test with a loopback address
-(`?ip=127.0.0.1`) hits the global-IP guard before DNS. A test with a real public IP requires
-network access in CI.
-
-**Fix**: Use a mock DNS resolver or assert behavior on the `skip_dns` flag at the unit level.
-Alternatively, test `?dns=true` without a GeoIP DB (the response should still be structurally
-valid, just with null location fields).
+Added `ip_param_dns_true_returns_valid_response` in `tests/ok_handlers.rs`: sends
+`GET /all/json?ip=8.8.8.8&dns=true`, asserts 200 and that `host` is null or an object
+(structurally valid regardless of whether DNS resolves).
 
 ---
 
-### 11. No admin port integration test
+### ~~11. No admin port integration test~~ ✅
 
-**Source**: fixes.md
-**File**: `tests/`
-
-The admin bind, `/metrics` output, and the new `admin_token` bearer auth are untested. A
-regression in the auth middleware or Prometheus rendering would not be caught.
-
-**Fix**: Add a test that calls `build_app()` with `admin_bind` configured, binds the admin
-app to a random port, and asserts: (a) `/metrics` returns 200 with `text/plain`, (b) with
-`admin_token` set, `/metrics` returns 401 without credentials and 200 with them.
+Added `tests/admin.rs` with `admin_port_metrics_and_bearer_auth`: calls `build_app()` with
+`admin_bind` and `admin_token` configured, binds the admin app, and asserts `/metrics` returns
+401 without credentials, 401 with wrong token, and 200 with correct token (Prometheus text
+body). Also asserts `/health` behaves identically. Gracefully skips if the metrics recorder
+is already installed (process-level singleton).
 
 ---
 
-### 12. No `filtered_headers` regex integration test
+### ~~12. No `filtered_headers` regex integration test~~ ✅
 
-**Source**: fixes.md
-**File**: `tests/ok_handlers.rs`
-
-The `filtered_headers` config regex drops matching headers from `/headers` responses, but no
-test verifies this. A broken `RegexSet` at startup panics (so the negative path is tested via
-`state.rs` unit tests) but the positive filtering behavior is untested end-to-end.
-
-**Fix**: Build an `AppState` with a `filtered_headers` regex, send a request with a
-matching header, and assert it does not appear in the `/headers/json` response.
+Added `filtered_headers_excluded_from_response` in `tests/ok_handlers.rs`: builds a custom
+app with `filtered_headers = ["(?i)^x-test-secret$"]`, sends a request with that header,
+and asserts the header does not appear in the `/headers/json` response body.
 
 ---
 
-### 13. No env-var config override test
+### ~~13. No env-var config override test~~ ✅
 
-**Source**: fixes.md
-**File**: `src/config.rs`
-
-`IFCONFIG_*` env var overrides via the `config` crate are untested. A typo in the separator
-(`__` vs `_`) would silently fail.
-
-**Fix**: Add a unit test that sets `IFCONFIG_SERVER__BIND=0.0.0.0:9999` (or similar low-risk
-field) via `std::env::set_var` and asserts `Config::load(None)` picks it up.
+Added `env_var_overrides_top_level_field` and `env_var_overrides_nested_field_with_double_underscore`
+in `src/config.rs` tests. Also fixed `Config::load()` to call `.prefix_separator("_")` so
+that `IFCONFIG_SERVER__BIND` correctly maps to `server.bind` (config 0.15 strips the prefix
+exactly, leaving a leading `_` without the separator option). Tests share `ENV_LOCK` mutex to
+prevent concurrent interference; all tests calling `Config::load(None)` now acquire it.
 
 ---
 
-### 14. GeoIP database-age header tests require live DB
+### ~~14. GeoIP database-age header tests require live DB~~ ✅
 
-**Source**: review.md §3.5
-**File**: `tests/ok_handlers.rs`
-
-`X-GeoIP-Database-Date` and `X-GeoIP-Database-Age-Days` are emitted by `geoip_date_headers`
-middleware but never asserted. Tests cannot load a real `.mmdb` in CI (licensed data).
-
-**Fix**: Add a thin `AppState` builder that accepts a mock `geoip_city_build_epoch`, or gate
-the test with `#[ignore]` and a comment pointing to the data-file setup docs.
+Added `geoip_date_headers_present_when_db_loaded` in `tests/ok_handlers.rs` gated with
+`#[ignore = "requires GeoIP database files in data/"]`. Documents expected behavior and can
+be run manually with `cargo test -- --ignored`.
 
 ---
 
-### 15. Network classification not tested end-to-end
+### ~~15. Network classification not tested end-to-end~~ ✅
 
-**Source**: review.md §3.6
-
-Cloud/VPN/datacenter/bot/threat backends have unit tests but no integration test verifies
-that these flags propagate into `/network` JSON for a known test IP.
-
-**Fix**: Same constraint as §14 — requires data files. Consider a synthetic test where the
-`AppState` is built with a minimal mock CIDR database containing a known test IP.
+Added `network_classification_propagates_to_json` in `tests/ok_handlers.rs` gated with
+`#[ignore = "requires network classification data files in data/"]`. Same rationale as §14.
 
 ---
 
-### 16. API Explorer lacks arrow-key navigation (WCAG tablist)
+### ~~16. API Explorer lacks arrow-key navigation (WCAG tablist)~~ ✅
 
-**Source**: review.md §4.7
-**File**: `frontend/src/components/ApiExplorer.tsx:119–128`
-
-Endpoint buttons form a tablist but do not respond to left/right arrow keys. WCAG 2.1 §4.1.3
-recommends this pattern for keyboard users.
-
-**Fix**: Add `onKeyDown` handlers to the endpoint tab buttons that move focus left/right
-through the list using `document.querySelectorAll('.endpoint-tab')`.
+Endpoint tab buttons now have `role="tab"`, `aria-selected`, `tabIndex` (0 for active, -1
+for others), and `onKeyDown` handlers for ArrowLeft/ArrowRight focus movement. The container
+div has `role="tablist"` and `aria-label="API endpoints"`. Covered by the Vitest arrow-key
+navigation test (item 17).
 
 ---
 
-### 17. Frontend component unit tests
+### ~~17. Frontend component unit tests~~ ✅
 
-**Source**: review.md §4.9
+Bootstrapped Vitest 4 with `@solidjs/testing-library`, `@testing-library/jest-dom`, and
+`happy-dom`. Added `frontend/vitest.config.ts` and `frontend/src/test-setup.ts` (with
+Map-backed localStorage mock for happy-dom compatibility). Nine tests across two files:
 
-The API Explorer cache logic, clipboard handling, and `ThemeToggle` localStorage persistence
-are non-trivial but have no isolated unit tests (Vitest / `@testing-library/solid`).
-
-**Fix**: Bootstrap Vitest with `@testing-library/solid` and add tests for: cache hit/miss in
-`ApiExplorer`, clipboard copy toggle, and theme persistence round-trip.
+- `ThemeToggle.test.tsx` (4 tests): reads theme from localStorage on mount, cycles
+  dark→light→system, persists to localStorage, applies `data-theme` to `documentElement`.
+- `ApiExplorer.test.tsx` (5 tests): renders collapsed, expands on click, cache hit/miss
+  (waits for non-loading pre to ensure cache is populated), clipboard copy toggle,
+  arrow-key navigation.
 
 ---
 
-### 18. Rate-limit config validated at AppState construction, not config parse
+### ~~18. Rate-limit config validated at AppState construction, not config parse~~ ✅
 
-**Source**: review.md §2.3
-**File**: `src/state.rs`, `src/config.rs`
-
-`per_ip_per_minute must be > 0` panics at `AppState::new()`, not at `Config::load()`.
-The error location is slightly misleading (the wrong phase of startup).
-
-**Fix**: Add `#[serde(try_from = "u32")]` or a `validate()` method called from `Config::load()`
-so the error is surfaced during config deserialization.
+Added `Config::validate()` (called from `Config::load()`) that returns
+`Err(ConfigError::Message(...))` if `per_ip_per_minute == 0` or `per_ip_burst == 0`. The
+panic in `AppState::new()` is now unreachable for these fields. Two unit tests added.
 
 ---
 

@@ -1559,3 +1559,121 @@ async fn cors_preflight_returns_correct_headers() {
         "CORS preflight must include Access-Control-Allow-Methods"
     );
 }
+
+// --- ?dns=true integration test (item 10) ---
+
+#[tokio::test]
+async fn ip_param_dns_true_returns_valid_response() {
+    // ?dns=true opts-in to PTR lookup for ?ip= queries. The result may be null
+    // (DNS timeout, no PTR record) or a hostname string — both are valid.
+    let req = get_with_headers(
+        "/all/json?ip=8.8.8.8&dns=true",
+        &[("user-agent", "curl/7.54.0")],
+    );
+    let (status, _, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    // host field must be present and either null or an object with a name field
+    assert!(
+        json["host"].is_null() || json["host"].is_object(),
+        "host should be null or an object, got: {}",
+        json["host"]
+    );
+}
+
+// --- filtered_headers integration test (item 12) ---
+
+#[tokio::test]
+async fn filtered_headers_excluded_from_response() {
+    let mut config = test_config();
+    config.filtered_headers = vec!["(?i)^x-test-secret$".to_string()];
+    let app = ifconfig_rs::build_app(&config).await.app;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    tokio::spawn(async move {
+        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+            .with_graceful_shutdown(async { rx.await.ok(); })
+            .await
+            .unwrap();
+    });
+
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new()).build_http();
+    let uri = format!("http://{}/headers/json", addr);
+    let request = axum::http::Request::builder()
+        .uri(&uri)
+        .header("x-test-secret", "should-be-filtered")
+        .header("x-allowed-header", "should-appear")
+        .body(Body::empty())
+        .unwrap();
+    let response = client.request(request).await.unwrap();
+    let status = response.status();
+    let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body_str = String::from_utf8(body_bytes.to_vec()).unwrap_or_default();
+    let _ = tx.send(());
+
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+    let header_names: Vec<&str> = json
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|e| e[0].as_str())
+        .collect();
+    assert!(
+        !header_names.contains(&"x-test-secret"),
+        "filtered header should not appear in /headers/json response"
+    );
+    assert!(
+        header_names.contains(&"x-allowed-header"),
+        "non-filtered header should appear in /headers/json response"
+    );
+}
+
+// --- GeoIP database-age header tests (item 14) ---
+// These require GeoIP database files to be present. Run with:
+//   cargo test --test ok_handlers geoip_date_headers -- --include-ignored
+
+#[tokio::test]
+#[ignore = "requires GeoIP database files configured in ifconfig.dev.toml (geoip_city_db)"]
+async fn geoip_date_headers_present_when_db_loaded() {
+    let req = get_with_headers("/ip", &[("user-agent", "curl/8.0"), ("accept", "*/*")]);
+    let (status, headers, _) = send_request(req, remote_v4("1.2.3.4", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        headers.contains_key("x-geoip-database-date"),
+        "X-GeoIP-Database-Date should be present when GeoIP DB is loaded"
+    );
+    assert!(
+        headers.contains_key("x-geoip-database-age-days"),
+        "X-GeoIP-Database-Age-Days should be present when GeoIP DB is loaded"
+    );
+    let age: i64 = headers
+        .get("x-geoip-database-age-days")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse().ok())
+        .expect("X-GeoIP-Database-Age-Days should be a number");
+    assert!(age >= 0, "database age should be non-negative");
+}
+
+// --- Network classification end-to-end test (item 15) ---
+// Requires cloud/VPN/bot data files. Run with:
+//   cargo test --test ok_handlers network_classification -- --include-ignored
+
+#[tokio::test]
+#[ignore = "requires network classification data files (cloud_provider_ranges, vpn_ranges, etc.)"]
+async fn network_classification_propagates_to_json() {
+    // 8.8.8.8 is Google DNS; with cloud/hosting data it should be classified as hosting
+    let req = get_with_headers("/network/json?ip=8.8.8.8", &[("user-agent", "curl/8.0")]);
+    let (status, _, body) = send_request(req, remote_v4("1.2.3.4", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    // When classification data is loaded, 8.8.8.8 should not be "residential"
+    let network_type = json["type"].as_str().unwrap_or("unknown");
+    assert_ne!(
+        network_type, "residential",
+        "8.8.8.8 should be classified as hosting/cloud when data files are loaded, got: {}",
+        network_type
+    );
+}

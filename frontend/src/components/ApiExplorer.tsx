@@ -121,12 +121,24 @@ export default function ApiExplorer() {
       <Show when={open()}>
         <div class="api-explorer" id="api-explorer-panel">
           <div class="endpoint-tabs-wrapper">
-            <div class="endpoint-tabs">
+            <div class="endpoint-tabs" role="tablist" aria-label="API endpoints">
               <For each={ENDPOINTS as unknown as string[]}>
                 {(ep) => (
                   <button
                     class={`endpoint-tab ${activeEndpoint() === ep ? "active" : ""}`}
+                    role="tab"
+                    aria-selected={activeEndpoint() === ep}
+                    tabIndex={activeEndpoint() === ep ? 0 : -1}
                     onClick={() => setActiveEndpoint(ep)}
+                    onKeyDown={(e: KeyboardEvent) => {
+                      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                      const tabs = Array.from(
+                        document.querySelectorAll<HTMLButtonElement>(".endpoint-tab")
+                      );
+                      const idx = tabs.indexOf(e.currentTarget as HTMLButtonElement);
+                      if (e.key === "ArrowLeft" && idx > 0) tabs[idx - 1].focus();
+                      if (e.key === "ArrowRight" && idx < tabs.length - 1) tabs[idx + 1].focus();
+                    }}
                   >
                     {ep}
                   </button>
