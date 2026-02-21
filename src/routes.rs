@@ -205,6 +205,10 @@ async fn dispatch_standard(
         return serve_spa();
     }
 
+    if format == NegotiatedFormat::Unknown {
+        return error_response(StatusCode::NOT_FOUND, "unknown format suffix");
+    }
+
     // Parse ?ip= to override target IP
     let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
         Some(ip) => {
@@ -834,6 +838,10 @@ async fn ip_version_dispatch(
 
     if format == NegotiatedFormat::Html {
         return serve_spa();
+    }
+
+    if format == NegotiatedFormat::Unknown {
+        return error_response(StatusCode::NOT_FOUND, "unknown format suffix");
     }
 
     // Parse ?ip= to override target IP

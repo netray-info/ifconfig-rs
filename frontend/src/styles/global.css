@@ -267,6 +267,37 @@ button:focus-visible {
   color: var(--warning);
 }
 
+/* Network-status badges with distinct semantic colors.
+   Contrast verified ≥4.5:1 against dark card background. */
+.net-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.net-badge--vpn {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa; /* blue — informational/neutral */
+}
+
+.net-badge--tor {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning); /* amber — privacy tool, use with caution */
+}
+
+.net-badge--bot {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c; /* orange — automated/suspicious */
+}
+
+.net-badge--threat {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171; /* red — known malicious */
+}
+
 .eu-badge {
   display: inline-block;
   padding: 0.1rem 0.4rem;

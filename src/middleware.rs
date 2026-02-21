@@ -69,13 +69,14 @@ pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::
         None => return next.run(req).await,
     };
 
-    let limit = state.config.rate_limit.per_ip_burst;
+    // X-RateLimit-Limit reports the per-minute sustained rate (not the burst quota).
+    let per_minute = state.config.rate_limit.per_ip_per_minute;
 
     match state.rate_limiter.check_key(&ip) {
         Ok(snapshot) => {
             let mut response = next.run(req).await;
             let h = response.headers_mut();
-            h.insert("x-ratelimit-limit", HeaderValue::from(limit));
+            h.insert("x-ratelimit-limit", HeaderValue::from(per_minute));
             h.insert(
                 "x-ratelimit-remaining",
                 HeaderValue::from(snapshot.remaining_burst_capacity()),
@@ -85,11 +86,17 @@ pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::
         Err(not_until) => {
             let wait = not_until.wait_time_from(DefaultClock::default().now());
             let retry_after = wait.as_secs().saturating_add(1);
+            let reset_unix = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+                .saturating_add(retry_after);
             let mut response = AppError::RateLimited.into_response();
             let h = response.headers_mut();
-            h.insert("x-ratelimit-limit", HeaderValue::from(limit));
+            h.insert("x-ratelimit-limit", HeaderValue::from(per_minute));
             h.insert("x-ratelimit-remaining", HeaderValue::from(0u32));
             h.insert("retry-after", HeaderValue::from(retry_after));
+            h.insert("x-ratelimit-reset", HeaderValue::from(reset_unix));
             response
         }
     }

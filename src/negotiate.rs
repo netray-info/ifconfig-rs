@@ -29,7 +29,7 @@ pub fn negotiate(suffix: Option<&str>, headers: &HeaderMap) -> NegotiatedFormat 
             "yaml" => NegotiatedFormat::Yaml,
             "toml" => NegotiatedFormat::Toml,
             "csv" => NegotiatedFormat::Csv,
-            _ => NegotiatedFormat::Html, // unknown suffix falls through
+            _ => NegotiatedFormat::Unknown,
         };
     }
 
@@ -159,6 +159,13 @@ mod tests {
     fn default_html() {
         let h = HeaderMap::new();
         assert_eq!(negotiate(None, &h), NegotiatedFormat::Html);
+    }
+
+    #[test]
+    fn unknown_suffix_returns_unknown() {
+        let h = HeaderMap::new();
+        assert_eq!(negotiate(Some("garbage"), &h), NegotiatedFormat::Unknown);
+        assert_eq!(negotiate(Some("xml"), &h), NegotiatedFormat::Unknown);
     }
 
     #[test]

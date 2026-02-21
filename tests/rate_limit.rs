@@ -109,7 +109,7 @@ async fn rate_limit_headers_on_success() {
     assert_eq!(
         resp.headers.get("x-ratelimit-limit").map(|s| s.as_str()),
         Some("2"),
-        "x-ratelimit-limit should equal burst size"
+        "x-ratelimit-limit should equal per-minute rate"
     );
     let remaining: u32 = resp
         .headers
@@ -131,8 +131,8 @@ async fn rate_limit_headers_on_429() {
 
     let resp = do_get_full(addr, "/ip").await;
     assert_eq!(resp.status, StatusCode::TOO_MANY_REQUESTS);
-    assert_eq!(resp.headers.get("x-ratelimit-limit").map(|s| s.as_str()), Some("2"),);
-    assert_eq!(resp.headers.get("x-ratelimit-remaining").map(|s| s.as_str()), Some("0"),);
+    assert_eq!(resp.headers.get("x-ratelimit-limit").map(|s| s.as_str()), Some("2"));
+    assert_eq!(resp.headers.get("x-ratelimit-remaining").map(|s| s.as_str()), Some("0"));
     let retry_after: u64 = resp
         .headers
         .get("retry-after")
@@ -140,6 +140,17 @@ async fn rate_limit_headers_on_429() {
         .parse()
         .expect("should be a number");
     assert!(retry_after >= 1, "retry-after should be at least 1 second");
+    let reset: u64 = resp
+        .headers
+        .get("x-ratelimit-reset")
+        .expect("x-ratelimit-reset should be present on 429")
+        .parse()
+        .expect("should be a unix timestamp");
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    assert!(reset >= now, "x-ratelimit-reset should be in the future");
 }
 
 #[tokio::test]

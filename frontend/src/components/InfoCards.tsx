@@ -67,7 +67,7 @@ export default function InfoCards(props: Props) {
             <div class="card-row">
               <span class="card-label">Tor Exit Node</span>
               <span class="card-value">
-                <span class="tor-badge tor">yes</span>
+                <span class="net-badge net-badge--tor">yes</span>
               </span>
             </div>
           </Show>
@@ -75,7 +75,7 @@ export default function InfoCards(props: Props) {
             <div class="card-row">
               <span class="card-label">VPN</span>
               <span class="card-value">
-                <span class="tor-badge tor">yes</span>
+                <span class="net-badge net-badge--vpn">yes</span>
               </span>
             </div>
           </Show>
@@ -83,7 +83,7 @@ export default function InfoCards(props: Props) {
             <div class="card-row">
               <span class="card-label">Bot</span>
               <span class="card-value">
-                <span class="tor-badge tor">yes</span>
+                <span class="net-badge net-badge--bot">yes</span>
               </span>
             </div>
           </Show>
@@ -91,7 +91,7 @@ export default function InfoCards(props: Props) {
             <div class="card-row">
               <span class="card-label">Threat</span>
               <span class="card-value">
-                <span class="tor-badge tor">yes</span>
+                <span class="net-badge net-badge--threat">yes</span>
               </span>
             </div>
           </Show>
