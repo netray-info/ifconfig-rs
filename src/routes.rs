@@ -5,6 +5,7 @@ use axum::routing::get;
 use axum::Router;
 use serde_json::json;
 
+use crate::backend::*;
 use crate::extractors::{extract_headers, RequesterInfo};
 use crate::format::OutputFormat;
 use crate::handlers;
@@ -89,130 +90,7 @@ fn serve_spa() -> Response {
     }
 }
 
-// ---- Handler macro to reduce boilerplate ----
-
-macro_rules! endpoint_handler {
-    ($handler_fn:ident, $mod_name:ident) => {
-        async fn $handler_fn(
-            State(state): State<AppState>,
-            headers: HeaderMap,
-            extensions: axum::http::Extensions,
-        ) -> Response {
-            let req_info = get_requester_info(&headers, &extensions);
-            let format = negotiate(None, &headers);
-            dispatch_standard(
-                format,
-                &req_info,
-                &state,
-                |fmt, remote, ua, uap, city, asn, tor| {
-                    handlers::$mod_name::formatted(fmt, remote, ua, uap, city, asn, tor)
-                },
-                |remote, ua, uap, city, asn, tor| handlers::$mod_name::plain(remote, ua, uap, city, asn, tor),
-                |remote, ua, uap, city, asn, tor| handlers::$mod_name::json(remote, ua, uap, city, asn, tor),
-            )
-        }
-    };
-}
-
-macro_rules! endpoint_format_handler {
-    ($handler_fn:ident, $mod_name:ident) => {
-        async fn $handler_fn(
-            State(state): State<AppState>,
-            Path(fmt): Path<String>,
-            headers: HeaderMap,
-            extensions: axum::http::Extensions,
-        ) -> Response {
-            let req_info = get_requester_info(&headers, &extensions);
-            let format = negotiate(Some(&fmt), &headers);
-            dispatch_standard(
-                format,
-                &req_info,
-                &state,
-                |fmt, remote, ua, uap, city, asn, tor| {
-                    handlers::$mod_name::formatted(fmt, remote, ua, uap, city, asn, tor)
-                },
-                |remote, ua, uap, city, asn, tor| handlers::$mod_name::plain(remote, ua, uap, city, asn, tor),
-                |remote, ua, uap, city, asn, tor| handlers::$mod_name::json(remote, ua, uap, city, asn, tor),
-            )
-        }
-    };
-}
-
-use crate::backend::user_agent::UserAgentParser;
-use crate::backend::*;
-use std::net::SocketAddr;
-
-fn dispatch_standard(
-    format: NegotiatedFormat,
-    req_info: &RequesterInfo,
-    state: &AppState,
-    formatted_fn: impl Fn(
-        &OutputFormat,
-        &SocketAddr,
-        &Option<&str>,
-        &UserAgentParser,
-        &GeoIpCityDb,
-        &GeoIpAsnDb,
-        &TorExitNodes,
-    ) -> Option<String>,
-    plain_fn: impl Fn(
-        &SocketAddr,
-        &Option<&str>,
-        &UserAgentParser,
-        &GeoIpCityDb,
-        &GeoIpAsnDb,
-        &TorExitNodes,
-    ) -> Option<String>,
-    json_fn: impl Fn(
-        &SocketAddr,
-        &Option<&str>,
-        &UserAgentParser,
-        &GeoIpCityDb,
-        &GeoIpAsnDb,
-        &TorExitNodes,
-    ) -> Option<serde_json::Value>,
-) -> Response {
-    let (uap, city, asn, tor) = match resolve_backends(state) {
-        Some(backends) => backends,
-        None => return (StatusCode::INTERNAL_SERVER_ERROR, "backends not available").into_response(),
-    };
-
-    let ua_ref = req_info.user_agent.as_deref();
-    let ua_opt: Option<&str> = ua_ref;
-
-    match format {
-        NegotiatedFormat::Html => serve_spa(),
-        NegotiatedFormat::Plain => match plain_fn(&req_info.remote, &ua_opt, uap, city, asn, tor) {
-            Some(body) => respond_plain(body),
-            None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
-        },
-        NegotiatedFormat::Json => match json_fn(&req_info.remote, &ua_opt, uap, city, asn, tor) {
-            Some(val) => respond_json_value(val),
-            None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
-        },
-        NegotiatedFormat::Yaml => {
-            let fmt = OutputFormat::Yaml;
-            match formatted_fn(&fmt, &req_info.remote, &ua_opt, uap, city, asn, tor) {
-                Some(body) => respond_formatted(fmt.content_type(), body),
-                None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
-            }
-        }
-        NegotiatedFormat::Toml => {
-            let fmt = OutputFormat::Toml;
-            match formatted_fn(&fmt, &req_info.remote, &ua_opt, uap, city, asn, tor) {
-                Some(body) => respond_formatted(fmt.content_type(), body),
-                None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
-            }
-        }
-        NegotiatedFormat::Csv => {
-            let fmt = OutputFormat::Csv;
-            match formatted_fn(&fmt, &req_info.remote, &ua_opt, uap, city, asn, tor) {
-                Some(body) => respond_formatted(fmt.content_type(), body),
-                None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
-            }
-        }
-    }
-}
+// ---- Compute-once dispatch ----
 
 fn resolve_backends(state: &AppState) -> Option<(&UserAgentParser, &GeoIpCityDb, &GeoIpAsnDb, &TorExitNodes)> {
     let uap = state.user_agent_parser.as_deref()?;
@@ -222,7 +100,49 @@ fn resolve_backends(state: &AppState) -> Option<(&UserAgentParser, &GeoIpCityDb,
     Some((uap, city, asn, tor))
 }
 
-// ---- Root handler (special: also serves SPA) ----
+fn dispatch_standard(
+    format: NegotiatedFormat,
+    req_info: &RequesterInfo,
+    state: &AppState,
+    to_json_fn: fn(&Ifconfig) -> Option<serde_json::Value>,
+    to_plain_fn: fn(&Ifconfig) -> String,
+) -> Response {
+    if format == NegotiatedFormat::Html {
+        return serve_spa();
+    }
+
+    let (uap, city, asn, tor) = match resolve_backends(state) {
+        Some(backends) => backends,
+        None => return (StatusCode::INTERNAL_SERVER_ERROR, "backends not available").into_response(),
+    };
+
+    let ua_ref = req_info.user_agent.as_deref();
+    let ua_opt: Option<&str> = ua_ref;
+    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor);
+
+    match format {
+        NegotiatedFormat::Html => unreachable!(),
+        NegotiatedFormat::Plain => respond_plain(to_plain_fn(&ifconfig)),
+        NegotiatedFormat::Json => match to_json_fn(&ifconfig) {
+            Some(val) => respond_json_value(val),
+            None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
+        },
+        fmt => {
+            let output_fmt = match fmt {
+                NegotiatedFormat::Yaml => OutputFormat::Yaml,
+                NegotiatedFormat::Toml => OutputFormat::Toml,
+                NegotiatedFormat::Csv => OutputFormat::Csv,
+                _ => unreachable!(),
+            };
+            match to_json_fn(&ifconfig).and_then(|v| output_fmt.serialize_body(&v)) {
+                Some(body) => respond_formatted(output_fmt.content_type(), body),
+                None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
+            }
+        }
+    }
+}
+
+// ---- Root handler ----
 
 async fn root_handler(
     State(state): State<AppState>,
@@ -235,9 +155,8 @@ async fn root_handler(
         format,
         &req_info,
         &state,
-        handlers::root::formatted,
-        handlers::root::plain,
-        handlers::root::json,
+        handlers::root::to_json,
+        handlers::root::to_plain,
     )
 }
 
@@ -248,41 +167,233 @@ async fn root_format_handler(
     extensions: axum::http::Extensions,
 ) -> Response {
     let req_info = get_requester_info(&headers, &extensions);
-    // Extract format from URI path: /json, /yaml, /toml, /csv
     let suffix = uri.path().trim_start_matches('/');
     let format = negotiate(Some(suffix), &headers);
     dispatch_standard(
         format,
         &req_info,
         &state,
-        handlers::root::formatted,
-        handlers::root::plain,
-        handlers::root::json,
+        handlers::root::to_json,
+        handlers::root::to_plain,
     )
 }
 
 // ---- Standard endpoint handlers ----
 
-endpoint_handler!(ip_handler, ip);
-endpoint_format_handler!(ip_format_handler, ip);
+async fn ip_handler(State(state): State<AppState>, headers: HeaderMap, extensions: axum::http::Extensions) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(None, &headers);
+    dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain)
+}
 
-endpoint_handler!(tcp_handler, tcp);
-endpoint_format_handler!(tcp_format_handler, tcp);
+async fn ip_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(Some(&fmt), &headers);
+    dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain)
+}
 
-endpoint_handler!(host_handler, host);
-endpoint_format_handler!(host_format_handler, host);
+async fn tcp_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(None, &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::tcp::to_json,
+        handlers::tcp::to_plain,
+    )
+}
 
-endpoint_handler!(location_handler, location);
-endpoint_format_handler!(location_format_handler, location);
+async fn tcp_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(Some(&fmt), &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::tcp::to_json,
+        handlers::tcp::to_plain,
+    )
+}
 
-endpoint_handler!(isp_handler, isp);
-endpoint_format_handler!(isp_format_handler, isp);
+async fn host_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(None, &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::host::to_json,
+        handlers::host::to_plain,
+    )
+}
 
-endpoint_handler!(user_agent_handler, user_agent);
-endpoint_format_handler!(user_agent_format_handler, user_agent);
+async fn host_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(Some(&fmt), &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::host::to_json,
+        handlers::host::to_plain,
+    )
+}
 
-endpoint_handler!(all_handler, all);
-endpoint_format_handler!(all_format_handler, all);
+async fn location_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(None, &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::location::to_json,
+        handlers::location::to_plain,
+    )
+}
+
+async fn location_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(Some(&fmt), &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::location::to_json,
+        handlers::location::to_plain,
+    )
+}
+
+async fn isp_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(None, &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::isp::to_json,
+        handlers::isp::to_plain,
+    )
+}
+
+async fn isp_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(Some(&fmt), &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::isp::to_json,
+        handlers::isp::to_plain,
+    )
+}
+
+async fn user_agent_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(None, &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::user_agent::to_json,
+        handlers::user_agent::to_plain,
+    )
+}
+
+async fn user_agent_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(Some(&fmt), &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::user_agent::to_json,
+        handlers::user_agent::to_plain,
+    )
+}
+
+async fn all_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(None, &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::all::to_json,
+        handlers::all::to_plain,
+    )
+}
+
+async fn all_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(Some(&fmt), &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::all::to_json,
+        handlers::all::to_plain,
+    )
+}
 
 // ---- Headers handler ----
 
@@ -364,6 +475,10 @@ fn ip_version_dispatch(
     let req_info = get_requester_info(headers, extensions);
     let format = negotiate(suffix, headers);
 
+    if format == NegotiatedFormat::Html {
+        return serve_spa();
+    }
+
     let (uap, city, asn, tor) = match resolve_backends(state) {
         Some(backends) => backends,
         None => return (StatusCode::INTERNAL_SERVER_ERROR, "backends not available").into_response(),
@@ -371,21 +486,19 @@ fn ip_version_dispatch(
 
     let ua_ref = req_info.user_agent.as_deref();
     let ua_opt: Option<&str> = ua_ref;
+    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor);
+
+    if ifconfig.ip.version != version {
+        return (StatusCode::NOT_FOUND, "not implemented").into_response();
+    }
 
     match format {
-        NegotiatedFormat::Html => serve_spa(),
-        NegotiatedFormat::Plain => {
-            match handlers::ip_version::plain(version, &req_info.remote, &ua_opt, uap, city, asn, tor) {
-                Some(body) => respond_plain(body),
-                None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
-            }
-        }
-        NegotiatedFormat::Json => {
-            match handlers::ip_version::json(version, &req_info.remote, &ua_opt, uap, city, asn, tor) {
-                Some(val) => respond_json_value(val),
-                None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
-            }
-        }
+        NegotiatedFormat::Html => unreachable!(),
+        NegotiatedFormat::Plain => respond_plain(handlers::ip_version::to_plain(&ifconfig)),
+        NegotiatedFormat::Json => match handlers::ip_version::to_json(&ifconfig) {
+            Some(val) => respond_json_value(val),
+            None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
+        },
         fmt => {
             let output_fmt = match fmt {
                 NegotiatedFormat::Yaml => OutputFormat::Yaml,
@@ -393,8 +506,7 @@ fn ip_version_dispatch(
                 NegotiatedFormat::Csv => OutputFormat::Csv,
                 _ => unreachable!(),
             };
-            match handlers::ip_version::formatted(version, &output_fmt, &req_info.remote, &ua_opt, uap, city, asn, tor)
-            {
+            match handlers::ip_version::to_json(&ifconfig).and_then(|v| output_fmt.serialize_body(&v)) {
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
                 None => (StatusCode::NOT_FOUND, "not implemented").into_response(),
             }
