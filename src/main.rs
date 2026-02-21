@@ -18,8 +18,15 @@ async fn main() {
         tracing_subscriber::fmt().with_env_filter(env_filter).init();
     }
 
-    let config_path = std::env::args().nth(1);
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let print_config = args.iter().any(|a| a == "--print-config");
+    let config_path = args.iter().find(|a| !a.starts_with("--")).cloned();
     let config = Config::load(config_path.as_deref()).expect("Failed to load config");
+
+    if print_config {
+        println!("{}", toml::to_string_pretty(&config).expect("Failed to serialize config"));
+        return;
+    }
 
     let bind_addr: SocketAddr = config.server.bind.parse().expect("Invalid bind address");
     info!("Starting server on {}", bind_addr);
