@@ -35,7 +35,7 @@ All features follow a strict layering that preserves the offline-first guarantee
 | Layer | Data Source | Availability | Latency |
 |-------|-----------|--------------|---------|
 | **L0 — Core** | GeoIP (MMDB), ASN, reverse DNS, UA parsing | Always (offline) | <1ms |
-| **L1 — Static lists** | Cloud provider CIDRs, Tor exits, Feodo C2, VPN ranges | Offline with data files, optional background refresh | <1us (HashSet/trie lookup) |
+| **L1 — Static lists** | Cloud provider CIDRs, Tor exits, Feodo C2, VPN ranges, datacenter ranges, bot ranges, Spamhaus DROP | Offline with data files, optional background refresh | <1us (HashSet/trie lookup) |
 | **L2 — External APIs** | RPKI, BGP, RDAP, GreyNoise, AbuseIPDB | Optional, online only | 50-2000ms |
 
 Each layer degrades gracefully. Missing data produces `null` fields, never errors. API responses include an `enrichment_sources` array so consumers know what data quality to expect.
@@ -233,9 +233,12 @@ data/
 ├── GeoLite2-ASN.mmdb               # existing (manual/geoipupdate)
 ├── regexes.yaml                    # existing (uap-core)
 ├── tor_exit_nodes.txt              # existing (torproject)
-├── feodo_botnet_ips.txt            # NEW — abuse.ch
-├── cloud_provider_ranges.jsonl     # NEW — AWS + GCP + Cloudflare, normalized
-└── vpn_ranges.txt                  # NEW — X4BNet (v4+v6 merged)
+├── feodo_botnet_ips.txt            # abuse.ch
+├── cloud_provider_ranges.jsonl     # AWS+GCP+Cloudflare+Oracle+Fastly+DO+Linode+GitHub+Google Services+Azure
+├── vpn_ranges.txt                  # X4BNet (v4+v6 merged)
+├── datacenter_ranges.txt           # X4BNet datacenter list
+├── bot_ranges.jsonl                # Googlebot+Bingbot+Applebot+GPTBot
+└── spamhaus_drop.txt               # Spamhaus DROP+EDROP+DROPv6
 ```
 
 #### 4.2 ASN Name Heuristic
@@ -285,7 +288,9 @@ Replaces top-level `is_tor`:
 }
 ```
 
-Classification priority (highest wins for `type`): cloud CIDR match → VPN CIDR match → Tor exit list → Feodo C2 → ASN heuristic. Boolean flags are independent — an IP can be both `is_datacenter: true` and `is_vpn: true`.
+Classification priority (highest wins for `type`): cloud → bot → VPN → Tor → botnet_c2 → threat → hosting → residential. Boolean flags are independent — an IP can be both `is_datacenter: true` and `is_vpn: true`.
+
+The `hosting` object now includes `is_bot` (true when IP matches known bot CIDR from Googlebot/Bingbot/Applebot/GPTBot) and `is_threat` (true when IP falls in a Spamhaus DROP/EDROP/DROPv6 range). Additional `is_datacenter` coverage comes from the X4BNet datacenter list alongside ASN heuristics. As more source types are added, the `hosting` object's classification taxonomy may need revisiting — currently all flags coexist in a flat structure within `hosting`.
 
 This is a **breaking change** from the current API where `is_tor` is a top-level boolean on `Ifconfig`. The `hosting` object consolidates all IP classification into a single structure. Version bump to 0.5.0.
 
