@@ -141,6 +141,6 @@ pub async fn geoip_date_headers(State(state): State<AppState>, req: Request<axum
     response
 }
 
-pub async fn not_found_handler() -> (StatusCode, &'static str) {
-    (StatusCode::NOT_FOUND, "not implemented")
+pub async fn not_found_handler() -> Response {
+    crate::error::error_response(StatusCode::NOT_FOUND, "not implemented")
 }
