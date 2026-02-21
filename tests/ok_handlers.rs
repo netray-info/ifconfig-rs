@@ -1224,7 +1224,7 @@ async fn batch_max_size_rejected() {
     let req = post_json("/batch", &body);
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body.contains("exceeds maximum"), "Expected max_size rejection, got: {}", body);
+    assert!(body.contains("exceeds limit"), "Expected max_size rejection, got: {}", body);
 }
 
 #[tokio::test]
@@ -1260,6 +1260,79 @@ async fn batch_yaml_format() {
     let ct = content_type_str(&headers);
     assert!(is_yaml(&ct), "Expected YAML, got {:?}", ct);
     assert!(body.contains("addr:"));
+}
+
+// --- Additional batch tests ---
+
+#[tokio::test]
+async fn batch_error_has_index_not_input() {
+    let req = post_json("/batch", r#"["8.8.8.8", "not-an-ip", "10.0.0.1"]"#);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let arr = json.as_array().unwrap();
+    // Invalid IP at index 1
+    assert!(arr[1]["error"].is_string());
+    assert_eq!(arr[1]["index"], 1, "error should report its index");
+    assert!(arr[1].get("input").is_none(), "error must not echo user input");
+    // Private IP at index 2
+    assert!(arr[2]["error"].is_string());
+    assert_eq!(arr[2]["index"], 2);
+    assert!(arr[2].get("input").is_none());
+}
+
+#[tokio::test]
+async fn batch_mixed_ipv4_ipv6() {
+    let req = post_json("/batch", r#"["8.8.8.8", "2606:4700:4700::1111"]"#);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let arr = json.as_array().unwrap();
+    assert_eq!(arr.len(), 2);
+    assert_eq!(arr[0]["ip"]["addr"], "8.8.8.8");
+    assert_eq!(arr[1]["ip"]["addr"], "2606:4700:4700::1111");
+}
+
+#[tokio::test]
+async fn batch_duplicate_ips_return_two_entries() {
+    let req = post_json("/batch", r#"["8.8.8.8", "8.8.8.8"]"#);
+    let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    let arr = json.as_array().unwrap();
+    assert_eq!(arr.len(), 2, "duplicate IPs should produce two result entries");
+}
+
+#[tokio::test]
+async fn batch_yaml_with_fields() {
+    let req = post_json("/batch/yaml?fields=ip,isp", r#"["8.8.8.8"]"#);
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_yaml(&ct), "Expected YAML, got {:?}", ct);
+    assert!(body.contains("addr:"), "YAML should contain ip.addr");
+    assert!(!body.contains("latitude:"), "location should be filtered out");
+}
+
+// --- Content negotiation: suffix wins over Accept header ---
+
+#[tokio::test]
+async fn format_suffix_overrides_accept_header() {
+    // /ip/json with Accept: text/plain — suffix must win → JSON response
+    let req = get_with_headers("/ip/json", &[("accept", "text/plain")]);
+    let (status, headers, _body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_json(&ct), "Expected JSON (suffix wins), got {:?}", ct);
+}
+
+#[tokio::test]
+async fn format_suffix_yaml_overrides_accept_json() {
+    let req = get_with_headers("/ip/yaml", &[("accept", "application/json")]);
+    let (status, headers, _body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_yaml(&ct), "Expected YAML (suffix wins), got {:?}", ct);
 }
 
 // --- OpenAPI spec test ---

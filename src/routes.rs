@@ -701,13 +701,17 @@ async fn batch_dispatch(
             let ua_ref = ua.as_deref();
             let target_addr = SocketAddr::new(ip, 0);
 
-            let ifconfig = handlers::make_ifconfig(
+            let lookup = handlers::make_ifconfig(
                 &target_addr, &ua_ref, uap, city, asn, tor,
                 ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(),
                 ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(),
                 ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(),
                 &ctx.dns_resolver, skip_dns,
-            ).await;
+            );
+            let ifconfig = match tokio::time::timeout(std::time::Duration::from_secs(5), lookup).await {
+                Ok(result) => result,
+                Err(_) => return (i, json!({"error": "lookup timed out", "index": i})),
+            };
 
             let mut val = serde_json::to_value(&ifconfig).unwrap_or(json!(null));
             if let Some(ref f) = fields {

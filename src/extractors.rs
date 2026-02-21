@@ -77,10 +77,19 @@ fn extract_client_ip(peer: SocketAddr, headers: &HeaderMap, trusted_proxies: &[I
 }
 
 /// Extract request headers as a simple Vec of (name, value) pairs.
+/// Capped at 64 headers; values longer than 1 KB are truncated.
 pub fn extract_headers(headers: &HeaderMap) -> Vec<(String, String)> {
+    const MAX_HEADERS: usize = 64;
+    const MAX_VALUE_LEN: usize = 1024;
     headers
         .iter()
-        .map(|(name, value)| (name.to_string(), value.to_str().unwrap_or("").to_string()))
+        .take(MAX_HEADERS)
+        .map(|(name, value)| {
+            let v = value.to_str().unwrap_or("");
+            // Header values are ASCII; safe to slice at byte boundary.
+            let v = if v.len() > MAX_VALUE_LEN { &v[..MAX_VALUE_LEN] } else { v };
+            (name.to_string(), v.to_string())
+        })
         .collect()
 }
 

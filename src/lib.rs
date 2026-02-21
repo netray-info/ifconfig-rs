@@ -51,7 +51,7 @@ pub async fn build_app(config: &Config) -> AppBundle {
     {
         let limiter = Arc::clone(&state.rate_limiter);
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(300));
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
             interval.tick().await; // skip the immediate first tick
             loop {
                 interval.tick().await;
