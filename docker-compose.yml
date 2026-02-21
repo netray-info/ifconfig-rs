@@ -1,0 +1,39 @@
+# Example deployment: ifconfig-rs with GeoIP update sidecar and shared data volume.
+#
+# Prerequisites:
+#   - MaxMind license key (free account at https://www.maxmind.com/en/geolite2/signup)
+#   - Set GEOIPUPDATE_ACCOUNT_ID and GEOIPUPDATE_LICENSE_KEY in .env or environment
+#
+# Usage:
+#   docker compose up -d
+#
+# The geoipupdate service runs on a schedule (default: weekly) and writes
+# updated databases to the shared `geoip-data` volume. Send SIGHUP to the
+# ifconfig-rs container after updates to hot-reload:
+#   docker compose kill -s HUP ifconfig
+
+services:
+  ifconfig:
+    image: ghcr.io/lukaspustina/ifconfig-rs:latest
+    ports:
+      - "8080:8000"
+    volumes:
+      - geoip-data:/ifconfig-rs/data
+    environment:
+      - IFCONFIG_SERVER__BIND=0.0.0.0:8000
+    restart: unless-stopped
+
+  geoipupdate:
+    image: ghcr.io/maxmind/geoipupdate:latest
+    volumes:
+      - geoip-data:/usr/share/GeoIP
+    environment:
+      - GEOIPUPDATE_ACCOUNT_ID=${GEOIPUPDATE_ACCOUNT_ID}
+      - GEOIPUPDATE_LICENSE_KEY=${GEOIPUPDATE_LICENSE_KEY}
+      - GEOIPUPDATE_EDITION_IDS=GeoLite2-City GeoLite2-ASN
+      - GEOIPUPDATE_FREQUENCY=168  # hours (weekly)
+      - GEOIPUPDATE_DB_DIR=/usr/share/GeoIP
+    restart: unless-stopped
+
+volumes:
+  geoip-data:

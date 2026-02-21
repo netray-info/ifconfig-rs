@@ -35,6 +35,15 @@ user_agent_regexes = "data/regexes.yaml"
 # If omitted, Tor exit node detection is disabled.
 tor_exit_nodes = "data/tor_exit_nodes.txt"
 
+# Cloud provider CIDR ranges (normalized JSONL).
+cloud_provider_ranges = "data/cloud_provider_ranges.jsonl"
+
+# Feodo botnet C2 IP list.
+feodo_botnet_ips = "data/feodo_botnet_ips.txt"
+
+# VPN CIDR ranges.
+vpn_ranges = "data/vpn_ranges.txt"
+
 # Regex patterns matched against header names. Any header whose name matches
 # a pattern is excluded from /headers responses. Useful for hiding infrastructure
 # headers injected by hosting providers.
