@@ -230,7 +230,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
     let host = if param.skip_dns {
         None
     } else {
-        async {
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
             let resolver = param.dns_resolver.resolvers().first()?;
             let query = MultiQuery::single(param.remote.ip(), RecordType::PTR).ok()?;
             let lookups = resolver.lookup(query).await.ok()?;
@@ -240,8 +240,10 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
                     name: s.strip_suffix('.').unwrap_or(&s).to_string(),
                 }
             })
-        }
+        })
         .await
+        .ok()
+        .flatten()
     };
 
     let ip_addr = param.remote.ip().to_string();
