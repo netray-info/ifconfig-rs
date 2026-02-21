@@ -1018,3 +1018,27 @@ async fn handle_user_agent_csv_suffix() {
     assert!(is_csv(&ct));
     assert!(body.contains("browser.family,Safari"));
 }
+
+// --- /ip/cidr tests ---
+
+#[tokio::test]
+async fn handle_ip_cidr_plain() {
+    let req = get_with_headers("/ip/cidr", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_plain(&ct), "Expected text/plain, got {:?}", ct);
+    // Loopback address in test → 127.0.0.1/32
+    assert!(body.contains("/32"), "Expected /32 suffix, got: {}", body);
+    assert!(body.ends_with("\n"));
+}
+
+#[tokio::test]
+async fn handle_ip_cidr_no_accept() {
+    let req = get("/ip/cidr");
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_plain(&ct), "Expected text/plain, got {:?}", ct);
+    assert!(body.contains("/32"));
+}

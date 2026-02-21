@@ -25,6 +25,7 @@ pub fn router(_state: AppState) -> Router<AppState> {
         .route("/csv", get(root_format_handler))
         // Standard endpoints
         .route("/ip", get(ip_handler))
+        .route("/ip/cidr", get(ip_cidr_handler))
         .route("/ip/{fmt}", get(ip_format_handler))
         .route("/tcp", get(tcp_handler))
         .route("/tcp/{fmt}", get(tcp_format_handler))
@@ -203,6 +204,13 @@ async fn ip_format_handler(
     let req_info = get_requester_info(&headers, &extensions);
     let format = negotiate(Some(&fmt), &headers);
     dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain).await
+}
+
+async fn ip_cidr_handler(headers: HeaderMap, extensions: axum::http::Extensions) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let ip = req_info.remote.ip();
+    let prefix_len = if ip.is_ipv4() { 32 } else { 128 };
+    respond_plain(format!("{}/{}\n", ip, prefix_len))
 }
 
 async fn tcp_handler(
