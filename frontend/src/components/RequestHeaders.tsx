@@ -29,12 +29,12 @@ export default function RequestHeaders() {
 
   return (
     <div class="section">
-      <button class="section-header" onClick={() => setOpen(!open())}>
+      <button class="section-header" onClick={() => setOpen(!open())} aria-expanded={open()} aria-controls="request-headers-panel">
         <span class={`chevron ${open() ? "open" : ""}`}>&#9654;</span>
         Request Headers
       </button>
       <Show when={open()}>
-        <div class="headers-card">
+        <div class="headers-card" id="request-headers-panel">
           <Show when={loading()}>
             <div class="headers-loading">Loading...</div>
           </Show>

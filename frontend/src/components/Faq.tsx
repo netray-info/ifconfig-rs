@@ -45,12 +45,12 @@ export default function Faq(props: Props) {
 
   return (
     <div class="section">
-      <button class="section-header" onClick={() => setOpen(!open())}>
+      <button class="section-header" onClick={() => setOpen(!open())} aria-expanded={open()} aria-controls="faq-panel">
         <span class={`chevron ${open() ? "open" : ""}`}>&#9654;</span>
         FAQ
       </button>
       <Show when={open()}>
-        <div class="faq">
+        <div class="faq" id="faq-panel">
           <For each={items()}>
             {(item) => (
               <div class="faq-item">

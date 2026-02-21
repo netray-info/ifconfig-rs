@@ -54,7 +54,8 @@ export default function IpDisplay(props: Props) {
         <button
           class={`copy-icon ${copied() ? "copied" : ""}`}
           onClick={copyIp}
-          title={copied() ? "Copied!" : "Copy to clipboard"}
+          title={copied() ? "Copied!" : "Copy IP to clipboard"}
+          aria-label={copied() ? "Copied!" : "Copy IP to clipboard"}
         >
           {copied() ? <CheckIcon /> : <ClipboardIcon />}
         </button>
@@ -65,7 +66,8 @@ export default function IpDisplay(props: Props) {
           <button
             class={`copy-icon ${copiedHost() ? "copied" : ""}`}
             onClick={copyHost}
-            title={copiedHost() ? "Copied!" : "Copy to clipboard"}
+            title={copiedHost() ? "Copied!" : "Copy hostname to clipboard"}
+            aria-label={copiedHost() ? "Copied!" : "Copy hostname to clipboard"}
           >
             {copiedHost() ? <CheckIcon /> : <ClipboardIcon />}
           </button>

@@ -59,7 +59,7 @@ export default function ThemeToggle() {
   };
 
   return (
-    <button class="theme-toggle" onClick={toggle} title={`Theme: ${label()}. Click to switch.`}>
+    <button class="theme-toggle" onClick={toggle} title={`Theme: ${label()}. Click to switch.`} aria-label={`Theme: ${label()}. Click to switch.`}>
       {icon()}
     </button>
   );

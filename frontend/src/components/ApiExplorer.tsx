@@ -108,12 +108,12 @@ export default function ApiExplorer() {
 
   return (
     <div class="section">
-      <button class="section-header" onClick={() => setOpen(!open())}>
+      <button class="section-header" onClick={() => setOpen(!open())} aria-expanded={open()} aria-controls="api-explorer-panel">
         <span class={`chevron ${open() ? "open" : ""}`}>&#9654;</span>
         API Explorer
       </button>
       <Show when={open()}>
-        <div class="api-explorer">
+        <div class="api-explorer" id="api-explorer-panel">
           <div class="endpoint-tabs-wrapper">
             <div class="endpoint-tabs">
               <For each={ENDPOINTS as unknown as string[]}>
@@ -151,6 +151,7 @@ export default function ApiExplorer() {
               class={`curl-copy ${curlCopied() ? "copied" : ""}`}
               onClick={copyCurl}
               title={curlCopied() ? "Copied!" : "Copy command"}
+              aria-label={curlCopied() ? "Copied!" : "Copy curl command"}
             >
               {curlCopied() ? <CheckSmallIcon /> : <CopySmallIcon />}
             </button>
