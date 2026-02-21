@@ -330,47 +330,33 @@ Added @media (max-width: 900px) breakpoint transitioning cards from 3-column to 
 
 Fill gaps identified in the coverage analysis. These can be tackled incrementally.
 
-### 6.1 `handlers.rs` Unit Tests — Effort: M
+### ~~6.1 `handlers.rs` Unit Tests~~ — RESOLVED
 
-All `to_json`/`to_plain` functions are untested, especially `None` paths for optional fields (`tcp`, `host`, `network`).
+Added 25 tests covering all to_json/to_plain functions and None paths for tcp, host, network, user_agent.
 
-**Files**: `src/handlers.rs`
+### ~~6.2 `middleware.rs` Unit Tests~~ — RESOLVED
 
-### 6.2 `middleware.rs` Unit Tests — Effort: M
+Added unit tests for generate_request_id (format and uniqueness). Security headers and request ID propagation covered in 6.4 integration tests.
 
-`generate_request_id`, `security_headers`, and request ID propagation are all untested.
+### ~~6.3 `config.rs` Unit Tests~~ — RESOLVED
 
-**Files**: `src/middleware.rs`
+Added 6 tests covering Config::load defaults, missing file error, sub-config defaults, and TOML round-trip.
 
-### 6.3 `config.rs` Unit Tests — Effort: S
+### ~~6.4 Security Header Integration Assertions~~ — RESOLVED
 
-`Config::load()`, env var overrides, default values, and invalid TOML handling.
+Added 5 integration tests asserting CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, request ID generation, and request ID propagation.
 
-**Files**: `src/config.rs`
+### ~~6.5 Batch `max_size` Rejection Test~~ — RESOLVED
 
-### 6.4 Security Header Integration Assertions — Effort: S
+Added test sending 101 IPs (exceeding default max_size=100), asserting 400 with "exceeds maximum".
 
-No integration test asserts on the presence or value of security headers (CSP, HSTS, X-Frame-Options, etc.).
+### ~~6.6 `/ipv6` Endpoint Tests~~ — RESOLVED
 
-**Files**: `tests/ok_handlers.rs`
+Added 4 integration tests: IPv4 client 404, JSON 404, ?ip= with IPv6 succeeds, ?ip= with IPv4 on /ipv6 returns 404.
 
-### 6.5 Batch `max_size` Rejection Test — Effort: S
+### ~~6.7 E2E: Use `baseURL` Instead of Hardcoded Prod URL~~ — RESOLVED
 
-No test verifies the 400 response when batch size exceeds `max_size`.
-
-**Files**: `tests/ok_handlers.rs`
-
-### 6.6 `/ipv6` Endpoint Tests — Effort: S
-
-Zero integration tests for the `/ipv6` endpoint.
-
-**Files**: `tests/ok_handlers.rs`
-
-### 6.7 E2E: Use `baseURL` Instead of Hardcoded Prod URL — Effort: S
-
-Playwright tests are hardcoded to `https://ip.pdt.sh/` instead of reading from `baseURL` config. Can't run E2E against local dev.
-
-**Files**: `tests/e2e/`
+Tests now use page.goto('/') with configurable baseURL (env: BASE_URL). Rewrote tests to match current SolidJS selectors.
 
 ---
 
