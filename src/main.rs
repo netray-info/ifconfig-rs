@@ -67,6 +67,13 @@ async fn main() {
             .expect("admin_bind must be set")
             .parse()
             .expect("Invalid admin bind address");
+        if !admin_bind.ip().is_loopback() {
+            warn!(
+                "Admin server binding to non-loopback address {}. \
+                 The /metrics endpoint has no authentication — ensure network-level access control.",
+                admin_bind
+            );
+        }
         let admin_listener = TcpListener::bind(admin_bind).await.expect("Failed to bind admin port");
         info!("Admin server listening on {}", admin_listener.local_addr().unwrap());
         tokio::spawn(async move {
