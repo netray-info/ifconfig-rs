@@ -8,3 +8,10 @@ cloud_provider_ranges.jsonl
 .gcp.json
 .cloudflare-v4.txt
 .cloudflare-v6.txt
+.oracle.json
+.fastly.json
+.digitalocean.csv
+.linode.csv
+.github.json
+.google-services.json
+.azure.txt
