@@ -302,51 +302,27 @@ Accessibility, SEO, and UX polish for the SolidJS SPA.
 
 ---
 
-### M14. Theme Flash of Unstyled Content — Effort: S
+### ~~M14. Theme Flash of Unstyled Content~~ — RESOLVED
 
-**Severity**: Medium | **Category**: UX
-
-**Problem**: Theme is applied in `onMount` of `ThemeToggle.tsx`. Light-mode users see a flash of the dark theme before JavaScript executes.
-
-**Mitigation**: Add an inline `<script>` in `index.html` that reads `localStorage` and sets `data-theme` attribute synchronously before rendering.
-
-**Files**: `frontend/index.html`, `frontend/src/components/ThemeToggle.tsx`
+Added inline script in index.html that reads localStorage and sets data-theme synchronously before rendering.
 
 ---
 
-### M15. No Error Boundary — Effort: S
+### ~~M15. No Error Boundary~~ — RESOLVED
 
-**Severity**: Medium | **Category**: UX / Reliability
-
-**Problem**: No `<ErrorBoundary>` wrapping the app. Any rendering exception crashes to a white screen.
-
-**Mitigation**: Add a SolidJS `<ErrorBoundary>` component wrapping the app root with a user-friendly fallback.
-
-**Files**: `frontend/src/App.tsx` or `frontend/src/index.tsx`
+Added SolidJS ErrorBoundary in index.tsx wrapping the app root with a user-friendly fallback message.
 
 ---
 
-### M16. Light Mode Contrast Failure — Effort: S
+### ~~M16. Light Mode Contrast Failure~~ — RESOLVED
 
-**Severity**: Medium | **Category**: Accessibility
-
-**Problem**: `--text-muted: #a1a1aa` on `--bg-card: #ffffff` has ~2.6:1 contrast ratio — fails WCAG AA minimum (4.5:1).
-
-**Mitigation**: Darken `--text-muted` in the light theme (e.g., `#6b6b73` for ~5:1 ratio).
-
-**Files**: `frontend/src/styles/global.css`
+Darkened light-mode --text-muted from #a1a1aa to #6b6b73 (~5:1 contrast ratio, WCAG AA compliant).
 
 ---
 
-### M17. Missing Tablet Breakpoint — Effort: S
+### ~~M17. Missing Tablet Breakpoint~~ — RESOLVED
 
-**Severity**: Medium | **Category**: UX / Responsive Design
-
-**Problem**: Only one breakpoint at 600px. The 3-column card grid is cramped between 601-900px on tablets.
-
-**Mitigation**: Add a tablet breakpoint (e.g., `@media (max-width: 900px)`) transitioning from 3-column to 2-column.
-
-**Files**: `frontend/src/styles/global.css`
+Added @media (max-width: 900px) breakpoint transitioning cards from 3-column to 2-column on tablet viewports.
 
 ---
 
