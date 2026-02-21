@@ -190,6 +190,7 @@ pub struct Network {
     pub is_vpn: bool,
     #[schema(example = false)]
     pub is_tor: bool,
+    // TODO("No proxy detection implemented yet — always false. Remove or populate when a proxy data source is added.")
     #[schema(example = false)]
     pub is_proxy: bool,
     #[schema(example = false)]
