@@ -90,8 +90,12 @@ impl TorExitNodes {
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Location {
     pub city: Option<String>,
+    pub region: Option<String>,
+    pub region_code: Option<String>,
     pub country: Option<String>,
     pub country_iso: Option<String>,
+    pub postal_code: Option<String>,
+    pub is_eu: Option<bool>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
     pub timezone: Option<String>,
@@ -104,8 +108,12 @@ impl Location {
     pub fn unknown() -> Self {
         Location {
             city: Some("unknown".to_string()),
+            region: None,
+            region_code: None,
             country: Some("unknown".to_string()),
             country_iso: Some("unknown".to_string()),
+            postal_code: None,
+            is_eu: None,
             latitude: None,
             longitude: None,
             timezone: Some("unknown".to_string()),
@@ -213,16 +221,23 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
     let location = param
         .geoip_city_db
         .lookup(param.remote.ip())
-        .map(|c| Location {
-            city: c.city.names.english.map(|s| s.to_owned()),
-            country: c.country.names.english.map(|s| s.to_owned()),
-            country_iso: c.country.iso_code.map(|s| s.to_owned()),
-            latitude: c.location.latitude,
-            longitude: c.location.longitude,
-            timezone: c.location.time_zone.map(|s| s.to_owned()),
-            continent: c.continent.names.english.map(|s| s.to_owned()),
-            continent_code: c.continent.code.map(|s| s.to_owned()),
-            accuracy_radius_km: c.location.accuracy_radius,
+        .map(|c| {
+            let subdivision = c.subdivisions.first();
+            Location {
+                city: c.city.names.english.map(|s| s.to_owned()),
+                region: subdivision.and_then(|s| s.names.english.map(|s| s.to_owned())),
+                region_code: subdivision.and_then(|s| s.iso_code.map(|s| s.to_owned())),
+                country: c.country.names.english.map(|s| s.to_owned()),
+                country_iso: c.country.iso_code.map(|s| s.to_owned()),
+                postal_code: c.postal.code.map(|s| s.to_owned()),
+                is_eu: c.country.is_in_european_union,
+                latitude: c.location.latitude,
+                longitude: c.location.longitude,
+                timezone: c.location.time_zone.map(|s| s.to_owned()),
+                continent: c.continent.names.english.map(|s| s.to_owned()),
+                continent_code: c.continent.code.map(|s| s.to_owned()),
+                accuracy_radius_km: c.location.accuracy_radius,
+            }
         })
         .unwrap_or(Location::unknown());
 

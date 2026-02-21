@@ -44,8 +44,12 @@ export interface Tcp {
 
 export interface Location {
   city: string | null;
+  region: string | null;
+  region_code: string | null;
   country: string | null;
   country_iso: string | null;
+  postal_code: string | null;
+  is_eu: boolean | null;
   latitude: number | null;
   longitude: number | null;
   timezone: string | null;

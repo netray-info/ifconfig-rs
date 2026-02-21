@@ -255,6 +255,17 @@ a:hover {
   color: var(--warning);
 }
 
+.eu-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
 /* ---- Sections (collapsible) ---- */
 
 .section {

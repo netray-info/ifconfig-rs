@@ -5,6 +5,7 @@ use std::net::SocketAddr;
 
 pub(crate) static UNKNOWN_STR: &str = "unknown";
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn make_ifconfig(
     remote: &SocketAddr,
     user_agent: &Option<&str>,
@@ -116,16 +117,18 @@ pub mod location {
 
     pub fn to_plain(ifconfig: &Ifconfig) -> String {
         let city = ifconfig.location.city.as_deref().unwrap_or(UNKNOWN_STR);
+        let region = ifconfig.location.region.as_deref();
         let country = ifconfig.location.country.as_deref().unwrap_or(UNKNOWN_STR);
         let iso = ifconfig.location.country_iso.as_deref().unwrap_or(UNKNOWN_STR);
         let continent = ifconfig.location.continent.as_deref().unwrap_or(UNKNOWN_STR);
         let timezone = ifconfig.location.timezone.as_deref().unwrap_or(UNKNOWN_STR);
+        let location_part = match region {
+            Some(r) => format!("{}, {}, {} ({})", city, r, country, iso),
+            None => format!("{}, {} ({})", city, country, iso),
+        };
         match ifconfig.location.accuracy_radius_km {
-            Some(radius) => format!(
-                "{}, {} ({}), {}, {}, ~{}km\n",
-                city, country, iso, continent, timezone, radius
-            ),
-            None => format!("{}, {} ({}), {}, {}\n", city, country, iso, continent, timezone),
+            Some(radius) => format!("{}, {}, {}, ~{}km\n", location_part, continent, timezone, radius),
+            None => format!("{}, {}, {}\n", location_part, continent, timezone),
         }
     }
 }
@@ -181,11 +184,23 @@ pub mod all {
         if let Some(ref city) = ifconfig.location.city {
             lines.push(format!("city:       {}", city));
         }
+        if let Some(ref region) = ifconfig.location.region {
+            lines.push(format!("region:     {}", region));
+        }
+        if let Some(ref region_code) = ifconfig.location.region_code {
+            lines.push(format!("region_code: {}", region_code));
+        }
         if let Some(ref country) = ifconfig.location.country {
             lines.push(format!("country:    {}", country));
         }
         if let Some(ref iso) = ifconfig.location.country_iso {
             lines.push(format!("country_iso: {}", iso));
+        }
+        if let Some(ref postal_code) = ifconfig.location.postal_code {
+            lines.push(format!("postal_code: {}", postal_code));
+        }
+        if let Some(is_eu) = ifconfig.location.is_eu {
+            lines.push(format!("is_eu:      {}", is_eu));
         }
         if let Some(ref continent) = ifconfig.location.continent {
             lines.push(format!("continent:  {}", continent));

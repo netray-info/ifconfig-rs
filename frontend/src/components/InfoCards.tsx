@@ -167,6 +167,17 @@ export default function InfoCards(props: Props) {
             </span>
           </div>
         </Show>
+        <Show when={known(loc().region)}>
+          <div class="card-row">
+            <span class="card-label">Region</span>
+            <span class="card-value">
+              {loc().region}
+              <Show when={known(loc().region_code)}>
+                {" "}({loc().region_code})
+              </Show>
+            </span>
+          </div>
+        </Show>
         <Show when={known(loc().country)}>
           <div class="card-row">
             <span class="card-label">Country</span>
@@ -174,6 +185,9 @@ export default function InfoCards(props: Props) {
               {loc().country}
               <Show when={known(loc().country_iso)}>
                 {" "}({loc().country_iso})
+              </Show>
+              <Show when={loc().is_eu === true}>
+                {" "}<span class="eu-badge">EU</span>
               </Show>
               <Show when={known(loc().continent)}>
                 {" · "}{loc().continent}
