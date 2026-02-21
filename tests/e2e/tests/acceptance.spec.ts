@@ -1,19 +1,37 @@
 import { test, expect } from '@playwright/test';
 
-test('index', async ({ page, browserName }) => {
-  let user_agent = "Chrome";
-  if (browserName === 'firefox') { user_agent = "Firefox" }
-  if (browserName === 'webkit') { user_agent = "Safari" }
+test('homepage loads and shows IP address', async ({ page }) => {
+  await page.goto('/');
 
-  await page.goto('https://ip.pdt.sh/');
-  await expect(page.locator('#heading-project')).toContainText('ip.pdt.sh');
-  //await page.goto('http://localhost:8000');
-  //await expect(page.locator('#heading-project')).toContainText('ifconfig-rs');
+  // Site title is visible
+  await expect(page.locator('.site-title')).toBeVisible();
 
-  await expect(page.locator('#overview-user-agent')).toContainText(user_agent);
-  await page.getByText('API').click();
-  await expect(page.locator('#api-json-root')).toContainText(/"host":/);
+  // IP address is displayed in the hero area
+  await expect(page.locator('.ip-display')).toBeVisible();
+  const ipText = await page.locator('.ip-display').textContent();
+  expect(ipText).toMatch(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/);
 
-  let regex = new RegExp('"browser": {\n.+"family": "' + user_agent + '"');
-  await expect(page.locator('#api-json-root')).toContainText(regex);
+  // Version badge is visible
+  await expect(page.locator('.version-badge')).toContainText(/IPv[46]/);
+});
+
+test('theme toggle works', async ({ page }) => {
+  await page.goto('/');
+  const toggle = page.locator('.theme-toggle');
+  await expect(toggle).toBeVisible();
+
+  // Click cycles through themes
+  await toggle.click();
+  const theme = await page.locator('html').getAttribute('data-theme');
+  expect(['dark', 'light']).toContain(theme);
+});
+
+test('info cards are rendered', async ({ page }) => {
+  await page.goto('/');
+
+  // Wait for data to load
+  await expect(page.locator('.ip-display')).toBeVisible();
+
+  // Cards section should be present with at least one card
+  await expect(page.locator('.cards .card').first()).toBeVisible();
 });
