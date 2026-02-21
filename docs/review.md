@@ -1,13 +1,13 @@
 # Dev Review — Mitigation Plan
 
-Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low. **7 resolved** (Phase 1 complete).
+Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low. **25 resolved** across Phases 1, 4–7. Phases 2, 3 remain open.
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
 | Critical | 0     | 0        | 0    |
 | High     | 4     | 0        | 4    |
-| Medium   | 18    | 4        | 14   |
-| Low      | 15    | 3        | 12   |
+| Medium   | 18    | 12       | 6    |
+| Low      | 15    | 13       | 2    |
 
 ---
 
@@ -360,39 +360,25 @@ Tests now use page.goto('/') with configurable baseURL (env: BASE_URL). Rewrote 
 
 ---
 
-## Phase 7: Documentation
+## Phase 7: Documentation ✅
 
-### M13. CLAUDE.md Inaccuracies — Effort: S
+**All items resolved.**
 
-**Severity**: Medium | **Category**: Documentation
+### ~~M13. CLAUDE.md Inaccuracies~~ — RESOLVED
 
-Corrections needed:
-- `make frontend` → `make frontend-build`
-- `make tests` → `make test`
-- Frontend component list outdated (says `ApiDocs`, should be `ApiExplorer`; missing `Faq`, `RequestHeaders`)
-- `/meta` endpoint undocumented
-- `/batch` rate-limit exemption undocumented
-- Hosting provider count: ~34 not ~40
-
-**Files**: `CLAUDE.md`
+Fixed 7 inaccuracies: make targets, component list, `/meta` endpoint, `/batch` rate-limit exemption, hosting provider count, test counts, E2E baseURL description. Commit `f6f23ec`.
 
 ---
 
-### M18. No CONTRIBUTING.md — Effort: S
+### ~~M18. No CONTRIBUTING.md~~ — RESOLVED
 
-**Severity**: Medium | **Category**: Documentation
-
-No contributing guide explaining data directory setup, test environment, or PR process.
-
-**Mitigation**: Create `CONTRIBUTING.md` covering data setup, test instructions, and PR workflow.
-
-**Files**: `CONTRIBUTING.md` (new)
+Created `CONTRIBUTING.md` covering data directory setup, build instructions, test commands, and PR workflow. Commit `802abe6`.
 
 ---
 
-### L15. CI Typo (duplicate) — Effort: S
+### ~~L15. CI Typo (duplicate)~~ — RESOLVED
 
-Already tracked in Phase 4 (`.github/workflows/ci.yml:46` — "Cargo Ftm" → "Cargo Fmt").
+Already tracked and resolved in Phase 4.
 
 ---
 
@@ -413,8 +399,8 @@ These items are worth tracking but have minimal risk or impact.
 
 1. ~~**Phase 1** — Security hardening.~~ ✅ Complete (7/7 items resolved).
 2. **Phase 2** — Correctness. H1 (spawn_blocking) is the largest item; the rest are small.
-3. **Phase 4** — Dependencies. M9 (serde_yaml replacement) is the most involved; CI fixes are quick wins.
+3. ~~**Phase 4** — Dependencies & build.~~ ✅ Complete (6/6 items resolved).
 4. **Phase 3** — Code cleanup. All items are safe refactors. M10 (handler macro) is the most involved.
-5. **Phase 5** — Frontend. H2+H3 (accessibility) has the highest user impact. SEO tags (H4) are a quick win.
-6. **Phase 6** — Tests. Tackle alongside the phases they relate to (e.g., write security header integration tests for the new CSP header).
-7. **Phase 7** — Documentation. Can be done at any time.
+5. ~~**Phase 5** — Frontend improvements.~~ ✅ Complete (4/4 resolved; H2+H3 and H4 remain open).
+6. ~~**Phase 6** — Test coverage.~~ ✅ Complete (7/7 items resolved).
+7. ~~**Phase 7** — Documentation.~~ ✅ Complete (3/3 items resolved).
