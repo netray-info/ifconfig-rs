@@ -593,8 +593,9 @@ async fn ready_handler(State(state): State<AppState>) -> Response {
     let ctx = state.enrichment.load();
     let has_city_db = ctx.geoip_city_db.is_some();
     let has_asn_db = ctx.geoip_asn_db.is_some();
+    let has_ua_parser = ctx.user_agent_parser.is_some();
 
-    if has_city_db && has_asn_db {
+    if has_city_db && has_asn_db && has_ua_parser {
         (StatusCode::OK, axum::Json(json!({ "status": "ready" }))).into_response()
     } else {
         let mut missing = Vec::new();
@@ -603,6 +604,9 @@ async fn ready_handler(State(state): State<AppState>) -> Response {
         }
         if !has_asn_db {
             missing.push("GeoIP ASN database not loaded");
+        }
+        if !has_ua_parser {
+            missing.push("User-Agent parser not loaded");
         }
         (
             StatusCode::SERVICE_UNAVAILABLE,
