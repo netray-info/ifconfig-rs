@@ -1,2 +1,0 @@
-- ~~is "hosting" the right term for this?~~ Renamed to "network" — describes all classification types (residential, hosting, vpn, tor, threat) accurately.
-- we need a single ip api before batch api
