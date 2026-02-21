@@ -951,8 +951,10 @@ async fn ready_handler(State(state): State<AppState>) -> Response {
 // ---- OpenAPI spec handler ----
 
 async fn openapi_handler() -> Response {
-    let spec = ApiDoc::openapi().to_pretty_json().unwrap_or_default();
-    respond_formatted("application/json", spec)
+    let mut spec = ApiDoc::openapi();
+    spec.info.version = env!("CARGO_PKG_VERSION").to_string();
+    let json = spec.to_pretty_json().unwrap_or_default();
+    respond_formatted("application/json", json)
 }
 
 // ---- Static file serving ----
@@ -1067,5 +1069,12 @@ mod tests {
         assert!(is_global_ip("8.8.8.8".parse().unwrap()));
         assert!(is_global_ip("1.1.1.1".parse().unwrap()));
         assert!(is_global_ip("2001:db8::1".parse().unwrap()));
+    }
+
+    #[test]
+    fn openapi_version_matches_cargo_pkg() {
+        let mut spec = ApiDoc::openapi();
+        spec.info.version = env!("CARGO_PKG_VERSION").to_string();
+        assert_eq!(spec.info.version, env!("CARGO_PKG_VERSION"));
     }
 }
