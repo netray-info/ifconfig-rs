@@ -171,7 +171,7 @@ Each handler module (`handlers::ip`, `handlers::location`, etc.) exposes `to_jso
 | 4 | Feodo C2 botnet list | ~50 | Add `FeodoBotnetIps` to `EnrichmentContext`. `HashSet<IpAddr>` from `feodo_botnet_ips.txt`. Same file-parsing pattern as existing `TorExitNodes`. |
 | 5 | ASN heuristic module | ~100 | New `src/backend/asn_heuristic.rs`. Pure functions: `classify_asn(asn_org: &str) -> AsnClassification`. Lookup table mapping ASN name patterns to hosting/VPN tags. No state in `EnrichmentContext`. Unit tests for known patterns. |
 | 6 | VPN detection | ~200 | Add `VpnRanges` to `EnrichmentContext`. CIDR prefix matching via `ip_network_table` (same trie type as cloud). Falls back to ASN heuristic from commit 5. |
-| 7 | `is_tor` → `hosting` object | ~150 | **Breaking change.** Consolidate cloud (commit 3), Feodo (commit 4), ASN heuristic (commit 5), VPN (commit 6), and existing Tor into `Hosting` struct. Remove top-level `is_tor` from `Ifconfig`. Update frontend `types.ts`. Version bump to 0.5.0. |
+| 7 | `is_tor` → `network` object | ~150 | **Breaking change.** Consolidate cloud (commit 3), Feodo (commit 4), ASN heuristic (commit 5), VPN (commit 6), and existing Tor into `Network` struct. Remove top-level `is_tor` from `Ifconfig`. Update frontend `types.ts`. Version bump to 0.5.0. |
 | 8 | docker-compose.yml | docs | Example deployment with geoipupdate sidecar + data volume. |
 
 **Why this order:**
@@ -179,7 +179,7 @@ Each handler module (`handlers::ip`, `handlers::location`, etc.) exposes `to_jso
 - **Commit 1 (data pipeline) first** — unblocks local testing for all subsequent commits. No Rust changes.
 - **Commit 2 (EnrichmentContext + ArcSwap + SIGHUP) early** — establishes the reload pattern before adding new backends. The SIGHUP handler is trivial: call `EnrichmentContext::load()`, validate, swap. Each subsequent commit (3–6) extends `load()` as part of adding its backend — the handler itself never changes. No retrofit.
 - **Commits 3–6 (new backends) in dependency order** — cloud first (introduces `ip_network_table` trie, highest differentiation value), Feodo next (trivial, same HashSet pattern), ASN heuristic (pure functions, no backend state), VPN last (depends on both `ip_network_table` from commit 3 and ASN heuristic from commit 5).
-- **Commit 7 (breaking change) last among code changes** — all classification sources must exist before consolidating into the `hosting` object. Clear boundary for the 0.5.0 version bump.
+- **Commit 7 (breaking change) last among code changes** — all classification sources must exist before consolidating into the `network` object. Clear boundary for the 0.5.0 version bump.
 - **Commit 8 (docs) anytime after commit 2** — but logically last since it references the full feature set.
 
 #### 4.1 Data Pipeline
@@ -273,12 +273,12 @@ pub fn classify_asn(asn_org: &str) -> AsnClassification { ... }
 
 Provider, service, and region populated from `cloud_provider_ranges.jsonl` via longest-prefix-match in `ip_network_table`. `null` fields when data is unavailable — never guess. Providers matched only by CIDR data have `"service": null, "region": null` (e.g., Cloudflare).
 
-#### 4.4 Hosting Type Response Extension
+#### 4.4 Network Classification Response Extension
 
 Replaces top-level `is_tor`:
 
 ```json
-"hosting": {
+"network": {
   "type": "cloud",
   "provider": "AWS",
   "is_datacenter": true,
@@ -290,9 +290,9 @@ Replaces top-level `is_tor`:
 
 Classification priority (highest wins for `type`): cloud → bot → VPN → Tor → botnet_c2 → threat → hosting → residential. Boolean flags are independent — an IP can be both `is_datacenter: true` and `is_vpn: true`.
 
-The `hosting` object now includes `is_bot` (true when IP matches known bot CIDR from Googlebot/Bingbot/Applebot/GPTBot) and `is_threat` (true when IP falls in a Spamhaus DROP/EDROP/DROPv6 range). Additional `is_datacenter` coverage comes from the X4BNet datacenter list alongside ASN heuristics. As more source types are added, the `hosting` object's classification taxonomy may need revisiting — currently all flags coexist in a flat structure within `hosting`.
+The `network` object includes `is_bot` (true when IP matches known bot CIDR from Googlebot/Bingbot/Applebot/GPTBot) and `is_threat` (true when IP falls in a Spamhaus DROP/EDROP/DROPv6 range). Additional `is_datacenter` coverage comes from the X4BNet datacenter list alongside ASN heuristics.
 
-This is a **breaking change** from the current API where `is_tor` is a top-level boolean on `Ifconfig`. The `hosting` object consolidates all IP classification into a single structure. Version bump to 0.5.0.
+This is a **breaking change** from the current API where `is_tor` is a top-level boolean on `Ifconfig`. The `network` object consolidates all IP classification into a single structure. Version bump to 0.5.0.
 
 ### Phase 3: Pipeline Integration
 

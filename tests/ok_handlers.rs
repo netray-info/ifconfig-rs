@@ -546,32 +546,32 @@ async fn handle_all_json_json() {
 }
 
 #[tokio::test]
-async fn handle_root_json_has_hosting() {
+async fn handle_root_json_has_network() {
     let req = get_with_headers("/", &[("accept", "application/json")]);
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    // hosting object should be present with classification fields
-    assert!(json["hosting"]["type"].is_string());
-    assert!(json["hosting"]["is_tor"].is_boolean());
-    assert!(json["hosting"]["is_vpn"].is_boolean());
-    assert!(json["hosting"]["is_datacenter"].is_boolean());
-    assert!(json["hosting"]["is_bot"].is_boolean());
-    assert!(json["hosting"]["is_threat"].is_boolean());
+    // network object should be present with classification fields
+    assert!(json["network"]["type"].is_string());
+    assert!(json["network"]["is_tor"].is_boolean());
+    assert!(json["network"]["is_vpn"].is_boolean());
+    assert!(json["network"]["is_datacenter"].is_boolean());
+    assert!(json["network"]["is_bot"].is_boolean());
+    assert!(json["network"]["is_threat"].is_boolean());
 }
 
 #[tokio::test]
-async fn handle_all_plain_includes_hosting() {
+async fn handle_all_plain_includes_network() {
     let req = get_with_headers("/all", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("hosting:"));
+    assert!(body.contains("network:"));
     assert!(body.contains("tor:"));
 }
 
 #[tokio::test]
-async fn handle_hosting_plain_cli() {
-    let req = get_with_headers("/hosting", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
+async fn handle_network_plain_cli() {
+    let req = get_with_headers("/network", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
@@ -583,8 +583,8 @@ async fn handle_hosting_plain_cli() {
 }
 
 #[tokio::test]
-async fn handle_hosting_json() {
-    let req = get_with_headers("/hosting", &[("accept", "application/json")]);
+async fn handle_network_json() {
+    let req = get_with_headers("/network", &[("accept", "application/json")]);
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
@@ -597,8 +597,8 @@ async fn handle_hosting_json() {
 }
 
 #[tokio::test]
-async fn handle_hosting_json_suffix() {
-    let req = get("/hosting/json");
+async fn handle_network_json_suffix() {
+    let req = get("/network/json");
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
@@ -608,8 +608,8 @@ async fn handle_hosting_json_suffix() {
 }
 
 #[tokio::test]
-async fn handle_hosting_yaml_suffix() {
-    let req = get("/hosting/yaml");
+async fn handle_network_yaml_suffix() {
+    let req = get("/network/yaml");
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);

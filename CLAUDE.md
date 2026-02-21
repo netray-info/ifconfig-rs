@@ -84,7 +84,7 @@ Key modules:
 
 **Content negotiation priority**: Format suffix (`/ip/json`) → CLI detection (curl/wget/httpie + Accept: */*) → Accept header → HTML (serve SPA).
 
-**API endpoints**: `/`, `/ip`, `/tcp`, `/host`, `/location`, `/isp`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/health`, `/ready` — all (except probes) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability.
+**API endpoints**: `/`, `/ip`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/health`, `/ready` — all (except probes) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability.
 
 ## Frontend
 
@@ -134,7 +134,7 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 ## Common Patterns
 
 - Routes and handlers are generated via declarative macros — follow existing macro invocations when adding new endpoints.
-- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `Location` includes `accuracy_radius_km: Option<u16>` from GeoIP.
+- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `Location` includes `accuracy_radius_km: Option<u16>` from GeoIP. `Network` struct holds IP classification (type, provider, flags).
 - CLI client detection in `negotiate.rs` checks User-Agent patterns and `Accept: */*` header.
 - Config values are loaded from a TOML file (`ifconfig.dev.toml` for local dev) via the `config` crate with env var overrides.
 - `AppState` is shared via Axum's `State` extractor; all backends are `Arc`-wrapped.

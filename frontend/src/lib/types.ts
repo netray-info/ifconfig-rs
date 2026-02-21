@@ -11,12 +11,12 @@ export interface Ifconfig {
   tcp: Tcp;
   location: Location;
   isp: Isp;
-  hosting: Hosting | null;
+  network: Network | null;
   user_agent: UserAgent | null;
   user_agent_header: string | null;
 }
 
-export interface Hosting {
+export interface Network {
   type: string;
   provider: string | null;
   service: string | null;

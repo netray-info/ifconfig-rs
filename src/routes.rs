@@ -36,8 +36,8 @@ pub fn router(_state: AppState) -> Router<AppState> {
         .route("/isp/{fmt}", get(isp_format_handler))
         .route("/user_agent", get(user_agent_handler))
         .route("/user_agent/{fmt}", get(user_agent_format_handler))
-        .route("/hosting", get(hosting_handler))
-        .route("/hosting/{fmt}", get(hosting_format_handler))
+        .route("/network", get(network_handler))
+        .route("/network/{fmt}", get(network_format_handler))
         .route("/all", get(all_handler))
         .route("/all/{fmt}", get(all_format_handler))
         .route("/headers", get(headers_handler))
@@ -380,7 +380,7 @@ async fn user_agent_format_handler(
     .await
 }
 
-async fn hosting_handler(
+async fn network_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
     extensions: axum::http::Extensions,
@@ -391,13 +391,13 @@ async fn hosting_handler(
         format,
         &req_info,
         &state,
-        handlers::hosting::to_json,
-        handlers::hosting::to_plain,
+        handlers::network::to_json,
+        handlers::network::to_plain,
     )
     .await
 }
 
-async fn hosting_format_handler(
+async fn network_format_handler(
     State(state): State<AppState>,
     Path(fmt): Path<String>,
     headers: HeaderMap,
@@ -409,8 +409,8 @@ async fn hosting_format_handler(
         format,
         &req_info,
         &state,
-        handlers::hosting::to_json,
-        handlers::hosting::to_plain,
+        handlers::network::to_json,
+        handlers::network::to_plain,
     )
     .await
 }

@@ -128,33 +128,33 @@ pub mod location {
     }
 }
 
-pub mod hosting {
+pub mod network {
     use super::*;
 
     pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
-        serde_json::to_value(&ifconfig.hosting).ok()
+        serde_json::to_value(&ifconfig.network).ok()
     }
 
     pub fn to_plain(ifconfig: &Ifconfig) -> String {
-        match ifconfig.hosting {
-            Some(ref h) => {
+        match ifconfig.network {
+            Some(ref n) => {
                 let mut lines = Vec::new();
-                lines.push(format!("type:       {}", h.hosting_type));
-                if let Some(ref provider) = h.provider {
+                lines.push(format!("type:       {}", n.network_type));
+                if let Some(ref provider) = n.provider {
                     lines.push(format!("provider:   {}", provider));
                 }
-                if let Some(ref service) = h.service {
+                if let Some(ref service) = n.service {
                     lines.push(format!("service:    {}", service));
                 }
-                if let Some(ref region) = h.region {
+                if let Some(ref region) = n.region {
                     lines.push(format!("region:     {}", region));
                 }
-                lines.push(format!("datacenter: {}", h.is_datacenter));
-                lines.push(format!("vpn:        {}", h.is_vpn));
-                lines.push(format!("tor:        {}", h.is_tor));
-                lines.push(format!("proxy:      {}", h.is_proxy));
-                lines.push(format!("bot:        {}", h.is_bot));
-                lines.push(format!("threat:     {}", h.is_threat));
+                lines.push(format!("datacenter: {}", n.is_datacenter));
+                lines.push(format!("vpn:        {}", n.is_vpn));
+                lines.push(format!("tor:        {}", n.is_tor));
+                lines.push(format!("proxy:      {}", n.is_proxy));
+                lines.push(format!("bot:        {}", n.is_bot));
+                lines.push(format!("threat:     {}", n.is_threat));
                 lines.join("\n") + "\n"
             }
             None => format!("{}\n", UNKNOWN_STR),
@@ -206,23 +206,23 @@ pub mod all {
         if let Some(asn) = ifconfig.isp.asn {
             lines.push(format!("asn:        AS{}", asn));
         }
-        if let Some(ref h) = ifconfig.hosting {
-            lines.push(format!("hosting:    {}", h.hosting_type));
-            if let Some(ref provider) = h.provider {
+        if let Some(ref n) = ifconfig.network {
+            lines.push(format!("network:    {}", n.network_type));
+            if let Some(ref provider) = n.provider {
                 lines.push(format!("provider:   {}", provider));
             }
-            if let Some(ref service) = h.service {
+            if let Some(ref service) = n.service {
                 lines.push(format!("service:    {}", service));
             }
-            if let Some(ref region) = h.region {
+            if let Some(ref region) = n.region {
                 lines.push(format!("region:     {}", region));
             }
-            lines.push(format!("datacenter: {}", h.is_datacenter));
-            lines.push(format!("vpn:        {}", h.is_vpn));
-            lines.push(format!("tor:        {}", h.is_tor));
-            lines.push(format!("proxy:      {}", h.is_proxy));
-            lines.push(format!("bot:        {}", h.is_bot));
-            lines.push(format!("threat:     {}", h.is_threat));
+            lines.push(format!("datacenter: {}", n.is_datacenter));
+            lines.push(format!("vpn:        {}", n.is_vpn));
+            lines.push(format!("tor:        {}", n.is_tor));
+            lines.push(format!("proxy:      {}", n.is_proxy));
+            lines.push(format!("bot:        {}", n.is_bot));
+            lines.push(format!("threat:     {}", n.is_threat));
         }
         lines.push(format!("port:       {}", ifconfig.tcp.port));
         if let Some(ref ua) = ifconfig.user_agent {

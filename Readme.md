@@ -111,6 +111,7 @@ Every endpoint accepts a format suffix or an `Accept` header — see [Output For
 | `/host` | Reverse DNS hostname | `curl ip.pdt.sh/host` |
 | `/location` | City, region, country, coordinates | `curl ip.pdt.sh/location` |
 | `/isp` | ASN number and organisation name | `curl ip.pdt.sh/isp` |
+| `/network` | Network classification (type, provider, flags) | `curl ip.pdt.sh/network` |
 | `/user_agent` | Parsed browser / OS / device info | `curl ip.pdt.sh/user_agent` |
 | `/all` | Everything at once | `curl ip.pdt.sh/all` |
 | `/headers` | Your raw request headers | `curl ip.pdt.sh/headers` |

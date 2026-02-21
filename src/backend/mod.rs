@@ -132,10 +132,10 @@ impl Isp {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
-pub struct Hosting {
+pub struct Network {
     /// Primary classification: "cloud", "bot", "vpn", "tor", "botnet_c2", "threat", "hosting", or "residential".
     #[serde(rename = "type")]
-    pub hosting_type: String,
+    pub network_type: String,
     /// Cloud / VPN / hosting / bot provider name, if identified.
     pub provider: Option<String>,
     /// Cloud service name (e.g. "EC2", "Cloud Functions").
@@ -157,7 +157,7 @@ pub struct Ifconfig {
     pub tcp: Tcp,
     pub location: Location,
     pub isp: Isp,
-    pub hosting: Option<Hosting>,
+    pub network: Option<Network>,
     pub user_agent: Option<UserAgent>,
     pub user_agent_header: Option<String>,
 }
@@ -277,10 +277,10 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         || dc_range_match
         || matches!(asn_class, asn_heuristic::AsnClassification::Hosting { .. });
 
-    // Build hosting object — primary type uses priority order:
+    // Build network object — primary type uses priority order:
     // cloud > bot > VPN > Tor > botnet_c2 > threat > hosting > residential
-    let hosting = {
-        let (hosting_type, provider) = if cloud.is_some() {
+    let network = {
+        let (network_type, provider) = if cloud.is_some() {
             ("cloud".to_string(), cloud.as_ref().map(|c| c.provider.clone()))
         } else if is_bot {
             ("bot".to_string(), bot.as_ref().map(|b| b.provider.clone()))
@@ -310,8 +310,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             ("residential".to_string(), None)
         };
 
-        Hosting {
-            hosting_type,
+        Network {
+            network_type,
             provider,
             service: cloud.as_ref().and_then(|c| c.service.clone()),
             region: cloud.as_ref().and_then(|c| c.region.clone()),
@@ -332,7 +332,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         tcp,
         location,
         isp,
-        hosting: Some(hosting),
+        network: Some(network),
         user_agent,
         user_agent_header: param.user_agent_header.map(|s| s.to_string()),
     }

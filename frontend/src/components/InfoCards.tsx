@@ -50,18 +50,18 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{props.data.host!.name}</span>
           </div>
         </Show>
-        <Show when={props.data.hosting}>
+        <Show when={props.data.network}>
           <div class="card-row">
-            <span class="card-label">Hosting</span>
-            <span class="card-value">{props.data.hosting!.type}</span>
+            <span class="card-label">Type</span>
+            <span class="card-value">{props.data.network!.type}</span>
           </div>
-          <Show when={props.data.hosting!.provider}>
+          <Show when={props.data.network!.provider}>
             <div class="card-row">
               <span class="card-label">Provider</span>
-              <span class="card-value">{props.data.hosting!.provider}</span>
+              <span class="card-value">{props.data.network!.provider}</span>
             </div>
           </Show>
-          <Show when={props.data.hosting!.is_tor}>
+          <Show when={props.data.network!.is_tor}>
             <div class="card-row">
               <span class="card-label">Tor Exit Node</span>
               <span class="card-value">
@@ -69,7 +69,7 @@ export default function InfoCards(props: Props) {
               </span>
             </div>
           </Show>
-          <Show when={props.data.hosting!.is_vpn}>
+          <Show when={props.data.network!.is_vpn}>
             <div class="card-row">
               <span class="card-label">VPN</span>
               <span class="card-value">
@@ -77,7 +77,7 @@ export default function InfoCards(props: Props) {
               </span>
             </div>
           </Show>
-          <Show when={props.data.hosting!.is_bot}>
+          <Show when={props.data.network!.is_bot}>
             <div class="card-row">
               <span class="card-label">Bot</span>
               <span class="card-value">
@@ -85,7 +85,7 @@ export default function InfoCards(props: Props) {
               </span>
             </div>
           </Show>
-          <Show when={props.data.hosting!.is_threat}>
+          <Show when={props.data.network!.is_threat}>
             <div class="card-row">
               <span class="card-label">Threat</span>
               <span class="card-value">
