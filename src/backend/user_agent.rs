@@ -13,8 +13,11 @@ impl From<uaparser::UserAgentParser> for UserAgentParser {
 }
 
 impl UserAgentParser {
-    pub fn from_yaml(yaml: &str) -> Result<UserAgentParser, uaparser::Error> {
-        uaparser::UserAgentParser::from_yaml(yaml).map(UserAgentParser::from)
+    pub async fn from_yaml(path: &str) -> Result<UserAgentParser, uaparser::Error> {
+        let bytes = tokio::fs::read(path)
+            .await
+            .map_err(uaparser::Error::IO)?;
+        uaparser::UserAgentParser::from_bytes(&bytes).map(UserAgentParser::from)
     }
     pub fn parse(&self, user_agent_header: &'_ str) -> UserAgent {
         use uaparser::Parser;

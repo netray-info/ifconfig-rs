@@ -93,38 +93,7 @@ impl AppState {
         }
 
         AppState {
-            config: Arc::new(Config {
-                server: crate::config::ServerConfig {
-                    bind: config.server.bind.clone(),
-                    admin_bind: config.server.admin_bind.clone(),
-                    trusted_proxies: config.server.trusted_proxies.clone(),
-                    cors_allowed_origins: config.server.cors_allowed_origins.clone(),
-                },
-                base_url: config.base_url.clone(),
-                site_name: config.site_name.clone(),
-                project_name: config.project_name.clone(),
-                project_version: config.project_version.clone(),
-                geoip_city_db: config.geoip_city_db.clone(),
-                geoip_asn_db: config.geoip_asn_db.clone(),
-                user_agent_regexes: config.user_agent_regexes.clone(),
-                tor_exit_nodes: config.tor_exit_nodes.clone(),
-                cloud_provider_ranges: config.cloud_provider_ranges.clone(),
-                feodo_botnet_ips: config.feodo_botnet_ips.clone(),
-                vpn_ranges: config.vpn_ranges.clone(),
-                datacenter_ranges: config.datacenter_ranges.clone(),
-                bot_ranges: config.bot_ranges.clone(),
-                spamhaus_drop: config.spamhaus_drop.clone(),
-                filtered_headers: config.filtered_headers.clone(),
-                watch_data_files: config.watch_data_files,
-                rate_limit: crate::config::RateLimitConfig {
-                    per_ip_per_minute: config.rate_limit.per_ip_per_minute,
-                    per_ip_burst: config.rate_limit.per_ip_burst,
-                },
-                batch: crate::config::BatchConfig {
-                    enabled: config.batch.enabled,
-                    max_size: config.batch.max_size,
-                },
-            }),
+            config: Arc::new(config.clone()),
             project_info: Arc::new(project_info),
             enrichment: Arc::new(ArcSwap::from_pointee(enrichment)),
             rate_limiter,

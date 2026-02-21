@@ -4,8 +4,9 @@ use std::net::IpAddr;
 pub struct FeodoBotnetIps(Option<HashSet<IpAddr>>);
 
 impl FeodoBotnetIps {
-    pub fn from_file(path: &str) -> Self {
-        let set = std::fs::read_to_string(path)
+    pub async fn from_file(path: &str) -> Self {
+        let set = tokio::fs::read_to_string(path)
+            .await
             .ok()
             .map(|contents| {
                 contents
@@ -38,9 +39,9 @@ mod tests {
         assert_eq!(nodes.lookup(&addr), None);
     }
 
-    #[test]
-    fn from_file_missing_returns_none() {
-        let nodes = FeodoBotnetIps::from_file("/nonexistent/path/feodo.txt");
+    #[tokio::test]
+    async fn from_file_missing_returns_none() {
+        let nodes = FeodoBotnetIps::from_file("/nonexistent/path/feodo.txt").await;
         let addr: IpAddr = "1.2.3.4".parse().unwrap();
         assert_eq!(nodes.lookup(&addr), None);
     }

@@ -44,8 +44,9 @@ pub struct Tcp {
 pub struct GeoIpCityDb(maxminddb::Reader<Vec<u8>>);
 
 impl GeoIpCityDb {
-    pub fn new(db_path: &str) -> Option<Self> {
-        maxminddb::Reader::open_readfile(db_path).ok().map(GeoIpCityDb)
+    pub async fn new(db_path: &str) -> Option<Self> {
+        let bytes = tokio::fs::read(db_path).await.ok()?;
+        maxminddb::Reader::from_source(bytes).ok().map(GeoIpCityDb)
     }
 
     pub fn lookup(&self, ip: IpAddr) -> Option<geoip2::City<'_>> {
@@ -60,8 +61,9 @@ impl GeoIpCityDb {
 pub struct GeoIpAsnDb(maxminddb::Reader<Vec<u8>>);
 
 impl GeoIpAsnDb {
-    pub fn new(db_path: &str) -> Option<Self> {
-        maxminddb::Reader::open_readfile(db_path).ok().map(GeoIpAsnDb)
+    pub async fn new(db_path: &str) -> Option<Self> {
+        let bytes = tokio::fs::read(db_path).await.ok()?;
+        maxminddb::Reader::from_source(bytes).ok().map(GeoIpAsnDb)
     }
 
     pub fn lookup(&self, ip: IpAddr) -> Option<geoip2::Isp<'_>> {
@@ -72,8 +74,9 @@ impl GeoIpAsnDb {
 pub struct TorExitNodes(Option<HashSet<IpAddr>>);
 
 impl TorExitNodes {
-    pub fn from_file(path: &str) -> Self {
-        let set = std::fs::read_to_string(path)
+    pub async fn from_file(path: &str) -> Self {
+        let set = tokio::fs::read_to_string(path)
+            .await
             .ok()
             .map(|contents| {
                 contents
@@ -412,9 +415,9 @@ mod tests {
         assert_eq!(nodes.lookup(&addr), None);
     }
 
-    #[test]
-    fn tor_exit_nodes_from_file_missing_returns_none() {
-        let nodes = TorExitNodes::from_file("/nonexistent/path/tor_exit_nodes.txt");
+    #[tokio::test]
+    async fn tor_exit_nodes_from_file_missing_returns_none() {
+        let nodes = TorExitNodes::from_file("/nonexistent/path/tor_exit_nodes.txt").await;
         let addr: IpAddr = "1.2.3.4".parse().unwrap();
         assert_eq!(nodes.lookup(&addr), None);
     }

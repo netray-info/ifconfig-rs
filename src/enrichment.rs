@@ -27,10 +27,8 @@ impl EnrichmentContext {
     /// Load all backends from the paths specified in `config`.
     /// DNS resolver is built from system config (async).
     pub async fn load(config: &Config) -> Self {
-        let user_agent_parser = config
-            .user_agent_regexes
-            .as_deref()
-            .and_then(|path| match UserAgentParser::from_yaml(path) {
+        let user_agent_parser = if let Some(path) = config.user_agent_regexes.as_deref() {
+            match UserAgentParser::from_yaml(path).await {
                 Ok(parser) => {
                     info!("Loaded User-Agent regexes from {}", path);
                     Some(Arc::new(parser))
@@ -39,12 +37,13 @@ impl EnrichmentContext {
                     warn!("Failed to load User-Agent regexes from {}: {}", path, e);
                     None
                 }
-            });
+            }
+        } else {
+            None
+        };
 
-        let geoip_city_db = config
-            .geoip_city_db
-            .as_deref()
-            .and_then(|path| match GeoIpCityDb::new(path) {
+        let geoip_city_db = if let Some(path) = config.geoip_city_db.as_deref() {
+            match GeoIpCityDb::new(path).await {
                 Some(db) => {
                     info!("Loaded GeoIP City database from {}", path);
                     Some(Arc::new(db))
@@ -53,12 +52,13 @@ impl EnrichmentContext {
                     warn!("Failed to load GeoIP City database from {}", path);
                     None
                 }
-            });
+            }
+        } else {
+            None
+        };
 
-        let geoip_asn_db = config
-            .geoip_asn_db
-            .as_deref()
-            .and_then(|path| match GeoIpAsnDb::new(path) {
+        let geoip_asn_db = if let Some(path) = config.geoip_asn_db.as_deref() {
+            match GeoIpAsnDb::new(path).await {
                 Some(db) => {
                     info!("Loaded GeoIP ASN database from {}", path);
                     Some(Arc::new(db))
@@ -67,26 +67,29 @@ impl EnrichmentContext {
                     warn!("Failed to load GeoIP ASN database from {}", path);
                     None
                 }
-            });
+            }
+        } else {
+            None
+        };
 
-        let tor_exit_nodes = config
-            .tor_exit_nodes
-            .as_deref()
-            .map(|path| {
-                let nodes = TorExitNodes::from_file(path);
-                info!("Loaded Tor exit nodes from {}", path);
-                nodes
-            })
-            .unwrap_or_else(TorExitNodes::empty);
+        let tor_exit_nodes = if let Some(path) = config.tor_exit_nodes.as_deref() {
+            let nodes = TorExitNodes::from_file(path).await;
+            info!("Loaded Tor exit nodes from {}", path);
+            nodes
+        } else {
+            TorExitNodes::empty()
+        };
 
-        let feodo_botnet_ips = config.feodo_botnet_ips.as_deref().map(|path| {
-            let ips = FeodoBotnetIps::from_file(path);
+        let feodo_botnet_ips = if let Some(path) = config.feodo_botnet_ips.as_deref() {
+            let ips = FeodoBotnetIps::from_file(path).await;
             info!("Loaded Feodo botnet IPs from {}", path);
-            Arc::new(ips)
-        });
+            Some(Arc::new(ips))
+        } else {
+            None
+        };
 
-        let cloud_provider_db = config.cloud_provider_ranges.as_deref().and_then(|path| {
-            match CloudProviderDb::from_file(path) {
+        let cloud_provider_db = if let Some(path) = config.cloud_provider_ranges.as_deref() {
+            match CloudProviderDb::from_file(path).await {
                 Some(db) => {
                     info!("Loaded cloud provider ranges from {}", path);
                     Some(Arc::new(db))
@@ -96,10 +99,12 @@ impl EnrichmentContext {
                     None
                 }
             }
-        });
+        } else {
+            None
+        };
 
-        let vpn_ranges = config.vpn_ranges.as_deref().and_then(|path| {
-            match VpnRanges::from_file(path) {
+        let vpn_ranges = if let Some(path) = config.vpn_ranges.as_deref() {
+            match VpnRanges::from_file(path).await {
                 Some(db) => {
                     info!("Loaded VPN ranges from {}", path);
                     Some(Arc::new(db))
@@ -109,10 +114,12 @@ impl EnrichmentContext {
                     None
                 }
             }
-        });
+        } else {
+            None
+        };
 
-        let datacenter_ranges = config.datacenter_ranges.as_deref().and_then(|path| {
-            match DatacenterRanges::from_file(path) {
+        let datacenter_ranges = if let Some(path) = config.datacenter_ranges.as_deref() {
+            match DatacenterRanges::from_file(path).await {
                 Some(db) => {
                     info!("Loaded datacenter ranges from {}", path);
                     Some(Arc::new(db))
@@ -122,10 +129,12 @@ impl EnrichmentContext {
                     None
                 }
             }
-        });
+        } else {
+            None
+        };
 
-        let bot_db = config.bot_ranges.as_deref().and_then(|path| {
-            match BotDb::from_file(path) {
+        let bot_db = if let Some(path) = config.bot_ranges.as_deref() {
+            match BotDb::from_file(path).await {
                 Some(db) => {
                     info!("Loaded bot ranges from {}", path);
                     Some(Arc::new(db))
@@ -135,10 +144,12 @@ impl EnrichmentContext {
                     None
                 }
             }
-        });
+        } else {
+            None
+        };
 
-        let spamhaus_drop = config.spamhaus_drop.as_deref().and_then(|path| {
-            match SpamhausDrop::from_file(path) {
+        let spamhaus_drop = if let Some(path) = config.spamhaus_drop.as_deref() {
+            match SpamhausDrop::from_file(path).await {
                 Some(db) => {
                     info!("Loaded Spamhaus DROP from {}", path);
                     Some(Arc::new(db))
@@ -148,7 +159,9 @@ impl EnrichmentContext {
                     None
                 }
             }
-        });
+        } else {
+            None
+        };
 
         let dns_resolver = ResolverGroupBuilder::new()
             .system()

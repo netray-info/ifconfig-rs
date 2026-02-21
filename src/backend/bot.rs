@@ -18,8 +18,8 @@ pub struct BotDb {
 }
 
 impl BotDb {
-    pub fn from_file(path: &str) -> Option<Self> {
-        let contents = std::fs::read_to_string(path).ok()?;
+    pub async fn from_file(path: &str) -> Option<Self> {
+        let contents = tokio::fs::read_to_string(path).await.ok()?;
         let mut table = IpNetworkTable::new();
         let mut count = 0u32;
 
@@ -60,57 +60,57 @@ mod tests {
 
     static COUNTER: AtomicU32 = AtomicU32::new(0);
 
-    fn make_db(jsonl: &str) -> BotDb {
+    async fn make_db(jsonl: &str) -> BotDb {
         let id = COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!("ifconfig_test_bot_{}.jsonl", id));
         std::fs::write(&path, jsonl).unwrap();
-        let db = BotDb::from_file(path.to_str().unwrap()).unwrap();
+        let db = BotDb::from_file(path.to_str().unwrap()).await.unwrap();
         let _ = std::fs::remove_file(&path);
         db
     }
 
-    #[test]
-    fn lookup_googlebot() {
+    #[tokio::test]
+    async fn lookup_googlebot() {
         let jsonl = r#"{"cidr":"66.249.64.0/19","provider":"googlebot"}"#;
-        let db = make_db(jsonl);
+        let db = make_db(jsonl).await;
         let result = db.lookup("66.249.64.1".parse().unwrap());
         assert!(result.is_some());
         assert_eq!(result.unwrap().provider, "googlebot");
     }
 
-    #[test]
-    fn lookup_miss() {
+    #[tokio::test]
+    async fn lookup_miss() {
         let jsonl = r#"{"cidr":"66.249.64.0/19","provider":"googlebot"}"#;
-        let db = make_db(jsonl);
+        let db = make_db(jsonl).await;
         assert!(db.lookup("192.168.1.1".parse().unwrap()).is_none());
     }
 
-    #[test]
-    fn empty_file_returns_none() {
+    #[tokio::test]
+    async fn empty_file_returns_none() {
         let id = COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!("ifconfig_test_bot_empty_{}.jsonl", id));
         std::fs::write(&path, "").unwrap();
-        assert!(BotDb::from_file(path.to_str().unwrap()).is_none());
+        assert!(BotDb::from_file(path.to_str().unwrap()).await.is_none());
         let _ = std::fs::remove_file(&path);
     }
 
-    #[test]
-    fn ipv6_lookup() {
+    #[tokio::test]
+    async fn ipv6_lookup() {
         let jsonl = r#"{"cidr":"2001:4860:4801::/48","provider":"googlebot"}"#;
-        let db = make_db(jsonl);
+        let db = make_db(jsonl).await;
         let result = db.lookup("2001:4860:4801::1".parse().unwrap());
         assert!(result.is_some());
         assert_eq!(result.unwrap().provider, "googlebot");
     }
 
-    #[test]
-    fn multiple_providers() {
+    #[tokio::test]
+    async fn multiple_providers() {
         let jsonl = concat!(
             r#"{"cidr":"66.249.64.0/19","provider":"googlebot"}"#,
             "\n",
             r#"{"cidr":"40.77.167.0/24","provider":"bingbot"}"#,
         );
-        let db = make_db(jsonl);
+        let db = make_db(jsonl).await;
         assert_eq!(db.lookup("66.249.64.1".parse().unwrap()).unwrap().provider, "googlebot");
         assert_eq!(db.lookup("40.77.167.1".parse().unwrap()).unwrap().provider, "bingbot");
     }
