@@ -63,8 +63,11 @@ curl ip.pdt.sh/host
 # What headers did you send?
 curl ip.pdt.sh/headers
 
-# Health check for your monitoring
+# Health check (liveness)
 curl ip.pdt.sh/health
+
+# Readiness probe (checks GeoIP databases are loaded)
+curl ip.pdt.sh/ready
 ```
 
 **Pro tip:** Set up a shell alias and never think about it again:
@@ -111,7 +114,8 @@ Every endpoint accepts a format suffix or an `Accept` header — see [Output For
 | `/user_agent` | Parsed browser / OS / device info | `curl ip.pdt.sh/user_agent` |
 | `/all` | Everything at once | `curl ip.pdt.sh/all` |
 | `/headers` | Your raw request headers | `curl ip.pdt.sh/headers` |
-| `/health` | Service health check | `curl ip.pdt.sh/health` |
+| `/health` | Liveness probe | `curl ip.pdt.sh/health` |
+| `/ready` | Readiness probe (checks GeoIP DBs) | `curl ip.pdt.sh/ready` |
 
 ### Content Negotiation
 
@@ -255,6 +259,9 @@ tor_exit_nodes = "data/tor_exit_nodes.txt"
 [server]
 bind = "0.0.0.0:8080"
 
+# Optional admin port for Prometheus /metrics and /health (disabled by default)
+# admin_bind = "127.0.0.1:9090"
+
 # Trust these CIDR ranges for X-Forwarded-For (e.g. behind a load balancer)
 # trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
 
@@ -268,7 +275,9 @@ per_ip_burst      = 10   # burst capacity
 ```sh
 IFCONFIG_BASE_URL=ip.example.com
 IFCONFIG_SERVER__BIND=0.0.0.0:9090
+IFCONFIG_SERVER__ADMIN_BIND=127.0.0.1:9090
 IFCONFIG_RATE_LIMIT__PER_IP_PER_MINUTE=120
+IFCONFIG_LOG_FORMAT=json   # structured JSON logging (default: human-readable)
 ```
 
 ### Behind a Load Balancer
@@ -281,6 +290,28 @@ trusted_proxies = ["10.0.0.0/8"]
 ```
 
 Without this, the IP of the load balancer would be reported as the client IP.
+
+### CLI Flags
+
+```sh
+cargo run -- ifconfig.toml              # start server with config file
+cargo run -- --print-config ifconfig.toml  # print effective config (file + env) and exit
+```
+
+### Admin Port / Prometheus Metrics
+
+Set `server.admin_bind` to expose a separate admin listener with `/metrics` (Prometheus exposition format) and `/health`:
+
+```toml
+[server]
+admin_bind = "127.0.0.1:9090"
+```
+
+The `/metrics` endpoint includes process-level metrics (CPU, memory, file descriptors). Disabled by default.
+
+### Rate Limit Headers
+
+All rate-limited responses include `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers. Responses that exceed the limit (HTTP 429) also include a `Retry-After` header. The `/health` and `/ready` endpoints are exempt from rate limiting.
 
 ---
 

@@ -52,7 +52,7 @@ make docker-build            # Production Docker image
 ### Test Guidelines
 
 - `cargo test --lib` is the fast reliable check — no network or external services needed.
-- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (74 tests covering all endpoints and content types) and `tests/error_handler.rs`.
+- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (74 tests covering all endpoints and content types), `tests/error_handler.rs`, and `tests/rate_limit.rs` (5 tests covering rate limit headers, 429 behavior, and probe exemptions).
 - Integration tests spawn real TCP listeners with hyper_util for each test case.
 - Docker integration tests (`make integration`) build and test inside a container via `tests/Dockerfile.tests`.
 - Playwright E2E tests (`make acceptance`) run against production at `https://ip.pdt.sh` across Chromium, Firefox, and WebKit.
@@ -68,23 +68,23 @@ Request → Middleware (security headers, requester info extraction)
 **Frontend**: SolidJS 1.9 SPA built with Vite 6, embedded via rust-embed for single-binary deployment.
 
 Key modules:
-- `src/lib.rs` — Module hub, `build_app()` constructs the Axum Router with middleware
-- `src/main.rs` — tokio entry point, config loading, axum::serve with graceful shutdown
-- `src/config.rs` — `Config` struct loaded from config file + `IFCONFIG_` env vars via `config` crate
-- `src/state.rs` — `AppState` wrapping Arc'd backends (GeoIP, UA parser, Tor nodes)
+- `src/lib.rs` — Module hub, `build_app()` returns `AppBundle` (main app + optional admin app), installs Prometheus metrics recorder
+- `src/main.rs` — tokio entry point, config loading, `--print-config` flag, `IFCONFIG_LOG_FORMAT=json` support, optional admin port, graceful shutdown
+- `src/config.rs` — `Config` struct (derives `Serialize` + `Deserialize`) loaded from config file + `IFCONFIG_` env vars via `config` crate
+- `src/state.rs` — `AppState` wrapping Arc'd backends (GeoIP, UA parser, Tor nodes); `KeyedRateLimiter` uses `StateInformationMiddleware` for burst-capacity tracking
 - `src/backend/mod.rs` — Core logic: `get_ifconfig()` orchestrates GeoIP, reverse DNS, UA parsing
 - `src/backend/user_agent.rs` — UA parsing wrapper around `uaparser`
 - `src/routes.rs` — Axum router with endpoint macros, static file serving via rust-embed
 - `src/handlers.rs` — Macro-generated response formatters for each content type
 - `src/negotiate.rs` — Content negotiation: format suffix → CLI detection → Accept header → HTML default
 - `src/extractors.rs` — `RequesterInfo` extraction (IP from ConnectInfo/XFF, UA, URI)
-- `src/middleware.rs` — Security headers, cache control
+- `src/middleware.rs` — Security headers, cache control, rate limiting with `X-RateLimit-*` / `Retry-After` headers
 - `src/error.rs` — `AppError` enum with `IntoResponse` impl
 - `src/format.rs` — `OutputFormat` enum with serialization to JSON/YAML/TOML/CSV/plain
 
 **Content negotiation priority**: Format suffix (`/ip/json`) → CLI detection (curl/wget/httpie + Accept: */*) → Accept header → HTML (serve SPA).
 
-**API endpoints**: `/`, `/ip`, `/tcp`, `/host`, `/location`, `/isp`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/health` — all support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation.
+**API endpoints**: `/`, `/ip`, `/tcp`, `/host`, `/location`, `/isp`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/health`, `/ready` — all (except probes) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability.
 
 ## Frontend
 
@@ -113,6 +113,7 @@ tor_exit_nodes = "data/tor_exit_nodes.txt"
 
 [server]
 bind = "127.0.0.1:8080"
+# admin_bind = "127.0.0.1:9090"  # Optional: Prometheus /metrics + /health
 # trusted_proxies = ["10.0.0.0/8"]
 
 [rate_limit]
@@ -121,6 +122,8 @@ per_ip_burst = 10
 ```
 
 Env var examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.pdt.sh`.
+Structured JSON logging: `IFCONFIG_LOG_FORMAT=json`.
+Print effective config and exit: `--print-config` flag.
 
 GeoIP data in `data/`: `GeoLite2-City.mmdb`, `GeoLite2-ASN.mmdb`.
 
@@ -131,8 +134,10 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 ## Common Patterns
 
 - Routes and handlers are generated via declarative macros — follow existing macro invocations when adding new endpoints.
-- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it.
+- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `Location` includes `accuracy_radius_km: Option<u16>` from GeoIP.
 - CLI client detection in `negotiate.rs` checks User-Agent patterns and `Accept: */*` header.
 - Config values are loaded from a TOML file (`ifconfig.dev.toml` for local dev) via the `config` crate with env var overrides.
 - `AppState` is shared via Axum's `State` extractor; all backends are `Arc`-wrapped.
+- `build_app()` returns `AppBundle { app, admin_app }` — `admin_app` is `Some` only when `server.admin_bind` is configured and the metrics recorder installs successfully. In tests, multiple `build_app()` calls silently skip metrics (global recorder can only be set once).
+- Rate limit middleware emits `X-RateLimit-Limit`, `X-RateLimit-Remaining` on all responses and `Retry-After` on 429s. `/health` and `/ready` are exempt.
 - Frontend assets are embedded at compile time via `rust-embed` — `cargo build` requires `frontend/dist/` to exist.
