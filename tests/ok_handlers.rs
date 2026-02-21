@@ -1343,3 +1343,37 @@ async fn request_id_propagated() {
     let (_, headers, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(header_str(&headers, "x-request-id").as_deref(), Some("custom-id-12345"));
 }
+
+// --- /ipv6 endpoint tests ---
+
+#[tokio::test]
+async fn ipv6_returns_404_for_ipv4_client() {
+    let req = get_with_headers("/ipv6", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
+    let (status, _, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn ipv6_json_returns_404_for_ipv4_client() {
+    let req = get_with_headers("/ipv6/json", &[("user-agent", "curl/7.54.0")]);
+    let (status, _, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body.contains("not implemented"));
+}
+
+#[tokio::test]
+async fn ipv6_with_ipv6_ip_param() {
+    let req = get_with_headers("/ipv6/json?ip=2606:4700::1111", &[("user-agent", "curl/7.54.0")]);
+    let (status, _, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["addr"], "2606:4700::1111");
+    assert_eq!(json["version"], "6");
+}
+
+#[tokio::test]
+async fn ipv6_with_ipv4_ip_param_returns_404() {
+    let req = get_with_headers("/ipv6/json?ip=8.8.8.8", &[("user-agent", "curl/7.54.0")]);
+    let (status, _, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
