@@ -1,11 +1,11 @@
 # Dev Review — Mitigation Plan
 
-Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low. **33 resolved** across all phases. Only H2+H3 (accessibility) and H4 (SEO) remain open.
+Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low. **All 33 non-low-priority items resolved.** Only 4 low-priority items (L3, L4, L8, L11) remain.
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
 | Critical | 0     | 0        | 0    |
-| High     | 4     | 2        | 2    |
+| High     | 4     | 4        | 0    |
 | Medium   | 18    | 18       | 0    |
 | Low      | 15    | 13       | 2    |
 
@@ -199,37 +199,19 @@ Pinned to Koyeb CLI v5.9.1 via direct release tarball download instead of `curl 
 
 ---
 
-## Phase 5: Frontend Improvements
+## Phase 5: Frontend Improvements ✅
 
-Accessibility, SEO, and UX polish for the SolidJS SPA.
+Accessibility, SEO, and UX polish for the SolidJS SPA. **All 6 items resolved.**
 
-### H2 + H3. ARIA Labels and Focus Styles — Effort: M
+### ~~H2 + H3. ARIA Labels and Focus Styles~~ — RESOLVED
 
-**Severity**: High | **Category**: Accessibility
-
-**Problem (H2)**: Zero `aria-*` attributes in the entire frontend. Icon-only buttons (copy, theme toggle) have no accessible names. Collapsible sections lack `aria-expanded`/`aria-controls`.
-
-**Problem (H3)**: `global.css` has zero `:focus` or `:focus-visible` rules. Keyboard navigation has no visible indicator.
-
-**Mitigation**:
-- Add `aria-label` to all icon-only buttons (copy, theme toggle)
-- Add `aria-expanded` and `aria-controls` to collapsible/disclosure sections
-- Add `role="status"` to loading spinner
-- Add `:focus-visible` styles using the existing `--accent` custom property
-
-**Files**: `frontend/src/components/ThemeToggle.tsx`, `frontend/src/components/IpDisplay.tsx`, `frontend/src/components/RequestHeaders.tsx`, `frontend/src/components/ApiExplorer.tsx`, `frontend/src/components/Faq.tsx`, `frontend/src/styles/global.css`
+Added `aria-label` to all icon-only buttons (theme toggle, copy IP, copy hostname, copy curl). Added `aria-expanded`/`aria-controls` to all collapsible sections (Request Headers, API Explorer, FAQ). Added `role="status"` to loading spinner. Added `:focus-visible` outline styles using `--accent`. Commit `0d77e2c`.
 
 ---
 
-### H4. Missing SEO Meta Tags — Effort: S
+### ~~H4. Missing SEO Meta Tags~~ — RESOLVED
 
-**Severity**: High | **Category**: SEO
-
-**Problem**: `index.html` is missing `<meta name="description">`, Open Graph tags, Twitter Card tags, `<meta name="theme-color">`, and `<link rel="canonical">`. Hurts discoverability and social sharing for a public service.
-
-**Mitigation**: Add standard SEO meta tags, Open Graph tags (`og:title`, `og:description`, `og:url`, `og:type`), Twitter Card tags, `theme-color`, and canonical link.
-
-**Files**: `frontend/index.html`
+Added meta description, theme-color (dark/light media queries), Open Graph tags (og:type, og:title, og:description), and Twitter Card tags. Omitted og:url and canonical link since base_url is dynamic per instance. Commit `80c4132`.
 
 ---
 
@@ -332,6 +314,6 @@ These items are worth tracking but have minimal risk or impact.
 2. ~~**Phase 2** — Correctness & reliability.~~ ✅ Complete (5/5 items resolved).
 3. ~~**Phase 4** — Dependencies & build.~~ ✅ Complete (6/6 items resolved).
 4. ~~**Phase 3** — Code quality & cleanup.~~ ✅ Complete (6/6 items resolved).
-5. ~~**Phase 5** — Frontend improvements.~~ ✅ Complete (4/4 resolved; H2+H3 and H4 remain open).
+5. ~~**Phase 5** — Frontend improvements.~~ ✅ Complete (6/6 items resolved).
 6. ~~**Phase 6** — Test coverage.~~ ✅ Complete (7/7 items resolved).
 7. ~~**Phase 7** — Documentation.~~ ✅ Complete (3/3 items resolved).
