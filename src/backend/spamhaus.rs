@@ -16,6 +16,7 @@ impl SpamhausDrop {
             if line.is_empty() || line.starts_with('#') || line.starts_with(';') {
                 continue;
             }
+            let line = line.split(" ;").next().unwrap_or(line);
             if let Ok(network) = line.parse::<ip_network::IpNetwork>() {
                 table.insert(network, ());
                 count += 1;
@@ -66,6 +67,13 @@ mod tests {
     fn skips_comments_and_semicolons() {
         let db = make_db("; Spamhaus DROP\n# comment\n1.10.16.0/20\n");
         assert!(db.lookup("1.10.16.1".parse().unwrap()));
+    }
+
+    #[test]
+    fn parses_inline_comments() {
+        let db = make_db("1.10.16.0/20 ; SB123456\n2.56.0.0/14 ; SB654321\n");
+        assert!(db.lookup("1.10.16.1".parse().unwrap()));
+        assert!(db.lookup("2.56.0.1".parse().unwrap()));
     }
 
     #[test]
