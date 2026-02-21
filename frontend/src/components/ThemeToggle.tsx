@@ -25,7 +25,7 @@ export default function ThemeToggle() {
     if (saved === "light" || saved === "dark" || saved === "system") {
       setTheme(saved);
     }
-    applyTheme(theme());
+    // Theme is already applied synchronously via inline script in index.html
 
     window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", onSystemChange);
   });
