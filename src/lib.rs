@@ -47,6 +47,28 @@ pub async fn build_app(config: &Config) -> AppBundle {
         metrics_process::Collector::default().describe();
     }
 
+    // Spawn periodic rate limiter cleanup to prevent unbounded DashMap growth
+    {
+        let limiter = Arc::clone(&state.rate_limiter);
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(300));
+            interval.tick().await; // skip the immediate first tick
+            loop {
+                interval.tick().await;
+                let before = limiter.len();
+                limiter.retain_recent();
+                limiter.shrink_to_fit();
+                let after = limiter.len();
+                if before != after {
+                    tracing::debug!(
+                        "Rate limiter cleanup: {} -> {} entries",
+                        before, after
+                    );
+                }
+            }
+        });
+    }
+
     let api_routes = routes::router();
 
     let cors = if config.server.cors_allowed_origins.iter().any(|o| o == "*") {
