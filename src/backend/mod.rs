@@ -23,17 +23,21 @@ use std::net::{IpAddr, SocketAddr};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Host {
+    #[schema(example = "dns.example.com")]
     pub name: String,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Ip {
+    #[schema(example = "203.0.113.42")]
     pub addr: String,
+    #[schema(example = "4")]
     pub version: String,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Tcp {
+    #[schema(example = 54321)]
     pub port: u16,
 }
 
@@ -97,18 +101,31 @@ impl TorExitNodes {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Location {
+    #[schema(example = "Berlin")]
     pub city: Option<String>,
+    #[schema(example = "Berlin")]
     pub region: Option<String>,
+    #[schema(example = "BE")]
     pub region_code: Option<String>,
+    #[schema(example = "Germany")]
     pub country: Option<String>,
+    #[schema(example = "DE")]
     pub country_iso: Option<String>,
+    #[schema(example = "10115")]
     pub postal_code: Option<String>,
+    #[schema(example = true)]
     pub is_eu: Option<bool>,
+    #[schema(example = 52.5200)]
     pub latitude: Option<f64>,
+    #[schema(example = 13.4050)]
     pub longitude: Option<f64>,
+    #[schema(example = "Europe/Berlin")]
     pub timezone: Option<String>,
+    #[schema(example = "Europe")]
     pub continent: Option<String>,
+    #[schema(example = "EU")]
     pub continent_code: Option<String>,
+    #[schema(example = 100)]
     pub accuracy_radius_km: Option<u16>,
 }
 
@@ -134,7 +151,9 @@ impl Location {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Isp {
+    #[schema(example = "Example Telecom AG")]
     pub name: Option<String>,
+    #[schema(example = 64496)]
     pub asn: Option<u32>,
 }
 
@@ -151,18 +170,28 @@ impl Isp {
 pub struct Network {
     /// Primary classification: "cloud", "bot", "vpn", "tor", "botnet_c2", "threat", "hosting", or "residential".
     #[serde(rename = "type")]
+    #[schema(example = "residential")]
     pub network_type: String,
     /// Cloud / VPN / hosting / bot provider name, if identified.
+    #[schema(example = json!(null))]
     pub provider: Option<String>,
     /// Cloud service name (e.g. "EC2", "Cloud Functions").
+    #[schema(example = json!(null))]
     pub service: Option<String>,
     /// Cloud region (e.g. "us-east-1").
+    #[schema(example = json!(null))]
     pub region: Option<String>,
+    #[schema(example = false)]
     pub is_datacenter: bool,
+    #[schema(example = false)]
     pub is_vpn: bool,
+    #[schema(example = false)]
     pub is_tor: bool,
+    #[schema(example = false)]
     pub is_proxy: bool,
+    #[schema(example = false)]
     pub is_bot: bool,
+    #[schema(example = false)]
     pub is_threat: bool,
 }
 

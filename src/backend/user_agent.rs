@@ -42,6 +42,7 @@ impl From<uaparser::Client<'_>> for UserAgent {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Device {
+    #[schema(example = "Other")]
     pub family: String,
     pub brand: Option<String>,
     pub model: Option<String>,
@@ -59,11 +60,15 @@ impl From<uaparser::Device<'_>> for Device {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct OS {
+    #[schema(example = "Mac OS X")]
     pub family: String,
+    #[schema(example = "14")]
     pub major: Option<String>,
+    #[schema(example = "0")]
     pub minor: Option<String>,
     pub patch: Option<String>,
     pub patch_minor: Option<String>,
+    #[schema(example = "14.0")]
     pub version: String,
 }
 
@@ -93,10 +98,14 @@ impl From<uaparser::OS<'_>> for OS {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Browser {
+    #[schema(example = "Chrome")]
     pub family: String,
+    #[schema(example = "120")]
     pub major: Option<String>,
+    #[schema(example = "0")]
     pub minor: Option<String>,
     pub patch: Option<String>,
+    #[schema(example = "120.0")]
     pub version: String,
 }
 

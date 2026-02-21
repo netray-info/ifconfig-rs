@@ -12,7 +12,7 @@ use utoipa::OpenApi;
 
 use crate::backend::*;
 use crate::enrichment::EnrichmentContext;
-use crate::error::error_response;
+use crate::error::{error_response, ErrorResponse};
 use crate::extractors::{extract_headers, filter_headers, RequesterInfo};
 use crate::format::{self, OutputFormat};
 use crate::handlers;
@@ -47,7 +47,7 @@ use crate::state::AppState;
     ),
     components(schemas(
         Ifconfig, Ip, Tcp, Host, Location, Isp, Network,
-        UserAgent, Browser, OS, Device,
+        UserAgent, Browser, OS, Device, ErrorResponse,
     ))
 )]
 struct ApiDoc;
@@ -249,12 +249,17 @@ async fn dispatch_standard(
 
 #[utoipa::path(
     get, path = "/",
+    description = "Returns the caller's full enrichment data (IP, location, ISP, network classification, user agent). Content-negotiated: returns HTML (SPA) for browsers, plain text for CLI clients, or structured data when an Accept header or format suffix is used.",
     params(
         ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
         ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
         ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
     ),
-    responses((status = 200, description = "Full ifconfig data", body = Ifconfig))
+    responses(
+        (status = 200, description = "Full ifconfig data", body = Ifconfig),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
 )]
 async fn root_handler(
     State(state): State<AppState>,
@@ -296,11 +301,16 @@ async fn root_format_handler(
 
 #[utoipa::path(
     get, path = "/ip",
+    description = "Returns the caller's IP address and version (4 or 6).",
     params(
         ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
         ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
     ),
-    responses((status = 200, description = "IP address info", body = Ip))
+    responses(
+        (status = 200, description = "IP address info", body = Ip),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
 )]
 async fn ip_handler(State(state): State<AppState>, headers: HeaderMap, extensions: axum::http::Extensions) -> Response {
     let req_info = get_requester_info(&headers, &extensions);
@@ -321,7 +331,11 @@ async fn ip_format_handler(
 
 #[utoipa::path(
     get, path = "/ip/cidr",
-    responses((status = 200, description = "IP in CIDR notation (e.g. 1.2.3.4/32)", content_type = "text/plain"))
+    description = "Returns the caller's IP in CIDR notation (e.g. 203.0.113.42/32 or 2001:db8::1/128). Plain text only.",
+    responses(
+        (status = 200, description = "IP in CIDR notation", content_type = "text/plain"),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
 )]
 async fn ip_cidr_handler(headers: HeaderMap, extensions: axum::http::Extensions) -> Response {
     let req_info = get_requester_info(&headers, &extensions);
@@ -330,7 +344,19 @@ async fn ip_cidr_handler(headers: HeaderMap, extensions: axum::http::Extensions)
     respond_plain(format!("{}/{}\n", ip, prefix_len))
 }
 
-#[utoipa::path(get, path = "/tcp", responses((status = 200, description = "TCP port info", body = Tcp)))]
+#[utoipa::path(
+    get, path = "/tcp",
+    description = "Returns the caller's source TCP port. Omitted for ?ip= queries.",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+    ),
+    responses(
+        (status = 200, description = "TCP port info", body = Tcp),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
 async fn tcp_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -366,7 +392,20 @@ async fn tcp_format_handler(
     .await
 }
 
-#[utoipa::path(get, path = "/host", responses((status = 200, description = "Reverse DNS hostname", body = Host)))]
+#[utoipa::path(
+    get, path = "/host",
+    description = "Returns the reverse DNS (PTR) hostname for the caller's IP. Skipped by default for ?ip= queries unless ?dns=true.",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
+    ),
+    responses(
+        (status = 200, description = "Reverse DNS hostname", body = Host),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
 async fn host_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -402,7 +441,19 @@ async fn host_format_handler(
     .await
 }
 
-#[utoipa::path(get, path = "/location", responses((status = 200, description = "Geolocation data", body = Location)))]
+#[utoipa::path(
+    get, path = "/location",
+    description = "Returns geolocation data (city, country, coordinates, timezone) from the GeoIP database.",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+    ),
+    responses(
+        (status = 200, description = "Geolocation data", body = Location),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
 async fn location_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -438,7 +489,19 @@ async fn location_format_handler(
     .await
 }
 
-#[utoipa::path(get, path = "/isp", responses((status = 200, description = "ISP / ASN info", body = Isp)))]
+#[utoipa::path(
+    get, path = "/isp",
+    description = "Returns ISP name and ASN number from the GeoIP ASN database.",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+    ),
+    responses(
+        (status = 200, description = "ISP / ASN info", body = Isp),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
 async fn isp_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -474,7 +537,19 @@ async fn isp_format_handler(
     .await
 }
 
-#[utoipa::path(get, path = "/user_agent", responses((status = 200, description = "Parsed User-Agent", body = UserAgent)))]
+#[utoipa::path(
+    get, path = "/user_agent",
+    description = "Returns the parsed User-Agent header (browser, OS, device families and versions).",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+    ),
+    responses(
+        (status = 200, description = "Parsed User-Agent", body = UserAgent),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
 async fn user_agent_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -510,7 +585,19 @@ async fn user_agent_format_handler(
     .await
 }
 
-#[utoipa::path(get, path = "/network", responses((status = 200, description = "Network classification", body = Network)))]
+#[utoipa::path(
+    get, path = "/network",
+    description = "Returns network classification (cloud, VPN, Tor, bot, hosting, residential) with provider details and boolean flags.",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+    ),
+    responses(
+        (status = 200, description = "Network classification", body = Network),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
 async fn network_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -548,12 +635,17 @@ async fn network_format_handler(
 
 #[utoipa::path(
     get, path = "/all",
+    description = "Returns all enrichment data. Equivalent to / but always returns structured data (never HTML).",
     params(
         ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
         ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
         ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
     ),
-    responses((status = 200, description = "All enrichment data", body = Ifconfig))
+    responses(
+        (status = 200, description = "All enrichment data", body = Ifconfig),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
 )]
 async fn all_handler(
     State(state): State<AppState>,
@@ -592,7 +684,14 @@ async fn all_format_handler(
 
 // ---- Headers handler ----
 
-#[utoipa::path(get, path = "/headers", responses((status = 200, description = "Request headers as key-value pairs")))]
+#[utoipa::path(
+    get, path = "/headers",
+    description = "Returns the request headers as received by the server (after proxy processing).",
+    responses(
+        (status = 200, description = "Request headers as key-value pairs"),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
 async fn headers_handler(State(state): State<AppState>, headers: HeaderMap) -> Response {
     let format = negotiate(None, &headers);
     let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
@@ -633,6 +732,7 @@ fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) 
 
 #[utoipa::path(
     post, path = "/batch",
+    description = "Batch-enrich multiple IPs in a single request. Each IP consumes one rate-limit token. Disabled by default (requires batch.enabled = true in config).",
     request_body(content = Vec<String>, description = "JSON array of IP address strings"),
     params(
         ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
@@ -640,9 +740,9 @@ fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) 
     ),
     responses(
         (status = 200, description = "Array of enrichment results", body = Vec<Ifconfig>),
-        (status = 400, description = "Invalid request body or empty array"),
-        (status = 404, description = "Batch endpoint is disabled"),
-        (status = 429, description = "Rate limit exceeded"),
+        (status = 400, description = "Invalid request body or empty array", body = ErrorResponse),
+        (status = 404, description = "Batch endpoint is disabled", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
     )
 )]
 async fn batch_handler(
@@ -795,7 +895,20 @@ async fn batch_dispatch(
 
 // ---- IP version handlers ----
 
-#[utoipa::path(get, path = "/ipv4", responses((status = 200, description = "IPv4 address info", body = Ip)))]
+#[utoipa::path(
+    get, path = "/ipv4",
+    description = "Returns IP info only if the caller connected via IPv4. Returns 404 for IPv6 clients.",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+    ),
+    responses(
+        (status = 200, description = "IPv4 address info", body = Ip),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 404, description = "Client is not using IPv4", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
 async fn ipv4_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -813,7 +926,20 @@ async fn ipv4_format_handler(
     ip_version_dispatch("4", Some(&fmt), &state, &headers, &extensions).await
 }
 
-#[utoipa::path(get, path = "/ipv6", responses((status = 200, description = "IPv6 address info", body = Ip)))]
+#[utoipa::path(
+    get, path = "/ipv6",
+    description = "Returns IP info only if the caller connected via IPv6. Returns 404 for IPv4 clients.",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+    ),
+    responses(
+        (status = 200, description = "IPv6 address info", body = Ip),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 404, description = "Client is not using IPv6", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
 async fn ipv6_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -902,17 +1028,25 @@ async fn meta_handler(State(state): State<AppState>) -> Response {
 
 // ---- Health handler ----
 
-#[utoipa::path(get, path = "/health", responses((status = 200, description = "Liveness probe")))]
+#[utoipa::path(
+    get, path = "/health",
+    description = "Liveness probe. Always returns 200 with {\"status\": \"ok\"}. Exempt from rate limiting.",
+    responses((status = 200, description = "Liveness probe"))
+)]
 async fn health_handler() -> Response {
     (StatusCode::OK, axum::Json(json!({ "status": "ok" }))).into_response()
 }
 
 // ---- Readiness handler ----
 
-#[utoipa::path(get, path = "/ready", responses(
-    (status = 200, description = "All backends loaded"),
-    (status = 503, description = "One or more backends not ready"),
-))]
+#[utoipa::path(
+    get, path = "/ready",
+    description = "Readiness probe. Returns 200 when GeoIP databases and UA parser are loaded, 503 otherwise. Exempt from rate limiting.",
+    responses(
+        (status = 200, description = "All backends loaded"),
+        (status = 503, description = "One or more backends not ready"),
+    )
+)]
 async fn ready_handler(State(state): State<AppState>) -> Response {
     let ctx = state.enrichment.load();
     let has_city_db = ctx.geoip_city_db.is_some();
@@ -1071,5 +1205,21 @@ mod tests {
         let mut spec = ApiDoc::openapi();
         spec.info.version = env!("CARGO_PKG_VERSION").to_string();
         assert_eq!(spec.info.version, env!("CARGO_PKG_VERSION"));
+    }
+
+    #[test]
+    fn openapi_spec_contains_error_schema_and_examples() {
+        let spec = ApiDoc::openapi();
+        let json = spec.to_pretty_json().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let schemas = &parsed["components"]["schemas"];
+        // ErrorResponse schema exists
+        assert!(schemas.get("ErrorResponse").is_some(), "ErrorResponse schema missing");
+        // Ip schema has example on addr field
+        let ip_addr = &schemas["Ip"]["properties"]["addr"];
+        assert!(ip_addr.get("example").is_some(), "Ip.addr example missing");
+        // Location schema has example on city field
+        let loc_city = &schemas["Location"]["properties"]["city"];
+        assert!(loc_city.get("example").is_some(), "Location.city example missing");
     }
 }
