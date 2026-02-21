@@ -1280,3 +1280,55 @@ async fn docs_serves_scalar_html() {
     assert!(body.contains("scalar"), "Body should reference Scalar");
     assert!(body.contains("/api-docs/openapi.json"), "Body should reference the OpenAPI spec URL");
 }
+
+// --- Security headers ---
+
+fn header_str(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
+    headers.get(name).and_then(|v| v.to_str().ok()).map(|s| s.to_string())
+}
+
+#[tokio::test]
+async fn security_headers_on_json() {
+    let req = get_with_headers("/ip", &[("accept", "application/json")]);
+    let (status, headers, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(header_str(&headers, "x-content-type-options").as_deref(), Some("nosniff"));
+    assert_eq!(header_str(&headers, "x-frame-options").as_deref(), Some("DENY"));
+    assert_eq!(header_str(&headers, "referrer-policy").as_deref(), Some("strict-origin-when-cross-origin"));
+    let hsts = header_str(&headers, "strict-transport-security").unwrap();
+    assert!(hsts.contains("max-age=63072000"));
+    assert!(hsts.contains("includeSubDomains"));
+}
+
+#[tokio::test]
+async fn security_headers_csp_on_json() {
+    let req = get_with_headers("/ip", &[("accept", "application/json")]);
+    let (_, headers, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    let csp = header_str(&headers, "content-security-policy").unwrap();
+    assert!(csp.contains("default-src 'self'"));
+    // Non-docs CSP should NOT include cdn.jsdelivr.net
+    assert!(!csp.contains("cdn.jsdelivr.net"), "Non-docs CSP should not allow CDN scripts");
+}
+
+#[tokio::test]
+async fn security_headers_csp_on_docs() {
+    let (_, headers, _) = send_request(get("/docs"), remote_v4("192.168.0.101", 8000)).await;
+    let csp = header_str(&headers, "content-security-policy").unwrap();
+    assert!(csp.contains("cdn.jsdelivr.net"), "/docs CSP should allow CDN scripts");
+}
+
+#[tokio::test]
+async fn request_id_generated() {
+    let req = get_with_headers("/ip", &[("accept", "application/json")]);
+    let (_, headers, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    let id = header_str(&headers, "x-request-id").unwrap();
+    assert_eq!(id.len(), 16, "Generated request ID should be 16 hex chars");
+    assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+}
+
+#[tokio::test]
+async fn request_id_propagated() {
+    let req = get_with_headers("/ip", &[("accept", "application/json"), ("x-request-id", "custom-id-12345")]);
+    let (_, headers, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(header_str(&headers, "x-request-id").as_deref(), Some("custom-id-12345"));
+}
