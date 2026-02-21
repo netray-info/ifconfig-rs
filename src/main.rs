@@ -7,9 +7,16 @@ use ifconfig_rs::{build_app, Config};
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
-        .init();
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let log_format = std::env::var("IFCONFIG_LOG_FORMAT").unwrap_or_default();
+    if log_format.eq_ignore_ascii_case("json") {
+        tracing_subscriber::fmt()
+            .json()
+            .with_env_filter(env_filter)
+            .init();
+    } else {
+        tracing_subscriber::fmt().with_env_filter(env_filter).init();
+    }
 
     let config_path = std::env::args().nth(1);
     let config = Config::load(config_path.as_deref()).expect("Failed to load config");
