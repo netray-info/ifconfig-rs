@@ -49,7 +49,7 @@ export default function App() {
         </header>
 
         <Show when={loading()}>
-          <div class="loading" role="status" aria-label="Loading">
+          <div class="loading" role="status" aria-label="Loading your IP information">
             <div class="loading-spinner" />
             <div>Loading...</div>
           </div>

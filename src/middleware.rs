@@ -125,6 +125,8 @@ pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Res
             HeaderValue::from_static("default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"),
         );
     } else {
+        // 'unsafe-inline' in style-src is required by the SolidJS/Vite build: compiled
+        // event handlers and reactive bindings emit inline style attributes at runtime.
         headers.insert(
             "content-security-policy",
             HeaderValue::from_static("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"),

@@ -143,7 +143,7 @@ async fn handle_root_plain_cli() {
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
     assert!(is_plain(&ct), "Expected text/plain, got {:?}", ct);
-    assert!(body.contains("\n"), "Body should end with newline");
+    assert!(body.ends_with('\n'), "Body should end with newline");
 }
 
 #[tokio::test]
@@ -181,7 +181,7 @@ async fn handle_root_html() {
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
     assert!(is_html(&ct), "Expected HTML, got {:?}", ct);
-    assert!(body.contains("html"));
+    assert!(body.contains("<!DOCTYPE html>") || body.contains("<html"));
 }
 
 #[tokio::test]

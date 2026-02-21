@@ -1,4 +1,4 @@
-import { createSignal, createEffect, on, For, Show } from "solid-js";
+import { createSignal, createEffect, on, onCleanup, For, Show } from "solid-js";
 
 const ENDPOINTS = [
   "/", "/ip", "/tcp", "/host", "/location", "/isp",
@@ -59,12 +59,14 @@ export default function ApiExplorer() {
 
   const cache = new Map<string, string>();
   let currentReqId = 0;
+  let curlTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(curlTimer));
 
   const copyCurl = async () => {
     try {
       await navigator.clipboard.writeText(buildCurlCommand(activeEndpoint(), activeFormat()));
       setCurlCopied(true);
-      setTimeout(() => setCurlCopied(false), 2000);
+      curlTimer = setTimeout(() => setCurlCopied(false), 2000);
     } catch {
       // Clipboard API not available
     }

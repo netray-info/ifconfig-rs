@@ -186,7 +186,7 @@ fn is_global_ip(ip: IpAddr) -> bool {
 
 // ---- Compute-once dispatch ----
 
-fn resolve_backends(ctx: &EnrichmentContext) -> Option<(&UserAgentParser, &GeoIpCityDb, &GeoIpAsnDb, &TorExitNodes)> {
+fn resolve_core_backends(ctx: &EnrichmentContext) -> Option<(&UserAgentParser, &GeoIpCityDb, &GeoIpAsnDb, &TorExitNodes)> {
     let uap = ctx.user_agent_parser.as_deref()?;
     let city = ctx.geoip_city_db.as_deref()?;
     let asn = ctx.geoip_asn_db.as_deref()?;
@@ -219,13 +219,12 @@ async fn dispatch_standard(
 
     let ctx = state.enrichment.load();
 
-    let (uap, city, asn, tor) = match resolve_backends(&ctx) {
+    let (uap, city, asn, tor) = match resolve_core_backends(&ctx) {
         Some(backends) => backends,
         None => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "backends not available"),
     };
 
-    let ua_ref = req_info.user_agent.as_deref();
-    let ua_opt: Option<&str> = ua_ref;
+    let ua_opt = req_info.user_agent.as_deref();
     let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, skip_dns).await;
 
     let fields = format::parse_fields_param(&req_info.uri);
@@ -851,13 +850,12 @@ async fn ip_version_dispatch(
 
     let ctx = state.enrichment.load();
 
-    let (uap, city, asn, tor) = match resolve_backends(&ctx) {
+    let (uap, city, asn, tor) = match resolve_core_backends(&ctx) {
         Some(backends) => backends,
         None => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "backends not available"),
     };
 
-    let ua_ref = req_info.user_agent.as_deref();
-    let ua_opt: Option<&str> = ua_ref;
+    let ua_opt = req_info.user_agent.as_deref();
     let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, skip_dns).await;
 
     if ifconfig.ip.version != version {

@@ -26,6 +26,34 @@ use tower_http::trace::TraceLayer;
 pub use config::Config;
 pub use state::ProjectInfo;
 
+/// Middleware that requires a valid `Authorization: Bearer <token>` header.
+/// Used to protect the admin port when `server.admin_token` is configured.
+async fn admin_bearer_auth(
+    axum::extract::State(expected): axum::extract::State<String>,
+    req: axum::http::Request<axum::body::Body>,
+    next: axum_mw::Next,
+) -> axum::response::Response {
+    let ok = req
+        .headers()
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|t| t == expected)
+        .unwrap_or(false);
+    if ok {
+        next.run(req).await
+    } else {
+        (
+            axum::http::StatusCode::UNAUTHORIZED,
+            [(
+                axum::http::header::WWW_AUTHENTICATE,
+                axum::http::HeaderValue::from_static("Bearer realm=\"admin\""),
+            )],
+        )
+            .into_response()
+    }
+}
+
 pub struct AppBundle {
     pub app: Router,
     pub admin_app: Option<Router>,
@@ -117,20 +145,22 @@ pub async fn build_app(config: &Config) -> AppBundle {
 
     let admin_app = config.server.admin_bind.as_ref().and_then(|_| {
         let handle = metrics_handle?;
-        Some(
-            Router::new()
-                .route(
-                    "/metrics",
-                    get(move || {
-                        let h = handle.clone();
-                        async move {
-                            metrics_process::Collector::default().collect();
-                            h.render().into_response()
-                        }
-                    }),
-                )
-                .route("/health", get(|| async { axum::http::StatusCode::OK.into_response() })),
-        )
+        let mut router = Router::new()
+            .route(
+                "/metrics",
+                get(move || {
+                    let h = handle.clone();
+                    async move {
+                        metrics_process::Collector::default().collect();
+                        h.render().into_response()
+                    }
+                }),
+            )
+            .route("/health", get(|| async { axum::http::StatusCode::OK.into_response() }));
+        if let Some(token) = config.server.admin_token.clone() {
+            router = router.layer(axum_mw::from_fn_with_state(token, admin_bearer_auth));
+        }
+        Some(router)
     });
 
     AppBundle {

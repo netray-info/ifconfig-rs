@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
 import type { Ifconfig } from "../lib/types";
 
 interface Props {
@@ -26,11 +26,18 @@ export default function IpDisplay(props: Props) {
   const [copied, setCopied] = createSignal(false);
   const [copiedHost, setCopiedHost] = createSignal(false);
 
+  let ipTimer: ReturnType<typeof setTimeout> | undefined;
+  let hostTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => {
+    clearTimeout(ipTimer);
+    clearTimeout(hostTimer);
+  });
+
   const copyIp = async () => {
     try {
       await navigator.clipboard.writeText(props.data.ip.addr);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      ipTimer = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard API not available
     }
@@ -40,7 +47,7 @@ export default function IpDisplay(props: Props) {
     try {
       await navigator.clipboard.writeText(props.data.host!.name);
       setCopiedHost(true);
-      setTimeout(() => setCopiedHost(false), 2000);
+      hostTimer = setTimeout(() => setCopiedHost(false), 2000);
     } catch {
       // Clipboard API not available
     }

@@ -54,6 +54,9 @@ pub struct ServerConfig {
     #[serde(default = "ServerConfig::default_bind")]
     pub bind: String,
     pub admin_bind: Option<String>,
+    /// Bearer token required for admin endpoints. If set, all requests to the
+    /// admin port must include `Authorization: Bearer <token>`.
+    pub admin_token: Option<String>,
     #[serde(default)]
     pub trusted_proxies: Vec<String>,
     #[serde(default = "ServerConfig::default_cors_allowed_origins")]
@@ -65,6 +68,7 @@ impl Default for ServerConfig {
         Self {
             bind: Self::default_bind(),
             admin_bind: None,
+            admin_token: None,
             trusted_proxies: Vec::new(),
             cors_allowed_origins: Self::default_cors_allowed_origins(),
         }

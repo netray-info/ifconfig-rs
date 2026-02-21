@@ -67,10 +67,11 @@ async fn main() {
             .expect("admin_bind must be set")
             .parse()
             .expect("Invalid admin bind address");
-        if !admin_bind.ip().is_loopback() {
+        if !admin_bind.ip().is_loopback() && config.server.admin_token.is_none() {
             warn!(
                 "Admin server binding to non-loopback address {}. \
-                 The /metrics endpoint has no authentication — ensure network-level access control.",
+                 The /metrics endpoint has no authentication — ensure network-level access control \
+                 or set server.admin_token.",
                 admin_bind
             );
         }
