@@ -78,6 +78,10 @@ export default function App() {
             <a href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">GitHub</a>
             {" · "}
             <a href="https://lukas.pustina.de" target="_blank" rel="noopener noreferrer">Author</a>
+            <Show when={meta()?.version}>
+              {" · "}
+              <span class="footer-version">v{meta()!.version}</span>
+            </Show>
           </div>
         </footer>
       </div>

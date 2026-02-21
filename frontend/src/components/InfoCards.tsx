@@ -10,15 +10,10 @@ function known(v: string | null | undefined): string | null {
   return v && v !== "unknown" ? v : null;
 }
 
-/** Convert decimal degrees to DMS string, e.g. 50.0471 lat → "50°02'49.6"N" */
-function toDMS(deg: number, isLat: boolean): string {
-  const abs = Math.abs(deg);
-  const d = Math.floor(abs);
-  const mFull = (abs - d) * 60;
-  const m = Math.floor(mFull);
-  const s = (mFull - m) * 60;
-  const dir = isLat ? (deg >= 0 ? "N" : "S") : (deg >= 0 ? "E" : "W");
-  return `${d}°${String(m).padStart(2, "0")}'${s.toFixed(1)}"${dir}`;
+/** Convert GeoIP accuracy radius (km) to a Google Maps zoom level. */
+function radiusToZoom(radiusKm: number): number {
+  const zoom = Math.log2(40075 / (radiusKm * 4));
+  return Math.round(Math.min(Math.max(zoom, 3), 15));
 }
 
 export default function InfoCards(props: Props) {
@@ -26,9 +21,10 @@ export default function InfoCards(props: Props) {
   const isp = () => props.data.isp;
 
   const mapsUrl = () => {
-    const { latitude, longitude } = loc();
+    const { latitude, longitude, accuracy_radius_km } = loc();
     if (latitude == null || longitude == null) return null;
-    return `https://www.google.com/maps/place/${encodeURIComponent(toDMS(latitude, true))}+${encodeURIComponent(toDMS(longitude, false))}`;
+    const zoom = accuracy_radius_km != null ? radiusToZoom(accuracy_radius_km) : 10;
+    return `https://www.google.com/maps/@${latitude},${longitude},${zoom}z`;
   };
 
   return (
@@ -129,6 +125,11 @@ export default function InfoCards(props: Props) {
               ) : (
                 <>{loc().latitude!.toFixed(4)}, {loc().longitude!.toFixed(4)}</>
               )}
+              <Show when={loc().accuracy_radius_km != null}>
+                <span class="accuracy-hint" title="GeoIP accuracy radius">
+                  {" "}±{loc().accuracy_radius_km}km
+                </span>
+              </Show>
             </span>
           </div>
         </Show>

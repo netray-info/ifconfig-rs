@@ -38,6 +38,7 @@ export interface Location {
   timezone: string | null;
   continent: string | null;
   continent_code: string | null;
+  accuracy_radius_km: number | null;
 }
 
 export interface Isp {

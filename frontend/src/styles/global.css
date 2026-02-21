@@ -75,6 +75,12 @@ a:hover {
   vertical-align: super;
 }
 
+.accuracy-hint {
+  font-size: 0.75em;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
 .container {
   max-width: 960px;
   margin: 0 auto;
@@ -565,6 +571,11 @@ footer a {
 .footer-links {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.footer-version {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
 }
 
 /* ---- Theme Toggle ---- */
