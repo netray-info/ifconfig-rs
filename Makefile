@@ -23,7 +23,7 @@ NPM_CI_FLAGS ?=
 .PHONY: all build check clippy fmt fmt-fix clean \
         backend-build backend-check backend-clippy backend-fmt backend-fmt-fix backend-clean backend-test \
         frontend-build frontend-clean frontend-dev \
-        dev test unit integration acceptance \
+        dev test unit integration acceptance bench \
         docker-build push-to-prod \
         stats help
 
@@ -106,6 +106,9 @@ integration: ## Run Docker-based integration tests
 
 acceptance: ## Run Playwright E2E tests
 	$(MAKE) -C tests acceptance
+
+bench: ## Run Criterion benchmarks
+	cargo bench
 
 # ══════════════════════════════════════════════════════════════════
 #  Docker
