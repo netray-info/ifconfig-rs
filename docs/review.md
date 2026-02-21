@@ -1,13 +1,13 @@
 # Dev Review — Mitigation Plan
 
-Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low. **All 33 non-low-priority items resolved.** Only 4 low-priority items (L3, L4, L8, L11) remain.
+Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low. **All 37 items resolved.**
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
 | Critical | 0     | 0        | 0    |
 | High     | 4     | 4        | 0    |
 | Medium   | 18    | 18       | 0    |
-| Low      | 15    | 13       | 2    |
+| Low      | 15    | 15       | 0    |
 
 ---
 
@@ -295,16 +295,25 @@ Already tracked and resolved in Phase 4.
 
 ---
 
-## Additional Low-Priority Items
+## Additional Low-Priority Items ✅
 
-These items are worth tracking but have minimal risk or impact.
+**All 4 items resolved.**
 
-| ID  | Finding | Effort |
-|-----|---------|--------|
-| L3  | Rate limiter state grows unboundedly (`DashMap` has no cleanup) | M |
-| L4  | Sequential batch processing (slow with `?dns=true` + 100 IPs) | M |
-| L8  | Header filter uses `Vec<Regex>` instead of `RegexSet` | S |
-| L11 | Admin `/metrics` has no auth (mitigated by `127.0.0.1` bind) | S |
+### ~~L3. Rate Limiter State Grows Unboundedly~~ — RESOLVED
+
+Spawn background task in `build_app` that calls `retain_recent()` + `shrink_to_fit()` every 5 minutes. Commit `51ce7bd`.
+
+### ~~L4. Sequential Batch Processing~~ — RESOLVED
+
+Replaced sequential for-loop with `tokio::task::JoinSet` for concurrent IP lookups. Results collected back in original order via indexed slots. Commit `0fafdee`.
+
+### ~~L8. Header Filter Uses `Vec<Regex>` Instead of `RegexSet`~~ — RESOLVED
+
+Replaced `Arc<Vec<Regex>>` with `Arc<RegexSet>` in AppState. Single NFA pass instead of iterating individual patterns. Commit `4b605ad`.
+
+### ~~L11. Admin `/metrics` Has No Auth~~ — RESOLVED
+
+Added startup warning when `admin_bind` is configured to a non-loopback address, alerting operators to ensure network-level access control. Commit `3da39ca`.
 
 ---
 
