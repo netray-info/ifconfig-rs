@@ -46,13 +46,15 @@ make dev                     # Run dev server
 make tests                   # Unit + Docker integration + Playwright E2E
 make integration             # Docker-based integration tests only
 make acceptance              # Playwright E2E tests only
+make bench                   # Run Criterion benchmarks
 make docker-build            # Production Docker image
+cargo bench                  # Run benchmarks directly (negotiation, asn_heuristic, serialization, cloud_lookup)
 ```
 
 ### Test Guidelines
 
-- `cargo test --lib` is the fast reliable check — no network or external services needed.
-- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (99 tests covering all endpoints, content types, `?ip=` lookups, `?fields=` filtering, batch, and OpenAPI), `tests/error_handler.rs`, and `tests/rate_limit.rs` (5 tests covering rate limit headers, 429 behavior, and probe exemptions).
+- `cargo test --lib` is the fast reliable check — no network or external services needed (~115 unit tests).
+- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (100 tests covering all endpoints, content types, `?ip=` lookups, `?fields=` filtering, batch, OpenAPI, and `/docs`), `tests/error_handler.rs`, and `tests/rate_limit.rs` (5 tests covering rate limit headers, 429 behavior, and probe exemptions). Total: ~220 tests.
 - Integration tests spawn real TCP listeners with hyper_util for each test case.
 - Docker integration tests (`make integration`) build and test inside a container via `tests/Dockerfile.tests`.
 - Playwright E2E tests (`make acceptance`) run against production at `https://ip.pdt.sh` across Chromium, Firefox, and WebKit.
@@ -83,23 +85,24 @@ Key modules:
 - `src/backend/feodo.rs` — Feodo C2 botnet IP matching
 - `src/backend/spamhaus.rs` — Spamhaus DROP/EDROP threat list matching
 - `src/enrichment.rs` — `EnrichmentContext` struct with `ArcSwap` hot-reload via SIGHUP; emits `enrichment_sources_loaded` gauges on load/reload
-- `src/routes.rs` — Axum router with explicit handler functions, `dispatch_standard()` compute-once dispatch, batch handler, OpenAPI spec via utoipa, static file serving via rust-embed
+- `src/routes.rs` — Axum router with explicit handler functions, `dispatch_standard()` compute-once dispatch, batch handler, OpenAPI spec via utoipa, Scalar API docs UI at `/docs`, static file serving via rust-embed
+- `src/scalar_docs.html` — Lightweight HTML page for Scalar API reference UI (loaded via `include_str!()`; CDN dependency is client-side only)
 - `src/handlers.rs` — Per-endpoint `to_json`/`to_plain` functions used as fn pointers by `dispatch_standard()`
 - `src/negotiate.rs` — Content negotiation: format suffix → CLI detection → Accept header → HTML default
 - `src/extractors.rs` — `RequesterInfo` extraction (IP from ConnectInfo/XFF with CIDR-aware trusted proxy matching, UA, URI)
 - `src/middleware.rs` — Request ID generation (`X-Request-Id`), application metrics (`record_metrics`), security headers, cache control, rate limiting with `X-RateLimit-*` / `Retry-After` headers, `X-GeoIP-Database-Date` / `X-GeoIP-Database-Age-Days` headers
-- `src/error.rs` — `AppError` enum with `IntoResponse` impl
+- `src/error.rs` — `AppError` enum with `IntoResponse` impl; `ErrorResponse` struct (JSON `{error, status}` body) and `error_response()` helper used by all error paths
 - `src/format.rs` — `OutputFormat` enum with serialization to JSON/YAML/TOML/CSV/plain
 
 **Content negotiation priority**: Format suffix (`/ip/json`) → CLI detection (curl/wget/httpie + Accept: */*) → Accept header → HTML (serve SPA).
 
-**API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/health`, `/ready` — all (except probes and `/ip/cidr`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability.
+**API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/health`, `/ready` — all (except probes and `/ip/cidr`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability. `/docs` serves the Scalar API reference UI. `/api-docs/openapi.json` serves the OpenAPI spec.
 
 **Batch endpoint**: `POST /batch` (and `/batch/{format}`) accepts a JSON array of IP addresses and returns enrichment results for each. Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens. Supports `?fields=` and `?dns=true`.
 
 **Query parameters**: Most endpoints support `?ip=` (look up an arbitrary global IP instead of the caller's), `?fields=` (comma-separated top-level field names to include in response), and `?dns=true` (opt-in PTR lookup for `?ip=` queries; PTR is skipped by default for arbitrary IPs). For `?ip=` queries, `tcp` and `host` are omitted from the response (port is synthetic, PTR is slow and usually unwanted).
 
-**OpenAPI**: Spec served at `GET /api-docs/openapi.json` via utoipa. All public endpoints are annotated with `#[utoipa::path]` and response types derive `ToSchema`. **Note:** The version in the `#[openapi]` attribute (`src/routes.rs`) is a string literal — it must be manually updated on version bumps (utoipa doesn't support `env!()` there).
+**OpenAPI**: Spec served at `GET /api-docs/openapi.json` via utoipa. All public endpoints are annotated with `#[utoipa::path]` with descriptions, `?ip=`/`?fields=`/`?dns=` params, and error responses (`body = ErrorResponse`). Response types derive `ToSchema` with `#[schema(example = ...)]` on all fields. The spec version is patched at runtime from `CARGO_PKG_VERSION` (no manual sync needed). Interactive docs via Scalar UI at `GET /docs`.
 
 ## Frontend
 
@@ -167,3 +170,5 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 - CORS via `tower_http::cors::CorsLayer` — configurable origins (default `["*"]`), handles OPTIONS preflight.
 - Application-level Prometheus metrics: `http_requests_total{method,status}`, `http_request_duration_seconds{method}`, `enrichment_sources_loaded{source}`, `geoip_database_age_seconds`. `metrics` macros are no-op when no recorder is installed (safe in tests).
 - Frontend assets are embedded at compile time via `rust-embed` — `cargo build` requires `frontend/dist/` to exist.
+- All error responses are structured JSON via `error_response()` returning `ErrorResponse { error, status }`. The `ErrorResponse` struct derives `utoipa::ToSchema` and is referenced in OpenAPI error response annotations.
+- Criterion benchmarks in `benches/` cover negotiation, ASN classification, serialization (all 4 formats), and cloud CIDR lookup. Run with `cargo bench` or `make bench`.

@@ -99,6 +99,8 @@ There are plenty of "what's my IP" services. Here's why this one is worth self-h
 | Network classification (cloud/VPN/Tor/bot) | | | partial | **yes** |
 | Cloud provider detection (AWS/GCP/Azure) | | | | **yes** |
 | OpenAPI spec | | | yes | **yes** |
+| Interactive API docs (Scalar) | | | yes | **yes** |
+| Structured JSON error responses | | | yes | **yes** |
 | CLI auto-detection (plain text) | yes | yes | | **yes** |
 | SPA with interactive API explorer | | | | **yes** |
 | Dark / light / system theme | | | | **yes** |
@@ -132,6 +134,7 @@ Every endpoint accepts a format suffix or an `Accept` header — see [Output For
 | `/headers` | Your raw request headers | `curl ip.pdt.sh/headers` |
 | `POST /batch` | Bulk IP lookup (JSON array input) | `curl -X POST -d '["8.8.8.8"]' ip.pdt.sh/batch` |
 | `/api-docs/openapi.json` | OpenAPI 3.1 specification | `curl ip.pdt.sh/api-docs/openapi.json` |
+| `/docs` | Interactive API reference (Scalar UI) | Open in browser |
 | `/health` | Liveness probe | `curl ip.pdt.sh/health` |
 | `/ready` | Readiness probe (checks GeoIP DBs) | `curl ip.pdt.sh/ready` |
 
@@ -143,6 +146,16 @@ ifconfig-rs figures out what you want automatically — no flags needed:
 2. **CLI detection** — `curl`, `wget`, `httpie` with `Accept: */*` get plain text
 3. **`Accept` header** — standard content negotiation
 4. **Default** — browsers get the SPA
+
+### Error Responses
+
+All error responses are structured JSON with `error` and `status` fields:
+
+```json
+{"error": "private/loopback IP not allowed", "status": 400}
+```
+
+This applies to 400 Bad Request, 404 Not Found, 429 Too Many Requests, and 500 Internal Server Error.
 
 ### Arbitrary IP Lookup (`?ip=`)
 
@@ -328,6 +341,7 @@ make dev          # Run dev server on :8080
 make tests        # Unit + Docker integration + Playwright E2E
 make integration  # Docker-based integration tests only
 make acceptance   # Playwright E2E tests against ip.pdt.sh
+make bench        # Run Criterion benchmarks
 make docker-build # Build production Docker image
 ```
 
