@@ -132,18 +132,18 @@ pub struct Location {
 impl Location {
     pub fn unknown() -> Self {
         Location {
-            city: Some("unknown".to_string()),
+            city: None,
             region: None,
             region_code: None,
-            country: Some("unknown".to_string()),
-            country_iso: Some("unknown".to_string()),
+            country: None,
+            country_iso: None,
             postal_code: None,
             is_eu: None,
             latitude: None,
             longitude: None,
-            timezone: Some("unknown".to_string()),
-            continent: Some("unknown".to_string()),
-            continent_code: Some("unknown".to_string()),
+            timezone: None,
+            continent: None,
+            continent_code: None,
             accuracy_radius_km: None,
         }
     }
@@ -160,7 +160,7 @@ pub struct Isp {
 impl Isp {
     pub fn unknown() -> Self {
         Isp {
-            name: Some("unknown".to_string()),
+            name: None,
             asn: None,
         }
     }
