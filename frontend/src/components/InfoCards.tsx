@@ -77,6 +77,22 @@ export default function InfoCards(props: Props) {
               </span>
             </div>
           </Show>
+          <Show when={props.data.hosting!.is_bot}>
+            <div class="card-row">
+              <span class="card-label">Bot</span>
+              <span class="card-value">
+                <span class="tor-badge tor">yes</span>
+              </span>
+            </div>
+          </Show>
+          <Show when={props.data.hosting!.is_threat}>
+            <div class="card-row">
+              <span class="card-label">Threat</span>
+              <span class="card-value">
+                <span class="tor-badge tor">yes</span>
+              </span>
+            </div>
+          </Show>
         </Show>
       </div>
 

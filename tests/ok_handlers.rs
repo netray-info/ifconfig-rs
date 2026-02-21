@@ -556,6 +556,8 @@ async fn handle_root_json_has_hosting() {
     assert!(json["hosting"]["is_tor"].is_boolean());
     assert!(json["hosting"]["is_vpn"].is_boolean());
     assert!(json["hosting"]["is_datacenter"].is_boolean());
+    assert!(json["hosting"]["is_bot"].is_boolean());
+    assert!(json["hosting"]["is_threat"].is_boolean());
 }
 
 #[tokio::test]

@@ -122,7 +122,7 @@ async fn dispatch_standard(
 
     let ua_ref = req_info.user_agent.as_deref();
     let ua_opt: Option<&str> = ua_ref;
-    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), &ctx.dns_resolver).await;
+    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver).await;
 
     match format {
         NegotiatedFormat::Html => unreachable!(),
@@ -510,7 +510,7 @@ async fn ip_version_dispatch(
 
     let ua_ref = req_info.user_agent.as_deref();
     let ua_opt: Option<&str> = ua_ref;
-    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), &ctx.dns_resolver).await;
+    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver).await;
 
     if ifconfig.ip.version != version {
         return (StatusCode::NOT_FOUND, "not implemented").into_response();

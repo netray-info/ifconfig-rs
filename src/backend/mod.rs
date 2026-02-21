@@ -133,10 +133,10 @@ impl Isp {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct Hosting {
-    /// Primary classification: "cloud", "vpn", "tor", "botnet_c2", "hosting", or "residential".
+    /// Primary classification: "cloud", "bot", "vpn", "tor", "botnet_c2", "threat", "hosting", or "residential".
     #[serde(rename = "type")]
     pub hosting_type: String,
-    /// Cloud / VPN / hosting provider name, if identified.
+    /// Cloud / VPN / hosting / bot provider name, if identified.
     pub provider: Option<String>,
     /// Cloud service name (e.g. "EC2", "Cloud Functions").
     pub service: Option<String>,
@@ -146,6 +146,8 @@ pub struct Hosting {
     pub is_vpn: bool,
     pub is_tor: bool,
     pub is_proxy: bool,
+    pub is_bot: bool,
+    pub is_threat: bool,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -170,6 +172,9 @@ pub struct IfconfigParam<'a> {
     pub feodo_botnet_ips: Option<&'a FeodoBotnetIps>,
     pub vpn_ranges: Option<&'a VpnRanges>,
     pub cloud_provider_db: Option<&'a CloudProviderDb>,
+    pub datacenter_ranges: Option<&'a DatacenterRanges>,
+    pub bot_db: Option<&'a BotDb>,
+    pub spamhaus_drop: Option<&'a SpamhausDrop>,
     pub dns_resolver: &'a ResolverGroup,
 }
 
@@ -243,6 +248,20 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         .map(|db| db.lookup(param.remote.ip()))
         .unwrap_or(false);
 
+    let bot = param
+        .bot_db
+        .and_then(|db| db.lookup(param.remote.ip()).cloned());
+
+    let is_threat = param
+        .spamhaus_drop
+        .map(|db| db.lookup(param.remote.ip()))
+        .unwrap_or(false);
+
+    let dc_range_match = param
+        .datacenter_ranges
+        .map(|db| db.lookup(param.remote.ip()))
+        .unwrap_or(false);
+
     let asn_class = isp
         .name
         .as_deref()
@@ -252,13 +271,19 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
     let is_vpn = vpn_cidr
         || matches!(asn_class, asn_heuristic::AsnClassification::Vpn { .. });
 
+    let is_bot = bot.is_some();
+
     let is_datacenter = cloud.is_some()
+        || dc_range_match
         || matches!(asn_class, asn_heuristic::AsnClassification::Hosting { .. });
 
-    // Build hosting object — primary type uses priority order
+    // Build hosting object — primary type uses priority order:
+    // cloud > bot > VPN > Tor > botnet_c2 > threat > hosting > residential
     let hosting = {
         let (hosting_type, provider) = if cloud.is_some() {
             ("cloud".to_string(), cloud.as_ref().map(|c| c.provider.clone()))
+        } else if is_bot {
+            ("bot".to_string(), bot.as_ref().map(|b| b.provider.clone()))
         } else if is_vpn {
             let vpn_provider = match &asn_class {
                 asn_heuristic::AsnClassification::Vpn { provider } => {
@@ -271,6 +296,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             ("tor".to_string(), None)
         } else if is_botnet_c2 {
             ("botnet_c2".to_string(), None)
+        } else if is_threat {
+            ("threat".to_string(), None)
         } else if is_datacenter {
             let hosting_provider = match &asn_class {
                 asn_heuristic::AsnClassification::Hosting { provider } => {
@@ -292,6 +319,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             is_vpn,
             is_tor,
             is_proxy: false,
+            is_bot,
+            is_threat,
         }
     };
 

@@ -15,6 +15,9 @@ pub(crate) async fn make_ifconfig(
     feodo_botnet_ips: Option<&FeodoBotnetIps>,
     vpn_ranges: Option<&VpnRanges>,
     cloud_provider_db: Option<&CloudProviderDb>,
+    datacenter_ranges: Option<&DatacenterRanges>,
+    bot_db: Option<&BotDb>,
+    spamhaus_drop: Option<&SpamhausDrop>,
     dns_resolver: &ResolverGroup,
 ) -> Ifconfig {
     let param = IfconfigParam {
@@ -27,6 +30,9 @@ pub(crate) async fn make_ifconfig(
         feodo_botnet_ips,
         vpn_ranges,
         cloud_provider_db,
+        datacenter_ranges,
+        bot_db,
+        spamhaus_drop,
         dns_resolver,
     };
     get_ifconfig(&param).await
@@ -181,6 +187,8 @@ pub mod all {
             lines.push(format!("vpn:        {}", h.is_vpn));
             lines.push(format!("tor:        {}", h.is_tor));
             lines.push(format!("proxy:      {}", h.is_proxy));
+            lines.push(format!("bot:        {}", h.is_bot));
+            lines.push(format!("threat:     {}", h.is_threat));
         }
         lines.push(format!("port:       {}", ifconfig.tcp.port));
         if let Some(ref ua) = ifconfig.user_agent {
