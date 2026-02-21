@@ -127,10 +127,6 @@ fn respond_json_value(value: serde_json::Value) -> Response {
 }
 
 fn serve_spa() -> Response {
-    #[derive(rust_embed::RustEmbed)]
-    #[folder = "frontend/dist"]
-    struct Assets;
-
     match Assets::get("index.html") {
         Some(content) => {
             let body = std::str::from_utf8(content.data.as_ref()).unwrap_or("");
