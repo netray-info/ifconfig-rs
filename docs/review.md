@@ -1,0 +1,508 @@
+# Dev Review — Mitigation Plan
+
+Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low.
+
+| Severity | Count |
+|----------|-------|
+| Critical | 0     |
+| High     | 4     |
+| Medium   | 18    |
+| Low      | 15    |
+
+---
+
+## Phase 1: Security Hardening
+
+High-priority items that reduce attack surface. Mostly small, isolated changes.
+
+### M2. No Request Body Size Limit — Effort: S
+
+**Severity**: Medium | **Category**: Security
+
+**Problem**: No `DefaultBodyLimit` layer configured. The batch endpoint reads the entire body as `Bytes` (`src/routes.rs:753`). A multi-GB JSON payload would be buffered and deserialized before any size check.
+
+**Mitigation**: Add `DefaultBodyLimit::max(1_048_576)` (1 MB) as a tower layer in `build_app()`.
+
+**Files**: `src/lib.rs`
+
+---
+
+### M4. IPv6 Private Address Validation Gap — Effort: S
+
+**Severity**: Medium | **Category**: Security
+
+**Problem**: `is_global_ip()` (`src/routes.rs:162-170`) accepts all non-loopback/unspecified IPv6 addresses including ULA (`fc00::/7`), link-local (`fe80::/10`), and IPv4-mapped private addresses (`::ffff:10.0.0.1`). Combined with `?dns=true`, this enables internal DNS enumeration.
+
+**Mitigation**: Extend `is_global_ip()` to reject ULA, link-local, and IPv4-mapped private addresses.
+
+**Files**: `src/routes.rs`
+
+---
+
+### M1. Batch Endpoint Bypasses Rate Limiting — Effort: M
+
+**Severity**: Medium | **Category**: Security
+
+**Problem**: `/batch` is exempt from middleware rate limiting (`src/middleware.rs:52`). The internal `check_key_n` call silently ignores `InsufficientCapacity` errors (`src/routes.rs:813-818`), processing requests anyway when `max_size > per_ip_burst`.
+
+**Mitigation**: Enforce rate limiting on the batch endpoint. Return 429 when `check_key_n` fails instead of silently proceeding.
+
+**Files**: `src/routes.rs`, `src/middleware.rs`
+
+---
+
+### M3. Missing Content-Security-Policy Header — Effort: S
+
+**Severity**: Medium | **Category**: Security
+
+**Problem**: `security_headers` middleware (`src/middleware.rs:87-116`) sets X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, but no CSP. The Scalar docs page loads JS from `cdn.jsdelivr.net` without SRI hash.
+
+**Mitigation**: Add a Content-Security-Policy header to the security headers middleware. Add SRI `integrity` and `crossorigin` attributes to the CDN script tag.
+
+**Files**: `src/middleware.rs`, `src/scalar_docs.html`
+
+---
+
+### L5. `Location::unknown()` Uses Strings Instead of None — Effort: S
+
+**Severity**: Low | **Category**: Code Quality / API Design
+
+**Problem**: `src/backend/mod.rs:133-150` sets fields to `Some("unknown")` instead of `None`. API consumers can't distinguish "no data" from "literally the word unknown."
+
+**Mitigation**: Use `None` instead of `Some("unknown")` for missing data. This is a behavioral change — verify downstream consumers handle `null` correctly.
+
+**Files**: `src/backend/mod.rs`
+
+---
+
+### L9. Batch Input Reflected Unsanitized in Error Responses — Effort: S
+
+**Severity**: Low | **Category**: Security
+
+**Problem**: `src/routes.rs:838,844` echoes `ip_str` verbatim in error messages. Very long strings amplify response size.
+
+**Mitigation**: Truncate reflected input in error messages (e.g., first 45 characters).
+
+**Files**: `src/routes.rs`
+
+---
+
+### L10. CDN Script Without SRI Hash — Effort: S
+
+**Severity**: Low | **Category**: Security
+
+**Problem**: `src/scalar_docs.html:10` loads Scalar from jsdelivr without an `integrity` attribute. CDN compromise would execute arbitrary JS.
+
+**Mitigation**: Add `integrity` and `crossorigin="anonymous"` attributes to the script tag. (Can be combined with M3.)
+
+**Files**: `src/scalar_docs.html`
+
+---
+
+## Phase 2: Correctness & Reliability
+
+Fixes for correctness bugs, data loss risks, and reliability issues.
+
+### H1. Synchronous Blocking I/O in Async Context — Effort: M
+
+**Severity**: High | **Category**: Code Quality / Performance
+
+**Problem**: All backend `from_file()` methods use `std::fs::read_to_string` but are called from the async `EnrichmentContext::load()`. This blocks a tokio worker thread during startup and SIGHUP reload.
+
+**Mitigation**: Use `tokio::fs::read_to_string` or wrap the file reads in `tokio::task::spawn_blocking`.
+
+**Files**: `src/enrichment.rs`, `src/backend/cloud_provider.rs:26`, `src/backend/vpn.rs:10`, `src/backend/bot.rs:22`, `src/backend/datacenter.rs:10`, `src/backend/spamhaus.rs:10`, `src/backend/feodo.rs:8`, `src/backend/mod.rs:76`
+
+---
+
+### L1. Spamhaus DROP Inline Comments Silently Dropped — Effort: S
+
+**Severity**: Low | **Category**: Code Quality
+
+**Problem**: `src/backend/spamhaus.rs:14-19` doesn't handle ` ; SB123456` inline comments. Lines with trailing comments fail `parse::<IpNetwork>()` and are silently dropped, reducing coverage.
+
+**Mitigation**: Strip inline comments (everything after ` ;`) before parsing.
+
+**Files**: `src/backend/spamhaus.rs`
+
+---
+
+### L2. X-Request-Id Not Propagated to Request Headers — Effort: S
+
+**Severity**: Low | **Category**: Observability
+
+**Problem**: Generated request IDs are only set on the response (`src/middleware.rs:35-48`). The `TraceLayer` span tries to read from request headers, so server-generated IDs always show as `"-"` in logs.
+
+**Mitigation**: Also insert generated request IDs into the request headers before the span is created.
+
+**Files**: `src/middleware.rs`
+
+---
+
+### L7. DNS PTR Lookup Has No Timeout — Effort: S
+
+**Severity**: Low | **Category**: Reliability / Performance
+
+**Problem**: `src/backend/mod.rs:230-245` has no explicit timeout on DNS lookups. A slow DNS server stalls request handling.
+
+**Mitigation**: Wrap DNS lookups in `tokio::time::timeout` (e.g., 2 seconds).
+
+**Files**: `src/backend/mod.rs`
+
+---
+
+### M11. `u64` to `u32` Truncation in Rate Config — Effort: S
+
+**Severity**: Medium | **Category**: Code Quality
+
+**Problem**: `src/state.rs:49` casts `per_ip_per_minute` from `u64` to `u32` with silent truncation.
+
+**Mitigation**: Use `u32::try_from().unwrap_or(u32::MAX)` or change the config field type to `u32`.
+
+**Files**: `src/state.rs` or `src/config.rs`
+
+---
+
+## Phase 3: Code Quality & Cleanup
+
+Internal quality improvements. No user-visible behavior changes.
+
+### M5. Manual Config Clone is Fragile — Effort: S
+
+**Severity**: Medium | **Category**: Code Quality
+
+**Problem**: `src/state.rs:96-127` manually clones every `Config` field. Adding a new field requires updating this block or it's silently dropped.
+
+**Mitigation**: Derive `Clone` on `Config` and replace the manual field-by-field clone with `config.clone()`.
+
+**Files**: `src/config.rs`, `src/state.rs`
+
+---
+
+### M6. Duplicate `RustEmbed` Derivation — Effort: S
+
+**Severity**: Medium | **Category**: Code Quality
+
+**Problem**: `Assets` struct is derived twice: `src/routes.rs:130` (inside `serve_spa()`) and `src/routes.rs:1098` (module level). Both compile to the same embed; one is redundant.
+
+**Mitigation**: Remove the duplicate derivation, keep the module-level one.
+
+**Files**: `src/routes.rs`
+
+---
+
+### M7. Dead Code (6 items) — Effort: S
+
+**Severity**: Medium | **Category**: Code Quality
+
+**Problem**: Several functions and enum variants are never used:
+- `not_found_handler()` in `src/middleware.rs:144`
+- `AppError::NotFound`, `AppError::IpVersionMismatch`, `AppError::Internal` in `src/error.rs:24-29`
+- `OutputFormat::from_name`, `OutputFormat::mime_type` in `src/format.rs:13,23` (only used in tests)
+
+**Mitigation**: Remove dead code. Gate test-only items with `#[cfg(test)]`.
+
+**Files**: `src/middleware.rs`, `src/error.rs`, `src/format.rs`
+
+---
+
+### M8. `is_proxy` Always False — Effort: S
+
+**Severity**: Medium | **Category**: Code Quality / API Design
+
+**Problem**: `Network.is_proxy` in `src/backend/mod.rs:382` is hardcoded to `false` everywhere. Dead field that misleads API consumers.
+
+**Mitigation**: Remove the field, or add a `TODO` with the reason it's kept for future use.
+
+**Files**: `src/backend/mod.rs`
+
+---
+
+### M10. Route Handler Boilerplate — Effort: M
+
+**Severity**: Medium | **Category**: Code Quality
+
+**Problem**: ~15 handler pairs (`X_handler` + `X_format_handler`) repeat the same 4-line pattern. ~500 lines of duplication.
+
+**Mitigation**: Extract a macro or factory function to generate handler pairs.
+
+**Files**: `src/routes.rs`
+
+---
+
+### L14. Unused `_state` Parameter — Effort: S
+
+**Severity**: Low | **Category**: Code Quality
+
+**Problem**: `src/routes.rs:56` takes `_state: AppState` that is never used, forcing an unnecessary `.clone()` on every request through the dispatcher.
+
+**Mitigation**: Remove the unused parameter and update the route registration in `src/lib.rs`.
+
+**Files**: `src/routes.rs`, `src/lib.rs`
+
+---
+
+## Phase 4: Dependencies & Build
+
+Dependency hygiene, CI improvements, and supply-chain hardening.
+
+### M9. `serde_yaml` is Unmaintained — Effort: M
+
+**Severity**: Medium | **Category**: Dependencies
+
+**Problem**: `serde_yaml = "0.9"` was deprecated by dtolnay in January 2024. The crate is no longer maintained.
+
+**Mitigation**: Migrate to `serde_yml` (maintained fork with compatible API).
+
+**Files**: `Cargo.toml`, `src/format.rs`
+
+---
+
+### L6. `tokio = { features = ["full"] }` — Effort: S
+
+**Severity**: Low | **Category**: Build
+
+**Problem**: `Cargo.toml:49` pulls in all tokio features. Only `rt-multi-thread`, `net`, `macros`, `signal`, `sync`, `time` are needed.
+
+**Mitigation**: Replace `features = ["full"]` with the specific required features. Verify build still compiles.
+
+**Files**: `Cargo.toml`
+
+---
+
+### L15. Typo in CI Job Name — Effort: S
+
+**Severity**: Low | **Category**: CI
+
+**Problem**: `.github/workflows/ci.yml:46` says "Cargo Ftm" instead of "Cargo Fmt".
+
+**Mitigation**: Fix the typo.
+
+**Files**: `.github/workflows/ci.yml`
+
+---
+
+### M12. CI Does Not Run Integration Tests — Effort: S
+
+**Severity**: Medium | **Category**: CI / Test Coverage
+
+**Problem**: `ci.yml:61` runs only `cargo test --lib`. The in-process integration tests (`tests/ok_handlers.rs`, `tests/error_handler.rs`, `tests/rate_limit.rs`) are fast and could catch regressions missed by unit tests, but only run inside Docker.
+
+**Mitigation**: Add a CI step that runs `cargo test` (without `--lib` filter), or at least `cargo test --test ok_handlers --test error_handler --test rate_limit`.
+
+**Files**: `.github/workflows/ci.yml`
+
+---
+
+### L13. CI Action Versions Not SHA-Pinned — Effort: S
+
+**Severity**: Low | **Category**: CI / Security
+
+**Problem**: `actions/checkout@v3` is tag-based (mutable), while Docker actions are SHA-pinned. Inconsistent pinning across workflows.
+
+**Mitigation**: SHA-pin all third-party actions for supply-chain safety.
+
+**Files**: `.github/workflows/ci.yml`, `.github/workflows/docker-prod-image.yml`
+
+---
+
+### L12. Koyeb CLI Installed via Piped Curl — Effort: S
+
+**Severity**: Low | **Category**: CI / Security
+
+**Problem**: `.github/workflows/docker-prod-image.yml:26` runs `curl | sh` without checksum verification. Supply chain risk in CI.
+
+**Mitigation**: Pin to a specific Koyeb CLI version and verify checksum, or use an official GitHub Action.
+
+**Files**: `.github/workflows/docker-prod-image.yml`
+
+---
+
+## Phase 5: Frontend Improvements
+
+Accessibility, SEO, and UX polish for the SolidJS SPA.
+
+### H2 + H3. ARIA Labels and Focus Styles — Effort: M
+
+**Severity**: High | **Category**: Accessibility
+
+**Problem (H2)**: Zero `aria-*` attributes in the entire frontend. Icon-only buttons (copy, theme toggle) have no accessible names. Collapsible sections lack `aria-expanded`/`aria-controls`.
+
+**Problem (H3)**: `global.css` has zero `:focus` or `:focus-visible` rules. Keyboard navigation has no visible indicator.
+
+**Mitigation**:
+- Add `aria-label` to all icon-only buttons (copy, theme toggle)
+- Add `aria-expanded` and `aria-controls` to collapsible/disclosure sections
+- Add `role="status"` to loading spinner
+- Add `:focus-visible` styles using the existing `--accent` custom property
+
+**Files**: `frontend/src/components/ThemeToggle.tsx`, `frontend/src/components/IpDisplay.tsx`, `frontend/src/components/RequestHeaders.tsx`, `frontend/src/components/ApiExplorer.tsx`, `frontend/src/components/Faq.tsx`, `frontend/src/styles/global.css`
+
+---
+
+### H4. Missing SEO Meta Tags — Effort: S
+
+**Severity**: High | **Category**: SEO
+
+**Problem**: `index.html` is missing `<meta name="description">`, Open Graph tags, Twitter Card tags, `<meta name="theme-color">`, and `<link rel="canonical">`. Hurts discoverability and social sharing for a public service.
+
+**Mitigation**: Add standard SEO meta tags, Open Graph tags (`og:title`, `og:description`, `og:url`, `og:type`), Twitter Card tags, `theme-color`, and canonical link.
+
+**Files**: `frontend/index.html`
+
+---
+
+### M14. Theme Flash of Unstyled Content — Effort: S
+
+**Severity**: Medium | **Category**: UX
+
+**Problem**: Theme is applied in `onMount` of `ThemeToggle.tsx`. Light-mode users see a flash of the dark theme before JavaScript executes.
+
+**Mitigation**: Add an inline `<script>` in `index.html` that reads `localStorage` and sets `data-theme` attribute synchronously before rendering.
+
+**Files**: `frontend/index.html`, `frontend/src/components/ThemeToggle.tsx`
+
+---
+
+### M15. No Error Boundary — Effort: S
+
+**Severity**: Medium | **Category**: UX / Reliability
+
+**Problem**: No `<ErrorBoundary>` wrapping the app. Any rendering exception crashes to a white screen.
+
+**Mitigation**: Add a SolidJS `<ErrorBoundary>` component wrapping the app root with a user-friendly fallback.
+
+**Files**: `frontend/src/App.tsx` or `frontend/src/index.tsx`
+
+---
+
+### M16. Light Mode Contrast Failure — Effort: S
+
+**Severity**: Medium | **Category**: Accessibility
+
+**Problem**: `--text-muted: #a1a1aa` on `--bg-card: #ffffff` has ~2.6:1 contrast ratio — fails WCAG AA minimum (4.5:1).
+
+**Mitigation**: Darken `--text-muted` in the light theme (e.g., `#6b6b73` for ~5:1 ratio).
+
+**Files**: `frontend/src/styles/global.css`
+
+---
+
+### M17. Missing Tablet Breakpoint — Effort: S
+
+**Severity**: Medium | **Category**: UX / Responsive Design
+
+**Problem**: Only one breakpoint at 600px. The 3-column card grid is cramped between 601-900px on tablets.
+
+**Mitigation**: Add a tablet breakpoint (e.g., `@media (max-width: 900px)`) transitioning from 3-column to 2-column.
+
+**Files**: `frontend/src/styles/global.css`
+
+---
+
+## Phase 6: Test Coverage
+
+Fill gaps identified in the coverage analysis. These can be tackled incrementally.
+
+### 6.1 `handlers.rs` Unit Tests — Effort: M
+
+All `to_json`/`to_plain` functions are untested, especially `None` paths for optional fields (`tcp`, `host`, `network`).
+
+**Files**: `src/handlers.rs`
+
+### 6.2 `middleware.rs` Unit Tests — Effort: M
+
+`generate_request_id`, `security_headers`, and request ID propagation are all untested.
+
+**Files**: `src/middleware.rs`
+
+### 6.3 `config.rs` Unit Tests — Effort: S
+
+`Config::load()`, env var overrides, default values, and invalid TOML handling.
+
+**Files**: `src/config.rs`
+
+### 6.4 Security Header Integration Assertions — Effort: S
+
+No integration test asserts on the presence or value of security headers (CSP, HSTS, X-Frame-Options, etc.).
+
+**Files**: `tests/ok_handlers.rs`
+
+### 6.5 Batch `max_size` Rejection Test — Effort: S
+
+No test verifies the 400 response when batch size exceeds `max_size`.
+
+**Files**: `tests/ok_handlers.rs`
+
+### 6.6 `/ipv6` Endpoint Tests — Effort: S
+
+Zero integration tests for the `/ipv6` endpoint.
+
+**Files**: `tests/ok_handlers.rs`
+
+### 6.7 E2E: Use `baseURL` Instead of Hardcoded Prod URL — Effort: S
+
+Playwright tests are hardcoded to `https://ip.pdt.sh/` instead of reading from `baseURL` config. Can't run E2E against local dev.
+
+**Files**: `tests/e2e/`
+
+---
+
+## Phase 7: Documentation
+
+### M13. CLAUDE.md Inaccuracies — Effort: S
+
+**Severity**: Medium | **Category**: Documentation
+
+Corrections needed:
+- `make frontend` → `make frontend-build`
+- `make tests` → `make test`
+- Frontend component list outdated (says `ApiDocs`, should be `ApiExplorer`; missing `Faq`, `RequestHeaders`)
+- `/meta` endpoint undocumented
+- `/batch` rate-limit exemption undocumented
+- Hosting provider count: ~34 not ~40
+
+**Files**: `CLAUDE.md`
+
+---
+
+### M18. No CONTRIBUTING.md — Effort: S
+
+**Severity**: Medium | **Category**: Documentation
+
+No contributing guide explaining data directory setup, test environment, or PR process.
+
+**Mitigation**: Create `CONTRIBUTING.md` covering data setup, test instructions, and PR workflow.
+
+**Files**: `CONTRIBUTING.md` (new)
+
+---
+
+### L15. CI Typo (duplicate) — Effort: S
+
+Already tracked in Phase 4 (`.github/workflows/ci.yml:46` — "Cargo Ftm" → "Cargo Fmt").
+
+---
+
+## Additional Low-Priority Items
+
+These items are worth tracking but have minimal risk or impact.
+
+| ID  | Finding | Effort |
+|-----|---------|--------|
+| L3  | Rate limiter state grows unboundedly (`DashMap` has no cleanup) | M |
+| L4  | Sequential batch processing (slow with `?dns=true` + 100 IPs) | M |
+| L8  | Header filter uses `Vec<Regex>` instead of `RegexSet` | S |
+| L11 | Admin `/metrics` has no auth (mitigated by `127.0.0.1` bind) | S |
+
+---
+
+## Suggested Implementation Order
+
+1. **Phase 1** — Security hardening. Small changes, high value. Start with M2 (body limit) and M4 (IPv6 validation) as they're one-line fixes.
+2. **Phase 2** — Correctness. H1 (spawn_blocking) is the largest item; the rest are small.
+3. **Phase 4** — Dependencies. M9 (serde_yaml replacement) is the most involved; CI fixes are quick wins.
+4. **Phase 3** — Code cleanup. All items are safe refactors. M10 (handler macro) is the most involved.
+5. **Phase 5** — Frontend. H2+H3 (accessibility) has the highest user impact. SEO tags (H4) are a quick win.
+6. **Phase 6** — Tests. Tackle alongside the phases they relate to (e.g., write security header tests when adding CSP in Phase 1).
+7. **Phase 7** — Documentation. Can be done at any time.
