@@ -36,6 +36,8 @@ pub fn router(_state: AppState) -> Router<AppState> {
         .route("/isp/{fmt}", get(isp_format_handler))
         .route("/user_agent", get(user_agent_handler))
         .route("/user_agent/{fmt}", get(user_agent_format_handler))
+        .route("/hosting", get(hosting_handler))
+        .route("/hosting/{fmt}", get(hosting_format_handler))
         .route("/all", get(all_handler))
         .route("/all/{fmt}", get(all_format_handler))
         .route("/headers", get(headers_handler))
@@ -374,6 +376,41 @@ async fn user_agent_format_handler(
         &state,
         handlers::user_agent::to_json,
         handlers::user_agent::to_plain,
+    )
+    .await
+}
+
+async fn hosting_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(None, &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::hosting::to_json,
+        handlers::hosting::to_plain,
+    )
+    .await
+}
+
+async fn hosting_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(Some(&fmt), &headers);
+    dispatch_standard(
+        format,
+        &req_info,
+        &state,
+        handlers::hosting::to_json,
+        handlers::hosting::to_plain,
     )
     .await
 }

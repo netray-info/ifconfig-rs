@@ -128,6 +128,40 @@ pub mod location {
     }
 }
 
+pub mod hosting {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(&ifconfig.hosting).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        match ifconfig.hosting {
+            Some(ref h) => {
+                let mut lines = Vec::new();
+                lines.push(format!("type:       {}", h.hosting_type));
+                if let Some(ref provider) = h.provider {
+                    lines.push(format!("provider:   {}", provider));
+                }
+                if let Some(ref service) = h.service {
+                    lines.push(format!("service:    {}", service));
+                }
+                if let Some(ref region) = h.region {
+                    lines.push(format!("region:     {}", region));
+                }
+                lines.push(format!("datacenter: {}", h.is_datacenter));
+                lines.push(format!("vpn:        {}", h.is_vpn));
+                lines.push(format!("tor:        {}", h.is_tor));
+                lines.push(format!("proxy:      {}", h.is_proxy));
+                lines.push(format!("bot:        {}", h.is_bot));
+                lines.push(format!("threat:     {}", h.is_threat));
+                lines.join("\n") + "\n"
+            }
+            None => format!("{}\n", UNKNOWN_STR),
+        }
+    }
+}
+
 pub mod all {
     use super::*;
 

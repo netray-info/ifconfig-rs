@@ -2,7 +2,7 @@ import { createSignal, createEffect, on, For, Show } from "solid-js";
 
 const ENDPOINTS = [
   "/", "/ip", "/tcp", "/host", "/location", "/isp",
-  "/user_agent", "/headers", "/all", "/ipv4", "/ipv6",
+  "/hosting", "/user_agent", "/headers", "/all", "/ipv4", "/ipv6",
 ] as const;
 
 const FORMATS = ["plain", "json", "yaml", "toml", "csv"] as const;

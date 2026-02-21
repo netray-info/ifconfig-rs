@@ -569,6 +569,54 @@ async fn handle_all_plain_includes_hosting() {
     assert!(body.contains("tor:"));
 }
 
+#[tokio::test]
+async fn handle_hosting_plain_cli() {
+    let req = get_with_headers("/hosting", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_plain(&ct));
+    assert!(body.contains("type:"));
+    assert!(body.contains("datacenter:"));
+    assert!(body.contains("bot:"));
+    assert!(body.contains("threat:"));
+}
+
+#[tokio::test]
+async fn handle_hosting_json() {
+    let req = get_with_headers("/hosting", &[("accept", "application/json")]);
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_json(&ct));
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(json["type"].is_string());
+    assert!(json["is_datacenter"].is_boolean());
+    assert!(json["is_bot"].is_boolean());
+    assert!(json["is_threat"].is_boolean());
+}
+
+#[tokio::test]
+async fn handle_hosting_json_suffix() {
+    let req = get("/hosting/json");
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_json(&ct));
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(json["type"].is_string());
+}
+
+#[tokio::test]
+async fn handle_hosting_yaml_suffix() {
+    let req = get("/hosting/yaml");
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_yaml(&ct));
+    assert!(body.contains("type:"));
+}
+
 // --- Cache-Control tests ---
 
 #[tokio::test]
