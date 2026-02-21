@@ -81,14 +81,14 @@ pub fn extract_headers(headers: &HeaderMap) -> Vec<(String, String)> {
 /// Remove headers whose names match any of the provided regex filters.
 pub fn filter_headers(
     headers: Vec<(String, String)>,
-    filters: &[regex::Regex],
+    filters: &regex::RegexSet,
 ) -> Vec<(String, String)> {
     if filters.is_empty() {
         return headers;
     }
     headers
         .into_iter()
-        .filter(|(name, _)| !filters.iter().any(|re| re.is_match(name)))
+        .filter(|(name, _)| !filters.is_match(name))
         .collect()
 }
 
@@ -175,7 +175,8 @@ mod tests {
             ("host".into(), "example.com".into()),
             ("x-koyeb-id".into(), "abc".into()),
         ];
-        let result = filter_headers(headers.clone(), &[]);
+        let filters = regex::RegexSet::empty();
+        let result = filter_headers(headers.clone(), &filters);
         assert_eq!(result, headers);
     }
 
@@ -188,10 +189,7 @@ mod tests {
             ("cf-ray".into(), "123".into()),
             ("accept".into(), "*/*".into()),
         ];
-        let filters = vec![
-            regex::Regex::new("^x-koyeb-").unwrap(),
-            regex::Regex::new("^cf-").unwrap(),
-        ];
+        let filters = regex::RegexSet::new(["^x-koyeb-", "^cf-"]).unwrap();
         let result = filter_headers(headers, &filters);
         assert_eq!(
             result,
@@ -208,7 +206,7 @@ mod tests {
             ("host".into(), "example.com".into()),
             ("accept".into(), "text/html".into()),
         ];
-        let filters = vec![regex::Regex::new("^x-koyeb-").unwrap()];
+        let filters = regex::RegexSet::new(["^x-koyeb-"]).unwrap();
         let result = filter_headers(headers.clone(), &filters);
         assert_eq!(result, headers);
     }

@@ -6,7 +6,7 @@ use governor::middleware::StateInformationMiddleware;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
 use ip_network::IpNetwork;
-use regex::Regex;
+use regex::RegexSet;
 use serde::Serialize;
 use std::net::IpAddr;
 use std::num::NonZeroU32;
@@ -22,7 +22,7 @@ pub struct AppState {
     pub project_info: Arc<ProjectInfo>,
     pub enrichment: Arc<ArcSwap<EnrichmentContext>>,
     pub rate_limiter: Arc<KeyedRateLimiter>,
-    pub header_filters: Arc<Vec<Regex>>,
+    pub header_filters: Arc<RegexSet>,
     pub trusted_proxies: Arc<Vec<IpNetwork>>,
 }
 
@@ -55,17 +55,19 @@ impl AppState {
             config.rate_limit.per_ip_per_minute, config.rate_limit.per_ip_burst
         );
 
-        let header_filters: Vec<Regex> = config
+        let valid_patterns: Vec<&str> = config
             .filtered_headers
             .iter()
-            .filter_map(|pattern| match Regex::new(pattern) {
-                Ok(re) => Some(re),
+            .filter(|pattern| match regex::Regex::new(pattern) {
+                Ok(_) => true,
                 Err(e) => {
                     warn!("Invalid header filter regex '{}': {}", pattern, e);
-                    None
+                    false
                 }
             })
+            .map(|s| s.as_str())
             .collect();
+        let header_filters = RegexSet::new(&valid_patterns).expect("pre-validated regex patterns");
         if !header_filters.is_empty() {
             info!("Header filters loaded: {} patterns", header_filters.len());
         }
