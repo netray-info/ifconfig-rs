@@ -77,6 +77,31 @@ pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Res
     response
 }
 
+pub async fn geoip_date_headers(State(state): State<AppState>, req: Request<axum::body::Body>, next: Next) -> Response {
+    let mut response = next.run(req).await;
+
+    let ctx = state.enrichment.load();
+    if let Some(epoch) = ctx.geoip_city_build_epoch {
+        use std::time::{Duration, SystemTime, UNIX_EPOCH};
+        let build_time = UNIX_EPOCH + Duration::from_secs(epoch);
+        let date_str = httpdate::fmt_http_date(build_time);
+        if let Ok(val) = HeaderValue::from_str(&date_str) {
+            response.headers_mut().insert("x-geoip-database-date", val);
+        }
+        let age_days = SystemTime::now()
+            .duration_since(build_time)
+            .unwrap_or_default()
+            .as_secs()
+            / 86400;
+        response.headers_mut().insert(
+            "x-geoip-database-age-days",
+            HeaderValue::from(age_days),
+        );
+    }
+
+    response
+}
+
 pub async fn not_found_handler() -> (StatusCode, &'static str) {
     (StatusCode::NOT_FOUND, "not implemented")
 }

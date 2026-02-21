@@ -49,6 +49,7 @@ pub async fn build_app(config: &Config) -> AppBundle {
         .merge(api_routes)
         .fallback(routes::static_handler)
         .layer(axum_mw::from_fn(middleware::security_headers))
+        .layer(axum_mw::from_fn_with_state(state.clone(), middleware::geoip_date_headers))
         .layer(axum_mw::from_fn_with_state(state.clone(), middleware::rate_limit))
         .layer(axum_mw::from_fn_with_state(
             state.clone(),

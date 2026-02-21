@@ -47,6 +47,10 @@ impl GeoIpCityDb {
     pub fn lookup(&self, ip: IpAddr) -> Option<geoip2::City<'_>> {
         self.0.lookup(ip).ok().and_then(|r| r.decode().ok().flatten())
     }
+
+    pub fn build_epoch(&self) -> u64 {
+        self.0.metadata.build_epoch
+    }
 }
 
 pub struct GeoIpAsnDb(maxminddb::Reader<Vec<u8>>);

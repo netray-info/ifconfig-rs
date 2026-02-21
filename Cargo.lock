@@ -1234,6 +1234,7 @@ dependencies = [
  "config",
  "governor",
  "http-body-util",
+ "httpdate",
  "hyper-util",
  "ip_network",
  "ip_network_table",

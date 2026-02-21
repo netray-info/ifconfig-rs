@@ -20,6 +20,7 @@ pub struct EnrichmentContext {
     pub bot_db: Option<Arc<BotDb>>,
     pub spamhaus_drop: Option<Arc<SpamhausDrop>>,
     pub dns_resolver: Arc<ResolverGroup>,
+    pub geoip_city_build_epoch: Option<u64>,
 }
 
 impl EnrichmentContext {
@@ -156,6 +157,8 @@ impl EnrichmentContext {
             .expect("Failed to create DNS resolver from system config");
         info!("DNS resolver initialized from system config");
 
+        let geoip_city_build_epoch = geoip_city_db.as_ref().map(|db| db.build_epoch());
+
         EnrichmentContext {
             user_agent_parser,
             geoip_city_db,
@@ -168,6 +171,7 @@ impl EnrichmentContext {
             bot_db,
             spamhaus_drop,
             dns_resolver: Arc::new(dns_resolver),
+            geoip_city_build_epoch,
         }
     }
 }
