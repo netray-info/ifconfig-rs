@@ -12,9 +12,9 @@ pub struct Host {
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct Ip<'a> {
+pub struct Ip {
     pub addr: String,
-    pub version: &'a str,
+    pub version: String,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -73,57 +73,57 @@ impl TorExitNodes {
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct Location<'a> {
-    pub city: Option<&'a str>,
-    pub country: Option<&'a str>,
-    pub country_iso: Option<&'a str>,
+pub struct Location {
+    pub city: Option<String>,
+    pub country: Option<String>,
+    pub country_iso: Option<String>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
-    pub timezone: Option<&'a str>,
-    pub continent: Option<&'a str>,
-    pub continent_code: Option<&'a str>,
+    pub timezone: Option<String>,
+    pub continent: Option<String>,
+    pub continent_code: Option<String>,
 }
 
-impl Location<'_> {
+impl Location {
     pub fn unknown() -> Self {
         Location {
-            city: Some("unknown"),
-            country: Some("unknown"),
-            country_iso: Some("unknown"),
+            city: Some("unknown".to_string()),
+            country: Some("unknown".to_string()),
+            country_iso: Some("unknown".to_string()),
             latitude: None,
             longitude: None,
-            timezone: Some("unknown"),
-            continent: Some("unknown"),
-            continent_code: Some("unknown"),
+            timezone: Some("unknown".to_string()),
+            continent: Some("unknown".to_string()),
+            continent_code: Some("unknown".to_string()),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct Isp<'a> {
-    pub name: Option<&'a str>,
+pub struct Isp {
+    pub name: Option<String>,
     pub asn: Option<u32>,
 }
 
-impl Isp<'_> {
+impl Isp {
     pub fn unknown() -> Self {
         Isp {
-            name: Some("unknown"),
+            name: Some("unknown".to_string()),
             asn: None,
         }
     }
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
-pub struct Ifconfig<'a> {
+pub struct Ifconfig {
     pub host: Option<Host>,
-    pub ip: Ip<'a>,
+    pub ip: Ip,
     pub tcp: Tcp,
-    pub location: Location<'a>,
-    pub isp: Isp<'a>,
+    pub location: Location,
+    pub isp: Isp,
     pub is_tor: Option<bool>,
     pub user_agent: Option<UserAgent>,
-    pub user_agent_header: Option<&'a str>,
+    pub user_agent_header: Option<String>,
 }
 
 pub struct IfconfigParam<'a> {
@@ -135,7 +135,7 @@ pub struct IfconfigParam<'a> {
     pub tor_exit_nodes: &'a TorExitNodes,
 }
 
-pub fn get_ifconfig<'a>(param: &IfconfigParam<'a>) -> Ifconfig<'a> {
+pub fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
     let host = dns_lookup::lookup_addr(&param.remote.ip())
         .ok()
         .map(|h| Host { name: h });
@@ -144,7 +144,7 @@ pub fn get_ifconfig<'a>(param: &IfconfigParam<'a>) -> Ifconfig<'a> {
     let ip_version = if param.remote.is_ipv4() { "4" } else { "6" };
     let ip = Ip {
         addr: ip_addr,
-        version: ip_version,
+        version: ip_version.to_string(),
     };
 
     let tcp = Tcp {
@@ -155,14 +155,14 @@ pub fn get_ifconfig<'a>(param: &IfconfigParam<'a>) -> Ifconfig<'a> {
         .geoip_city_db
         .lookup(param.remote.ip())
         .map(|c| Location {
-            city: c.city.names.english,
-            country: c.country.names.english,
-            country_iso: c.country.iso_code,
+            city: c.city.names.english.map(|s| s.to_owned()),
+            country: c.country.names.english.map(|s| s.to_owned()),
+            country_iso: c.country.iso_code.map(|s| s.to_owned()),
             latitude: c.location.latitude,
             longitude: c.location.longitude,
-            timezone: c.location.time_zone,
-            continent: c.continent.names.english,
-            continent_code: c.continent.code,
+            timezone: c.location.time_zone.map(|s| s.to_owned()),
+            continent: c.continent.names.english.map(|s| s.to_owned()),
+            continent_code: c.continent.code.map(|s| s.to_owned()),
         })
         .unwrap_or(Location::unknown());
 
@@ -170,7 +170,7 @@ pub fn get_ifconfig<'a>(param: &IfconfigParam<'a>) -> Ifconfig<'a> {
         .geoip_asn_db
         .lookup(param.remote.ip())
         .map(|isp| Isp {
-            name: isp.autonomous_system_organization,
+            name: isp.autonomous_system_organization.map(|s| s.to_owned()),
             asn: isp.autonomous_system_number,
         })
         .unwrap_or(Isp::unknown());
@@ -187,7 +187,7 @@ pub fn get_ifconfig<'a>(param: &IfconfigParam<'a>) -> Ifconfig<'a> {
         isp,
         is_tor,
         user_agent,
-        user_agent_header: *param.user_agent_header,
+        user_agent_header: param.user_agent_header.map(|s| s.to_string()),
     }
 }
 

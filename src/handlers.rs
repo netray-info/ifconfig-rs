@@ -4,14 +4,14 @@ use std::net::SocketAddr;
 
 pub(crate) static UNKNOWN_STR: &str = "unknown";
 
-pub(crate) fn make_ifconfig<'a>(
-    remote: &'a SocketAddr,
-    user_agent: &'a Option<&'a str>,
-    user_agent_parser: &'a UserAgentParser,
-    geoip_city_db: &'a GeoIpCityDb,
-    geoip_asn_db: &'a GeoIpAsnDb,
-    tor_exit_nodes: &'a TorExitNodes,
-) -> Ifconfig<'a> {
+pub(crate) fn make_ifconfig(
+    remote: &SocketAddr,
+    user_agent: &Option<&str>,
+    user_agent_parser: &UserAgentParser,
+    geoip_city_db: &GeoIpCityDb,
+    geoip_asn_db: &GeoIpAsnDb,
+    tor_exit_nodes: &TorExitNodes,
+) -> Ifconfig {
     let param = IfconfigParam {
         remote,
         user_agent_header: user_agent,
@@ -122,7 +122,7 @@ handler!(host, ifconfig, { ifconfig.host }, Option<Host>, {
 });
 
 handler!(isp, ifconfig, { ifconfig.isp }, Isp, {
-    let name = ifconfig.isp.name.unwrap_or(UNKNOWN_STR);
+    let name = ifconfig.isp.name.as_deref().unwrap_or(UNKNOWN_STR);
     match ifconfig.isp.asn {
         Some(n) => format!("{} (AS{})\n", name, n),
         None => format!("{}\n", name),
@@ -130,11 +130,11 @@ handler!(isp, ifconfig, { ifconfig.isp }, Isp, {
 });
 
 handler!(location, ifconfig, { ifconfig.location }, Location, {
-    let city = ifconfig.location.city.unwrap_or(UNKNOWN_STR);
-    let country = ifconfig.location.country.unwrap_or(UNKNOWN_STR);
-    let iso = ifconfig.location.country_iso.unwrap_or(UNKNOWN_STR);
-    let continent = ifconfig.location.continent.unwrap_or(UNKNOWN_STR);
-    let timezone = ifconfig.location.timezone.unwrap_or(UNKNOWN_STR);
+    let city = ifconfig.location.city.as_deref().unwrap_or(UNKNOWN_STR);
+    let country = ifconfig.location.country.as_deref().unwrap_or(UNKNOWN_STR);
+    let iso = ifconfig.location.country_iso.as_deref().unwrap_or(UNKNOWN_STR);
+    let continent = ifconfig.location.continent.as_deref().unwrap_or(UNKNOWN_STR);
+    let timezone = ifconfig.location.timezone.as_deref().unwrap_or(UNKNOWN_STR);
     format!("{}, {} ({}), {}, {}\n", city, country, iso, continent, timezone)
 });
 
@@ -231,15 +231,15 @@ pub mod ip_version {
     use serde_json::Value as JsonValue;
     use std::net::SocketAddr;
 
-    fn lookup_ip<'a>(
+    fn lookup_ip(
         version: &str,
-        remote: &'a SocketAddr,
-        user_agent: &'a Option<&'a str>,
-        user_agent_parser: &'a UserAgentParser,
-        geoip_city_db: &'a GeoIpCityDb,
-        geoip_asn_db: &'a GeoIpAsnDb,
-        tor_exit_nodes: &'a TorExitNodes,
-    ) -> Option<Ip<'a>> {
+        remote: &SocketAddr,
+        user_agent: &Option<&str>,
+        user_agent_parser: &UserAgentParser,
+        geoip_city_db: &GeoIpCityDb,
+        geoip_asn_db: &GeoIpAsnDb,
+        tor_exit_nodes: &TorExitNodes,
+    ) -> Option<Ip> {
         let ifconfig = make_ifconfig(
             remote,
             user_agent,
