@@ -10,7 +10,7 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY src src/
 COPY --from=frontend /build/frontend/dist frontend/dist/
-RUN cargo build --release && cp $(find /build -xdev -name ifconfig-rs) /
+RUN cargo build --release --bins && cp $(find /build -xdev -name ifconfig-rs) /
 
 FROM ghcr.io/lukaspustina/ifconfig-rs-data:latest AS data
 
