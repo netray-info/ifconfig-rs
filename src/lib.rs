@@ -18,6 +18,7 @@ use axum::Router;
 use enrichment::EnrichmentContext;
 use state::AppState;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
 
 pub use config::Config;
 pub use state::ProjectInfo;
@@ -55,6 +56,7 @@ pub async fn build_app(config: &Config) -> AppBundle {
             state.clone(),
             extractors::requester_info_middleware,
         ))
+        .layer(TraceLayer::new_for_http())
         .with_state(state);
 
     let admin_app = config.server.admin_bind.as_ref().and_then(|_| {
