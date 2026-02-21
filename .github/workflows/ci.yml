@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Cargo Ftm
+      - name: Cargo Fmt
         run: cargo fmt  --check --verbose
 
   build-n-test:
