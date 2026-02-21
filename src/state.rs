@@ -114,6 +114,7 @@ impl AppState {
                 bot_ranges: config.bot_ranges.clone(),
                 spamhaus_drop: config.spamhaus_drop.clone(),
                 filtered_headers: config.filtered_headers.clone(),
+                watch_data_files: config.watch_data_files,
                 rate_limit: crate::config::RateLimitConfig {
                     per_ip_per_minute: config.rate_limit.per_ip_per_minute,
                     per_ip_burst: config.rate_limit.per_ip_burst,

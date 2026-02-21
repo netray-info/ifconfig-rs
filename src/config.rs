@@ -26,6 +26,11 @@ pub struct Config {
     /// excluded from `/headers` responses. Case-insensitive match.
     #[serde(default)]
     pub filtered_headers: Vec<String>,
+    /// When true, watch data file directories for changes and auto-reload
+    /// enrichment data (like SIGHUP but filesystem-triggered). Useful for
+    /// Kubernetes/Docker deployments with geoipupdate.
+    #[serde(default)]
+    pub watch_data_files: bool,
     #[serde(default)]
     pub rate_limit: RateLimitConfig,
     #[serde(default)]

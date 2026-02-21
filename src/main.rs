@@ -1,7 +1,10 @@
+use arc_swap::ArcSwap;
+use std::collections::HashSet;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tracing::info;
+use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
 use ifconfig_rs::{build_app, Config};
@@ -45,12 +48,14 @@ async fn main() {
                 tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()).expect("Failed to register SIGHUP handler");
             loop {
                 sig.recv().await;
-                info!("SIGHUP received, reloading enrichment data...");
-                let new_ctx = ifconfig_rs::enrichment::EnrichmentContext::load(&reload_config).await;
-                enrichment_handle.store(Arc::new(new_ctx));
-                info!("Enrichment data reloaded successfully");
+                reload_enrichment(&enrichment_handle, &reload_config, "SIGHUP").await;
             }
         });
+    }
+
+    // Spawn filesystem watcher for auto-reload (opt-in)
+    if config.watch_data_files {
+        spawn_file_watcher(Arc::clone(&config), Arc::clone(&bundle.enrichment_handle));
     }
 
     // Spawn admin server if configured
@@ -80,6 +85,102 @@ async fn main() {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("Server error");
+}
+
+async fn reload_enrichment(
+    handle: &Arc<ArcSwap<ifconfig_rs::enrichment::EnrichmentContext>>,
+    config: &Config,
+    trigger: &str,
+) {
+    info!("{} triggered, reloading enrichment data...", trigger);
+    let new_ctx = ifconfig_rs::enrichment::EnrichmentContext::load(config).await;
+    handle.store(Arc::new(new_ctx));
+    info!("Enrichment data reloaded successfully");
+}
+
+fn spawn_file_watcher(
+    config: Arc<Config>,
+    enrichment_handle: Arc<ArcSwap<ifconfig_rs::enrichment::EnrichmentContext>>,
+) {
+    use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+
+    // Collect unique parent directories of all configured data file paths
+    let data_paths: Vec<&Option<String>> = vec![
+        &config.geoip_city_db,
+        &config.geoip_asn_db,
+        &config.user_agent_regexes,
+        &config.tor_exit_nodes,
+        &config.cloud_provider_ranges,
+        &config.feodo_botnet_ips,
+        &config.vpn_ranges,
+        &config.datacenter_ranges,
+        &config.bot_ranges,
+        &config.spamhaus_drop,
+    ];
+    let watch_dirs: HashSet<PathBuf> = data_paths
+        .iter()
+        .filter_map(|opt| opt.as_deref())
+        .filter_map(|p| {
+            let path = PathBuf::from(p);
+            path.parent().map(|parent| parent.to_path_buf())
+        })
+        .filter(|dir| dir.exists())
+        .collect();
+
+    if watch_dirs.is_empty() {
+        warn!("watch_data_files enabled but no data file directories found to watch");
+        return;
+    }
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(16);
+
+    // Create watcher in a dedicated thread (notify uses sync callbacks)
+    std::thread::spawn(move || {
+        let tx_clone = tx.clone();
+        let mut watcher: RecommendedWatcher =
+            match notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
+                if let Ok(event) = res {
+                    use notify::EventKind;
+                    match event.kind {
+                        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
+                            let _ = tx_clone.try_send(());
+                        }
+                        _ => {}
+                    }
+                }
+            }) {
+                Ok(w) => w,
+                Err(e) => {
+                    tracing::error!("Failed to create filesystem watcher: {}", e);
+                    return;
+                }
+            };
+
+        for dir in &watch_dirs {
+            match watcher.watch(dir, RecursiveMode::NonRecursive) {
+                Ok(()) => info!("Watching directory for changes: {}", dir.display()),
+                Err(e) => warn!("Failed to watch {}: {}", dir.display(), e),
+            }
+        }
+
+        // Keep the watcher alive
+        std::thread::park();
+    });
+
+    // Debounce + reload loop
+    tokio::spawn(async move {
+        loop {
+            // Wait for first event
+            if rx.recv().await.is_none() {
+                break;
+            }
+            // Debounce: drain events for 500ms
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            while rx.try_recv().is_ok() {}
+
+            reload_enrichment(&enrichment_handle, &config, "File change").await;
+        }
+    });
 }
 
 async fn shutdown_signal() {

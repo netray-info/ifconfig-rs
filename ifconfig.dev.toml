@@ -17,6 +17,10 @@ spamhaus_drop = "data/spamhaus_drop.txt"
 # Regex patterns to exclude from /headers responses (matched against header names).
 filtered_headers = ["^x-koyeb-", "^cf-"]
 
+# Watch data file directories for changes and auto-reload (like SIGHUP).
+# Useful for Kubernetes/Docker deployments with geoipupdate.
+# watch_data_files = false
+
 [server]
 bind = "127.0.0.1:8080"
 admin_bind = "127.0.0.1:9090"

@@ -69,6 +69,15 @@ base_url = "ip.pdt.sh"
 # Env: IFCONFIG_FILTERED_HEADERS='["^x-koyeb-", "^cf-"]'
 # filtered_headers = ["^x-koyeb-", "^cf-"]
 
+# Watch data file directories for changes and auto-reload enrichment data.
+# When enabled, a filesystem watcher monitors the parent directories of all
+# configured data files. On file create/modify/remove events (debounced 500ms),
+# enrichment data is reloaded — equivalent to sending SIGHUP.
+# Useful for Kubernetes/Docker deployments where geoipupdate writes new files.
+# Default: false (disabled)
+# Env: IFCONFIG_WATCH_DATA_FILES=true
+# watch_data_files = true
+
 [server]
 # Address and port to bind the HTTP server to.
 # Default: "127.0.0.1:8080"
