@@ -53,7 +53,7 @@ use crate::state::AppState;
 struct ApiDoc;
 
 /// Build the main router.
-pub fn router(_state: AppState) -> Router<AppState> {
+pub fn router() -> Router<AppState> {
     Router::new()
         // Root endpoint
         .route("/", get(root_handler))

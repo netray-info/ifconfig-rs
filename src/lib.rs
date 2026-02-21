@@ -47,7 +47,7 @@ pub async fn build_app(config: &Config) -> AppBundle {
         metrics_process::Collector::default().describe();
     }
 
-    let api_routes = routes::router(state.clone());
+    let api_routes = routes::router();
 
     let cors = if config.server.cors_allowed_origins.iter().any(|o| o == "*") {
         CorsLayer::new().allow_origin(Any)
