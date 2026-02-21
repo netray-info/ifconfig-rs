@@ -1,7 +1,8 @@
 use axum::extract::State;
-use axum::http::{Request, StatusCode};
+use axum::http::{HeaderValue, Request, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use governor::clock::{Clock, DefaultClock};
 
 use crate::error::AppError;
 use crate::extractors::RequesterInfo;
@@ -12,14 +13,35 @@ pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::
         return next.run(req).await;
     }
 
-    if let Some(info) = req.extensions().get::<RequesterInfo>() {
-        let ip = info.remote.ip();
-        if state.rate_limiter.check_key(&ip).is_err() {
-            return AppError::RateLimited.into_response();
+    let ip = match req.extensions().get::<RequesterInfo>() {
+        Some(info) => info.remote.ip(),
+        None => return next.run(req).await,
+    };
+
+    let limit = state.config.rate_limit.per_ip_burst;
+
+    match state.rate_limiter.check_key(&ip) {
+        Ok(snapshot) => {
+            let mut response = next.run(req).await;
+            let h = response.headers_mut();
+            h.insert("x-ratelimit-limit", HeaderValue::from(limit));
+            h.insert(
+                "x-ratelimit-remaining",
+                HeaderValue::from(snapshot.remaining_burst_capacity()),
+            );
+            response
+        }
+        Err(not_until) => {
+            let wait = not_until.wait_time_from(DefaultClock::default().now());
+            let retry_after = wait.as_secs().saturating_add(1);
+            let mut response = AppError::RateLimited.into_response();
+            let h = response.headers_mut();
+            h.insert("x-ratelimit-limit", HeaderValue::from(limit));
+            h.insert("x-ratelimit-remaining", HeaderValue::from(0u32));
+            h.insert("retry-after", HeaderValue::from(retry_after));
+            response
         }
     }
-
-    next.run(req).await
 }
 
 pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Response {
