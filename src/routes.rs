@@ -537,29 +537,8 @@ async fn meta_handler(State(state): State<AppState>) -> Response {
 
 // ---- Health handler ----
 
-async fn health_handler(State(state): State<AppState>) -> Response {
-    let has_city_db = state.geoip_city_db.is_some();
-    let has_asn_db = state.geoip_asn_db.is_some();
-
-    if has_city_db && has_asn_db {
-        (StatusCode::OK, axum::Json(json!({ "status": "ok" }))).into_response()
-    } else {
-        let mut missing = Vec::new();
-        if !has_city_db {
-            missing.push("GeoIP City database not loaded");
-        }
-        if !has_asn_db {
-            missing.push("GeoIP ASN database not loaded");
-        }
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            axum::Json(json!({
-                "status": "unhealthy",
-                "reason": missing.join("; ")
-            })),
-        )
-            .into_response()
-    }
+async fn health_handler() -> Response {
+    (StatusCode::OK, axum::Json(json!({ "status": "ok" }))).into_response()
 }
 
 // ---- Readiness handler ----

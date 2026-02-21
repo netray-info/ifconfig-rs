@@ -40,6 +40,10 @@ base_url = "ip.pdt.sh"
 # Default: "127.0.0.1:8080"
 bind = "0.0.0.0:8080"
 
+# Optional admin port serving Prometheus /metrics and /health.
+# Disabled by default. Not rate-limited — protect via network policy.
+# admin_bind = "127.0.0.1:9090"
+
 # List of trusted proxy CIDR ranges for X-Forwarded-For parsing.
 # Only the rightmost untrusted IP in the XFF chain is used as the client IP.
 # Default: [] (no proxies trusted, peer IP is used directly)
