@@ -60,7 +60,8 @@ make docker-build            # Production Docker image
 ## Architecture
 
 ```
-Request → Middleware (security headers, requester info extraction)
+Request → TraceLayer (request logging)
+        → Middleware (requester info extraction, rate limiting, GeoIP date headers, security headers)
         → Router (content negotiation via negotiate()) → Handlers → Response (text/json/yaml/toml/csv/html)
 ```
 
@@ -69,9 +70,9 @@ Request → Middleware (security headers, requester info extraction)
 
 Key modules:
 - `src/lib.rs` — Module hub, `build_app()` returns `AppBundle` (main app + optional admin app), installs Prometheus metrics recorder
-- `src/main.rs` — tokio entry point, config loading, `--print-config` flag, `IFCONFIG_LOG_FORMAT=json` support, optional admin port, graceful shutdown
+- `src/main.rs` — tokio entry point, config loading, `--print-config` flag, `IFCONFIG_LOG_FORMAT=json` support, optional admin port, SIGHUP reload, optional filesystem watcher (`watch_data_files`), graceful shutdown
 - `src/config.rs` — `Config` struct (derives `Serialize` + `Deserialize`) loaded from config file + `IFCONFIG_` env vars via `config` crate
-- `src/state.rs` — `AppState` wrapping Arc'd backends (GeoIP, UA parser, Tor nodes); `KeyedRateLimiter` uses `StateInformationMiddleware` for burst-capacity tracking
+- `src/state.rs` — `AppState` wrapping Arc'd backends (GeoIP, UA parser, Tor nodes); `KeyedRateLimiter` uses `StateInformationMiddleware` for burst-capacity tracking; `trusted_proxies: Arc<Vec<IpNetwork>>` for CIDR-aware XFF parsing
 - `src/backend/mod.rs` — Core logic: `get_ifconfig()` orchestrates GeoIP, reverse DNS, UA parsing, network classification
 - `src/backend/user_agent.rs` — UA parsing wrapper around `uaparser`
 - `src/backend/asn_heuristic.rs` — ASN name-based classification (hosting/VPN detection by ISP name)
@@ -85,8 +86,8 @@ Key modules:
 - `src/routes.rs` — Axum router with explicit handler functions, `dispatch_standard()` compute-once dispatch, batch handler, OpenAPI spec via utoipa, static file serving via rust-embed
 - `src/handlers.rs` — Per-endpoint `to_json`/`to_plain` functions used as fn pointers by `dispatch_standard()`
 - `src/negotiate.rs` — Content negotiation: format suffix → CLI detection → Accept header → HTML default
-- `src/extractors.rs` — `RequesterInfo` extraction (IP from ConnectInfo/XFF, UA, URI)
-- `src/middleware.rs` — Security headers, cache control, rate limiting with `X-RateLimit-*` / `Retry-After` headers
+- `src/extractors.rs` — `RequesterInfo` extraction (IP from ConnectInfo/XFF with CIDR-aware trusted proxy matching, UA, URI)
+- `src/middleware.rs` — Security headers, cache control, rate limiting with `X-RateLimit-*` / `Retry-After` headers, `X-GeoIP-Database-Date` / `X-GeoIP-Database-Age-Days` headers
 - `src/error.rs` — `AppError` enum with `IntoResponse` impl
 - `src/format.rs` — `OutputFormat` enum with serialization to JSON/YAML/TOML/CSV/plain
 
@@ -139,6 +140,8 @@ enabled = true     # disabled by default
 max_size = 100     # max IPs per batch request
 ```
 
+`watch_data_files = true` enables filesystem watcher for auto-reload of data files (alternative to SIGHUP).
+
 Env var examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.pdt.sh`.
 Structured JSON logging: `IFCONFIG_LOG_FORMAT=json`.
 Print effective config and exit: `--print-config` flag.
@@ -152,7 +155,7 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 ## Common Patterns
 
 - Routes use explicit handler functions with `dispatch_standard()` for compute-once dispatch. Each handler module in `handlers.rs` exposes `to_json(&Ifconfig) -> Option<Value>` and `to_plain(&Ifconfig) -> String` fn pointers.
-- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `Location` includes `accuracy_radius_km: Option<u16>` from GeoIP. `Network` struct holds IP classification (type, provider, flags).
+- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `Location` includes `region`, `region_code`, `postal_code`, `is_eu`, and `accuracy_radius_km` from GeoIP. `Network` struct holds IP classification (type, provider, flags).
 - CLI client detection in `negotiate.rs` checks User-Agent patterns and `Accept: */*` header.
 - Config values are loaded from a TOML file (`ifconfig.dev.toml` for local dev) via the `config` crate with env var overrides.
 - `AppState` is shared via Axum's `State` extractor; all backends are `Arc`-wrapped.

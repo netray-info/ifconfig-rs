@@ -1,6 +1,6 @@
 # Software Design Document: ifconfig-rs Enrichment Evolution
 
-**Status:** Phases 1a, 1b, 2, 3 complete
+**Status:** Phases 1a, 1b, 2, 3, 4 complete
 **Date:** 2026-02-21 (updated)
 **Input:** [RFC crucible-rfc.md](crucible-rfc.md), multi-perspective design review, async migration analysis
 
@@ -322,6 +322,32 @@ This is a **breaking change** from the current API where `is_tor` is a top-level
 
 - **OpenAPI via utoipa:** The macro-free handler architecture from Phase 1a made utoipa viable (decision record confirmed). All 16 public handlers annotated with `#[utoipa::path]`. Response types derive `ToSchema`: `Ifconfig`, `Ip`, `Tcp`, `Host`, `Location`, `Isp`, `Network`, `UserAgent`, `Browser`, `OS`, `Device`. Spec served at `GET /api-docs/openapi.json`. Swagger UI deferred (adds too many deps for marginal value).
 
+### Phase 4: API Surface & Operational Polish ✓
+
+*Expanding the data model with already-available MaxMind data, fixing a documented bug, and adding operational features. **COMPLETED** 2026-02-21.*
+
+| # | Item | LOC | Status |
+|---|------|-----|--------|
+| 1 | Region/state, postal code, EU flag in Location | ~60 | Done |
+| 2 | Fix trusted proxies CIDR parsing | ~65 | Done |
+| 3 | X-GeoIP-Database-Date response header | ~35 | Done |
+| 4 | Structured request logging via TraceLayer | ~2 | Done |
+| 5 | `notify` filesystem watcher for auto-reload | ~120 | Done |
+
+**Milestone:** All 213 tests pass (108 unit + 99 ok_handlers + 1 error_handler + 5 rate_limit). No breaking API changes.
+
+**Implementation notes:**
+
+- **Location expansion:** Added `region`, `region_code`, `postal_code`, `is_eu` to `Location` struct. Extracted from MaxMind GeoLite2-City data already present but not surfaced: `subdivisions[0].names.english`, `subdivisions[0].iso_code`, `postal.code`, `country.is_in_european_union`. Frontend InfoCards component shows region between city and country, and an EU badge on country rows.
+
+- **Trusted proxies CIDR fix:** Config accepts `trusted_proxies = ["10.0.0.0/8"]` but `extractors.rs` only did `IpAddr::from_str()` which silently fails on CIDR strings. Moved CIDR parsing to `AppState::new()` using `ip_network::IpNetwork` (already a dependency). `extract_client_ip()` now accepts `&[IpNetwork]` and uses `.contains(ip)` for CIDR containment.
+
+- **X-GeoIP-Database-Date:** `GeoIpCityDb::build_epoch()` reads `metadata.build_epoch` from the MMDB reader. `EnrichmentContext` stores the epoch at load time. A new `geoip_date_headers` middleware emits `X-GeoIP-Database-Date` (HTTP date format via `httpdate`) and `X-GeoIP-Database-Age-Days` (integer) on all responses. Operators can alert on stale databases.
+
+- **TraceLayer:** Added `tower_http::trace::TraceLayer::new_for_http()` as outermost middleware layer. Logs HTTP method, URI, status code, and latency for every request. Works with both plain text and structured JSON logging (`IFCONFIG_LOG_FORMAT=json`).
+
+- **Filesystem watcher:** Opt-in `watch_data_files = true` config option. Spawns a `notify::RecommendedWatcher` monitoring parent directories of all configured data files with `NonRecursive` mode. Events are debounced via 500ms tokio sleep + channel drain, then trigger `reload_enrichment()` — the same function used by SIGHUP. Handles atomic renames (geoipupdate pattern). Reload logic extracted from SIGHUP handler into shared `reload_enrichment()` async fn.
+
 ---
 
 ## 5. Rate Limiting Model
@@ -381,7 +407,8 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 | 2 | `arc-swap` 1 | Atomic pointer swap for `EnrichmentContext` hot-reload via SIGHUP | **Added** |
 | 2 | `ip_network` 0.4 + `ip_network_table` 0.2 | IP prefix trie for cloud provider + VPN CIDR matching | **Added** |
 | 2 | `regex` 1 | ASN name pattern matching in heuristic classifier | **Added** |
-| 2 | `notify` | Filesystem watcher for automatic hot-reload (complement to SIGHUP) | Deferred — SIGHUP-only first |
+| 2 | `notify` 7 | Filesystem watcher for automatic hot-reload (complement to SIGHUP) | **Added** in Phase 4 — opt-in via `watch_data_files = true` |
+| 4 | `httpdate` 1 | HTTP date formatting for X-GeoIP-Database-Date header | **Added** in Phase 4 — already transitive dep of hyper |
 | 3 | `utoipa` 5 (features: `axum_extras`) | OpenAPI 3.1 spec generation from code annotations | **Added** — works cleanly with explicit handler functions from Phase 1a |
 
 `dns-lookup` was removed in Phase 1a.
