@@ -48,6 +48,20 @@ base_url = "ip.pdt.sh"
 # If omitted, CIDR-based VPN detection is disabled (ASN heuristic still works).
 # vpn_ranges = "data/vpn_ranges.txt"
 
+# Path to a newline-delimited list of datacenter CIDR ranges (from X4BNet).
+# If omitted, CIDR-based datacenter detection is disabled (ASN heuristic still works).
+# datacenter_ranges = "data/datacenter_ranges.txt"
+
+# Path to a JSONL file of known bot CIDR ranges.
+# Each line: {"cidr":"...","provider":"..."}
+# Sources: Googlebot, Bingbot, Applebot, GPTBot.
+# If omitted, bot detection is disabled.
+# bot_ranges = "data/bot_ranges.jsonl"
+
+# Path to Spamhaus DROP+EDROP+DROPv6 combined CIDR list.
+# If omitted, threat/hijacked-netblock detection is disabled.
+# spamhaus_drop = "data/spamhaus_drop.txt"
+
 # Regex patterns matched against header names. Any header whose name matches
 # a pattern is excluded from /headers responses. Useful for hiding infrastructure
 # headers injected by hosting providers.
