@@ -5,6 +5,10 @@ use mhost::resolver::{ResolverGroup, ResolverGroupBuilder};
 use std::sync::Arc;
 use tracing::{info, warn};
 
+#[derive(Debug, thiserror::Error)]
+#[error("Failed to create DNS resolver: {0}")]
+pub struct LoadError(String);
+
 /// Groups all reloadable backend resources. Stored behind `ArcSwap` in `AppState`
 /// so SIGHUP can atomically swap in a freshly loaded context without dropping
 /// in-flight requests.
@@ -26,7 +30,7 @@ pub struct EnrichmentContext {
 impl EnrichmentContext {
     /// Load all backends from the paths specified in `config`.
     /// DNS resolver is built from system config (async).
-    pub async fn load(config: &Config) -> Self {
+    pub async fn load(config: &Config) -> Result<Self, LoadError> {
         let user_agent_parser = if let Some(path) = config.user_agent_regexes.as_deref() {
             match UserAgentParser::from_yaml(path).await {
                 Ok(parser) => {
@@ -167,7 +171,7 @@ impl EnrichmentContext {
             .system()
             .build()
             .await
-            .expect("Failed to create DNS resolver from system config");
+            .map_err(|e| LoadError(e.to_string()))?;
         info!("DNS resolver initialized from system config");
 
         let geoip_city_build_epoch = geoip_city_db.as_ref().map(|db| db.build_epoch());
@@ -209,6 +213,6 @@ impl EnrichmentContext {
         metrics::gauge!("enrichment_sources_loaded", "source" => "spamhaus_drop")
             .set(f64::from(ctx.spamhaus_drop.is_some() as u8));
 
-        ctx
+        Ok(ctx)
     }
 }

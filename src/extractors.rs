@@ -43,6 +43,12 @@ fn extract_client_ip(peer: SocketAddr, headers: &HeaderMap, trusted_proxies: &[I
         return peer;
     }
 
+    // Only trust XFF if the direct peer is itself a trusted proxy
+    let peer_trusted = trusted_proxies.iter().any(|net| net.contains(peer.ip()));
+    if !peer_trusted {
+        return peer;
+    }
+
     let xff = match headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
         Some(xff) => xff,
         None => return peer,
@@ -160,13 +166,23 @@ mod tests {
     }
 
     #[test]
-    fn xff_untrusted_ip_not_in_cidr() {
+    fn xff_untrusted_peer_ignores_xff() {
         let peer: SocketAddr = "192.168.1.1:1234".parse().unwrap();
         let headers = headers_with(&[("x-forwarded-for", "1.2.3.4, 192.168.1.1")]);
         let trusted = vec![net("10.0.0.0/8")];
         let result = extract_client_ip(peer, &headers, &trusted);
-        // 192.168.1.1 is not in 10.0.0.0/8, so it's the client IP
-        assert_eq!(result.ip(), "192.168.1.1".parse::<IpAddr>().unwrap());
+        // Peer 192.168.1.1 is not in trusted proxies, so XFF is ignored
+        assert_eq!(result, peer);
+    }
+
+    #[test]
+    fn xff_spoofed_by_untrusted_peer_returns_peer() {
+        let peer: SocketAddr = "203.0.113.1:1234".parse().unwrap();
+        let headers = headers_with(&[("x-forwarded-for", "10.0.0.1")]);
+        let trusted = vec![net("10.0.0.0/8")];
+        let result = extract_client_ip(peer, &headers, &trusted);
+        // Peer is not trusted, so XFF header is not trusted regardless of content
+        assert_eq!(result, peer);
     }
 
     #[test]

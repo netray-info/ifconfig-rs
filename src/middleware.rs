@@ -103,35 +103,31 @@ pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Res
         .unwrap_or(false);
 
     let headers = response.headers_mut();
-    headers.insert("x-content-type-options", "nosniff".parse().unwrap());
-    headers.insert("x-frame-options", "DENY".parse().unwrap());
-    headers.insert("referrer-policy", "strict-origin-when-cross-origin".parse().unwrap());
+    headers.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
+    headers.insert("x-frame-options", HeaderValue::from_static("DENY"));
+    headers.insert("referrer-policy", HeaderValue::from_static("strict-origin-when-cross-origin"));
     headers.insert(
         "strict-transport-security",
-        "max-age=63072000; includeSubDomains".parse().unwrap(),
+        HeaderValue::from_static("max-age=63072000; includeSubDomains"),
     );
-    headers.insert("vary", "Accept, User-Agent".parse().unwrap());
+    headers.insert("vary", HeaderValue::from_static("Accept, User-Agent"));
 
     if is_docs {
         headers.insert(
             "content-security-policy",
-            "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"
-                .parse()
-                .unwrap(),
+            HeaderValue::from_static("default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"),
         );
     } else {
         headers.insert(
             "content-security-policy",
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"
-                .parse()
-                .unwrap(),
+            HeaderValue::from_static("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"),
         );
     }
 
     if is_error || is_health || is_html {
-        headers.insert("cache-control", "no-cache".parse().unwrap());
+        headers.insert("cache-control", HeaderValue::from_static("no-cache"));
     } else {
-        headers.insert("cache-control", "private, max-age=60".parse().unwrap());
+        headers.insert("cache-control", HeaderValue::from_static("private, max-age=60"));
     }
 
     response

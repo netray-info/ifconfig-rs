@@ -257,7 +257,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         version: ip_version.to_string(),
     };
 
-    let tcp = if param.skip_dns {
+    let tcp = if param.remote.port() == 0 {
         None // ?ip= query — port is synthetic (0), omit from response
     } else {
         Some(Tcp { port: param.remote.port() })

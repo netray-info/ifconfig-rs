@@ -10,6 +10,8 @@ pub enum NegotiatedFormat {
     Toml,
     Csv,
     Html,
+    /// An explicit but unrecognized format suffix was requested.
+    Unknown,
 }
 
 static KNOWN_CLI_CLIENTS: LazyLock<RegexSet> =

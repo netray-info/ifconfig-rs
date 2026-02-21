@@ -100,9 +100,15 @@ async fn reload_enrichment(
     trigger: &str,
 ) {
     info!("{} triggered, reloading enrichment data...", trigger);
-    let new_ctx = ifconfig_rs::enrichment::EnrichmentContext::load(config).await;
-    handle.store(Arc::new(new_ctx));
-    info!("Enrichment data reloaded successfully");
+    match ifconfig_rs::enrichment::EnrichmentContext::load(config).await {
+        Ok(new_ctx) => {
+            handle.store(Arc::new(new_ctx));
+            info!("Enrichment data reloaded successfully");
+        }
+        Err(e) => {
+            warn!("Failed to reload enrichment data: {}; keeping previous context", e);
+        }
+    }
 }
 
 fn spawn_file_watcher(

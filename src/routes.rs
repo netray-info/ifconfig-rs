@@ -676,7 +676,7 @@ async fn batch_dispatch(
     let mut set = tokio::task::JoinSet::new();
 
     for (i, ip_str) in ips.iter().enumerate() {
-        let safe_input: String = if ip_str.len() > 45 { ip_str[..45].to_string() } else { ip_str.clone() };
+        let safe_input: String = if ip_str.len() > 45 { ip_str.chars().take(45).collect() } else { ip_str.clone() };
         let ip: IpAddr = match ip_str.parse() {
             Ok(ip) => ip,
             Err(_) => {
@@ -729,7 +729,7 @@ async fn batch_dispatch(
     };
 
     match format {
-        NegotiatedFormat::Json | NegotiatedFormat::Html | NegotiatedFormat::Plain => {
+        NegotiatedFormat::Json | NegotiatedFormat::Html | NegotiatedFormat::Plain | NegotiatedFormat::Unknown => {
             let arr = serde_json::Value::Array(results);
             respond_json_value(arr)
         }

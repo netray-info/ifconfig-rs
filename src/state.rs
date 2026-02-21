@@ -36,7 +36,9 @@ pub struct ProjectInfo {
 
 impl AppState {
     pub async fn new(config: &Config) -> Self {
-        let enrichment = EnrichmentContext::load(config).await;
+        let enrichment = EnrichmentContext::load(config)
+            .await
+            .expect("Failed to load enrichment context at startup");
 
         let project_info = ProjectInfo {
             name: config.project_name.clone(),

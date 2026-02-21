@@ -75,7 +75,7 @@ pub mod tcp {
     pub fn to_plain(ifconfig: &Ifconfig) -> String {
         match &ifconfig.tcp {
             Some(t) => format!("{}\n", t.port),
-            None => "\n".to_string(),
+            None => format!("{}\n", UNKNOWN_STR),
         }
     }
 }
@@ -391,7 +391,7 @@ mod tests {
     #[test]
     fn tcp_to_plain_none() {
         let ifc = make_ifconfig(None, None, None);
-        assert_eq!(tcp::to_plain(&ifc), "\n");
+        assert_eq!(tcp::to_plain(&ifc), "unknown\n");
     }
 
     #[test]
