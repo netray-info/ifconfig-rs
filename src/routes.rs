@@ -8,6 +8,8 @@ use serde_json::json;
 use std::net::{IpAddr, SocketAddr};
 use std::num::NonZeroU32;
 
+use utoipa::OpenApi;
+
 use crate::backend::*;
 use crate::enrichment::EnrichmentContext;
 use crate::extractors::{extract_headers, filter_headers, RequesterInfo};
@@ -15,6 +17,39 @@ use crate::format::{self, OutputFormat};
 use crate::handlers;
 use crate::negotiate::{negotiate, NegotiatedFormat};
 use crate::state::AppState;
+
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "ifconfig-rs",
+        description = "IP address lookup and enrichment API",
+        version = "0.5.0",
+        license(name = "MIT"),
+    ),
+    paths(
+        root_handler,
+        ip_handler,
+        ip_cidr_handler,
+        tcp_handler,
+        host_handler,
+        location_handler,
+        isp_handler,
+        user_agent_handler,
+        network_handler,
+        all_handler,
+        headers_handler,
+        ipv4_handler,
+        ipv6_handler,
+        batch_handler,
+        health_handler,
+        ready_handler,
+    ),
+    components(schemas(
+        Ifconfig, Ip, Tcp, Host, Location, Isp, Network,
+        UserAgent, Browser, OS, Device,
+    ))
+)]
+struct ApiDoc;
 
 /// Build the main router.
 pub fn router(_state: AppState) -> Router<AppState> {
@@ -58,6 +93,8 @@ pub fn router(_state: AppState) -> Router<AppState> {
         // Probe endpoints (no content negotiation)
         .route("/health", get(health_handler))
         .route("/ready", get(ready_handler))
+        // OpenAPI spec
+        .route("/api-docs/openapi.json", get(openapi_handler))
 }
 
 fn get_requester_info(headers: &HeaderMap, extensions: &axum::http::Extensions) -> RequesterInfo {
@@ -209,6 +246,15 @@ async fn dispatch_standard(
 
 // ---- Root handler ----
 
+#[utoipa::path(
+    get, path = "/",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
+    ),
+    responses((status = 200, description = "Full ifconfig data", body = Ifconfig))
+)]
 async fn root_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -247,6 +293,14 @@ async fn root_format_handler(
 
 // ---- Standard endpoint handlers ----
 
+#[utoipa::path(
+    get, path = "/ip",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+    ),
+    responses((status = 200, description = "IP address info", body = Ip))
+)]
 async fn ip_handler(State(state): State<AppState>, headers: HeaderMap, extensions: axum::http::Extensions) -> Response {
     let req_info = get_requester_info(&headers, &extensions);
     let format = negotiate(None, &headers);
@@ -264,6 +318,10 @@ async fn ip_format_handler(
     dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain).await
 }
 
+#[utoipa::path(
+    get, path = "/ip/cidr",
+    responses((status = 200, description = "IP in CIDR notation (e.g. 1.2.3.4/32)", content_type = "text/plain"))
+)]
 async fn ip_cidr_handler(headers: HeaderMap, extensions: axum::http::Extensions) -> Response {
     let req_info = get_requester_info(&headers, &extensions);
     let ip = req_info.remote.ip();
@@ -271,6 +329,7 @@ async fn ip_cidr_handler(headers: HeaderMap, extensions: axum::http::Extensions)
     respond_plain(format!("{}/{}\n", ip, prefix_len))
 }
 
+#[utoipa::path(get, path = "/tcp", responses((status = 200, description = "TCP port info", body = Tcp)))]
 async fn tcp_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -306,6 +365,7 @@ async fn tcp_format_handler(
     .await
 }
 
+#[utoipa::path(get, path = "/host", responses((status = 200, description = "Reverse DNS hostname", body = Host)))]
 async fn host_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -341,6 +401,7 @@ async fn host_format_handler(
     .await
 }
 
+#[utoipa::path(get, path = "/location", responses((status = 200, description = "Geolocation data", body = Location)))]
 async fn location_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -376,6 +437,7 @@ async fn location_format_handler(
     .await
 }
 
+#[utoipa::path(get, path = "/isp", responses((status = 200, description = "ISP / ASN info", body = Isp)))]
 async fn isp_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -411,6 +473,7 @@ async fn isp_format_handler(
     .await
 }
 
+#[utoipa::path(get, path = "/user_agent", responses((status = 200, description = "Parsed User-Agent", body = UserAgent)))]
 async fn user_agent_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -446,6 +509,7 @@ async fn user_agent_format_handler(
     .await
 }
 
+#[utoipa::path(get, path = "/network", responses((status = 200, description = "Network classification", body = Network)))]
 async fn network_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -481,6 +545,15 @@ async fn network_format_handler(
     .await
 }
 
+#[utoipa::path(
+    get, path = "/all",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
+    ),
+    responses((status = 200, description = "All enrichment data", body = Ifconfig))
+)]
 async fn all_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -518,6 +591,7 @@ async fn all_format_handler(
 
 // ---- Headers handler ----
 
+#[utoipa::path(get, path = "/headers", responses((status = 200, description = "Request headers as key-value pairs")))]
 async fn headers_handler(State(state): State<AppState>, headers: HeaderMap) -> Response {
     let format = negotiate(None, &headers);
     let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
@@ -556,6 +630,20 @@ fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) 
 
 // ---- Batch handler ----
 
+#[utoipa::path(
+    post, path = "/batch",
+    request_body(content = Vec<String>, description = "JSON array of IP address strings"),
+    params(
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookups"),
+    ),
+    responses(
+        (status = 200, description = "Array of enrichment results", body = Vec<Ifconfig>),
+        (status = 400, description = "Invalid request body or empty array"),
+        (status = 404, description = "Batch endpoint is disabled"),
+        (status = 429, description = "Rate limit exceeded"),
+    )
+)]
 async fn batch_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -712,6 +800,7 @@ async fn batch_dispatch(
 
 // ---- IP version handlers ----
 
+#[utoipa::path(get, path = "/ipv4", responses((status = 200, description = "IPv4 address info", body = Ip)))]
 async fn ipv4_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -729,6 +818,7 @@ async fn ipv4_format_handler(
     ip_version_dispatch("4", Some(&fmt), &state, &headers, &extensions).await
 }
 
+#[utoipa::path(get, path = "/ipv6", responses((status = 200, description = "IPv6 address info", body = Ip)))]
 async fn ipv6_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -817,12 +907,17 @@ async fn meta_handler(State(state): State<AppState>) -> Response {
 
 // ---- Health handler ----
 
+#[utoipa::path(get, path = "/health", responses((status = 200, description = "Liveness probe")))]
 async fn health_handler() -> Response {
     (StatusCode::OK, axum::Json(json!({ "status": "ok" }))).into_response()
 }
 
 // ---- Readiness handler ----
 
+#[utoipa::path(get, path = "/ready", responses(
+    (status = 200, description = "All backends loaded"),
+    (status = 503, description = "One or more backends not ready"),
+))]
 async fn ready_handler(State(state): State<AppState>) -> Response {
     let ctx = state.enrichment.load();
     let has_city_db = ctx.geoip_city_db.is_some();
@@ -851,6 +946,13 @@ async fn ready_handler(State(state): State<AppState>) -> Response {
         )
             .into_response()
     }
+}
+
+// ---- OpenAPI spec handler ----
+
+async fn openapi_handler() -> Response {
+    let spec = ApiDoc::openapi().to_pretty_json().unwrap_or_default();
+    respond_formatted("application/json", spec)
 }
 
 // ---- Static file serving ----

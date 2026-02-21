@@ -1250,3 +1250,22 @@ async fn batch_yaml_format() {
     assert!(is_yaml(&ct), "Expected YAML, got {:?}", ct);
     assert!(body.contains("addr:"));
 }
+
+// --- OpenAPI spec test ---
+
+#[tokio::test]
+async fn openapi_spec_valid_json() {
+    let req = get("/api-docs/openapi.json");
+    let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_json(&ct), "Expected JSON, got {:?}", ct);
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(json["openapi"].is_string(), "Should have openapi version");
+    assert!(json["info"]["title"].is_string(), "Should have info.title");
+    assert!(json["paths"].is_object(), "Should have paths");
+    assert!(json["paths"]["/ip"].is_object(), "Should have /ip path");
+    assert!(json["paths"]["/all"].is_object(), "Should have /all path");
+    assert!(json["paths"]["/batch"].is_object(), "Should have /batch path");
+    assert!(json["components"]["schemas"]["Ifconfig"].is_object(), "Should have Ifconfig schema");
+}

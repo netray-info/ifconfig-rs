@@ -23,7 +23,7 @@ impl UserAgentParser {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct UserAgent {
     pub device: Device,
     pub os: OS,
@@ -40,7 +40,7 @@ impl From<uaparser::Client<'_>> for UserAgent {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Device {
     pub family: String,
     pub brand: Option<String>,
@@ -57,7 +57,7 @@ impl From<uaparser::Device<'_>> for Device {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct OS {
     pub family: String,
     pub major: Option<String>,
@@ -91,7 +91,7 @@ impl From<uaparser::OS<'_>> for OS {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Browser {
     pub family: String,
     pub major: Option<String>,

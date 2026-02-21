@@ -21,18 +21,18 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Host {
     pub name: String,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Ip {
     pub addr: String,
     pub version: String,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Tcp {
     pub port: u16,
 }
@@ -87,7 +87,7 @@ impl TorExitNodes {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Location {
     pub city: Option<String>,
     pub country: Option<String>,
@@ -116,7 +116,7 @@ impl Location {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Isp {
     pub name: Option<String>,
     pub asn: Option<u32>,
@@ -131,7 +131,7 @@ impl Isp {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Network {
     /// Primary classification: "cloud", "bot", "vpn", "tor", "botnet_c2", "threat", "hosting", or "residential".
     #[serde(rename = "type")]
@@ -150,7 +150,7 @@ pub struct Network {
     pub is_threat: bool,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Ifconfig {
     pub host: Option<Host>,
     pub ip: Ip,
