@@ -6,6 +6,7 @@ use axum::Router;
 use serde_json::json;
 
 use crate::backend::*;
+use crate::enrichment::EnrichmentContext;
 use crate::extractors::{extract_headers, filter_headers, RequesterInfo};
 use crate::format::OutputFormat;
 use crate::handlers;
@@ -93,11 +94,11 @@ fn serve_spa() -> Response {
 
 // ---- Compute-once dispatch ----
 
-fn resolve_backends(state: &AppState) -> Option<(&UserAgentParser, &GeoIpCityDb, &GeoIpAsnDb, &TorExitNodes)> {
-    let uap = state.user_agent_parser.as_deref()?;
-    let city = state.geoip_city_db.as_deref()?;
-    let asn = state.geoip_asn_db.as_deref()?;
-    let tor = &*state.tor_exit_nodes;
+fn resolve_backends(ctx: &EnrichmentContext) -> Option<(&UserAgentParser, &GeoIpCityDb, &GeoIpAsnDb, &TorExitNodes)> {
+    let uap = ctx.user_agent_parser.as_deref()?;
+    let city = ctx.geoip_city_db.as_deref()?;
+    let asn = ctx.geoip_asn_db.as_deref()?;
+    let tor = &*ctx.tor_exit_nodes;
     Some((uap, city, asn, tor))
 }
 
@@ -112,14 +113,16 @@ async fn dispatch_standard(
         return serve_spa();
     }
 
-    let (uap, city, asn, tor) = match resolve_backends(state) {
+    let ctx = state.enrichment.load();
+
+    let (uap, city, asn, tor) = match resolve_backends(&ctx) {
         Some(backends) => backends,
         None => return (StatusCode::INTERNAL_SERVER_ERROR, "backends not available").into_response(),
     };
 
     let ua_ref = req_info.user_agent.as_deref();
     let ua_opt: Option<&str> = ua_ref;
-    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, &state.dns_resolver).await;
+    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), &ctx.dns_resolver).await;
 
     match format {
         NegotiatedFormat::Html => unreachable!(),
@@ -498,14 +501,16 @@ async fn ip_version_dispatch(
         return serve_spa();
     }
 
-    let (uap, city, asn, tor) = match resolve_backends(state) {
+    let ctx = state.enrichment.load();
+
+    let (uap, city, asn, tor) = match resolve_backends(&ctx) {
         Some(backends) => backends,
         None => return (StatusCode::INTERNAL_SERVER_ERROR, "backends not available").into_response(),
     };
 
     let ua_ref = req_info.user_agent.as_deref();
     let ua_opt: Option<&str> = ua_ref;
-    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, &state.dns_resolver).await;
+    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), &ctx.dns_resolver).await;
 
     if ifconfig.ip.version != version {
         return (StatusCode::NOT_FOUND, "not implemented").into_response();
@@ -548,8 +553,9 @@ async fn health_handler() -> Response {
 // ---- Readiness handler ----
 
 async fn ready_handler(State(state): State<AppState>) -> Response {
-    let has_city_db = state.geoip_city_db.is_some();
-    let has_asn_db = state.geoip_asn_db.is_some();
+    let ctx = state.enrichment.load();
+    let has_city_db = ctx.geoip_city_db.is_some();
+    let has_asn_db = ctx.geoip_asn_db.is_some();
 
     if has_city_db && has_asn_db {
         (StatusCode::OK, axum::Json(json!({ "status": "ready" }))).into_response()

@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -31,7 +32,26 @@ async fn main() {
     let bind_addr: SocketAddr = config.server.bind.parse().expect("Invalid bind address");
     info!("Starting server on {}", bind_addr);
 
+    let config = Arc::new(config);
     let bundle = build_app(&config).await;
+
+    // Spawn SIGHUP handler for hot-reloading enrichment data
+    #[cfg(unix)]
+    {
+        let enrichment_handle = Arc::clone(&bundle.enrichment_handle);
+        let reload_config = Arc::clone(&config);
+        tokio::spawn(async move {
+            let mut sig =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()).expect("Failed to register SIGHUP handler");
+            loop {
+                sig.recv().await;
+                info!("SIGHUP received, reloading enrichment data...");
+                let new_ctx = ifconfig_rs::enrichment::EnrichmentContext::load(&reload_config).await;
+                enrichment_handle.store(Arc::new(new_ctx));
+                info!("Enrichment data reloaded successfully");
+            }
+        });
+    }
 
     // Spawn admin server if configured
     if let Some(admin_app) = bundle.admin_app {

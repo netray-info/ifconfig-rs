@@ -25,12 +25,15 @@ name = "ifconfig-rs"
 path = "src/main.rs"
 
 [dependencies]
+arc-swap = "1"
 axum = { version = "0.8", features = ["json"] }
 axum-extra = { version = "0.10", features = ["typed-header"] }
 metrics-exporter-prometheus = "0.16"
 config = "0.15"
 mhost = { version = "0.11", default-features = false }
 governor = "0.8"
+ip_network = "0.4"
+ip_network_table = "0.2"
 maxminddb = "0.27"
 metrics-process = "2.3"
 mime_guess = "2"

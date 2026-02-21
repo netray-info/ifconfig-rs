@@ -1,11 +1,10 @@
-use crate::backend::user_agent::UserAgentParser;
-use crate::backend::{GeoIpAsnDb, GeoIpCityDb, TorExitNodes};
 use crate::config::Config;
+use crate::enrichment::EnrichmentContext;
+use arc_swap::ArcSwap;
 use governor::clock::DefaultClock;
 use governor::middleware::StateInformationMiddleware;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
-use mhost::resolver::{ResolverGroup, ResolverGroupBuilder};
 use regex::Regex;
 use serde::Serialize;
 use std::net::IpAddr;
@@ -20,11 +19,7 @@ pub type KeyedRateLimiter =
 pub struct AppState {
     pub config: Arc<Config>,
     pub project_info: Arc<ProjectInfo>,
-    pub user_agent_parser: Option<Arc<UserAgentParser>>,
-    pub geoip_city_db: Option<Arc<GeoIpCityDb>>,
-    pub geoip_asn_db: Option<Arc<GeoIpAsnDb>>,
-    pub tor_exit_nodes: Arc<TorExitNodes>,
-    pub dns_resolver: Arc<ResolverGroup>,
+    pub enrichment: Arc<ArcSwap<EnrichmentContext>>,
     pub rate_limiter: Arc<KeyedRateLimiter>,
     pub header_filters: Arc<Vec<Regex>>,
 }
@@ -39,57 +34,7 @@ pub struct ProjectInfo {
 
 impl AppState {
     pub async fn new(config: &Config) -> Self {
-        let user_agent_parser = config
-            .user_agent_regexes
-            .as_deref()
-            .and_then(|path| match UserAgentParser::from_yaml(path) {
-                Ok(parser) => {
-                    info!("Loaded User-Agent regexes from {}", path);
-                    Some(Arc::new(parser))
-                }
-                Err(e) => {
-                    warn!("Failed to load User-Agent regexes from {}: {}", path, e);
-                    None
-                }
-            });
-
-        let geoip_city_db = config
-            .geoip_city_db
-            .as_deref()
-            .and_then(|path| match GeoIpCityDb::new(path) {
-                Some(db) => {
-                    info!("Loaded GeoIP City database from {}", path);
-                    Some(Arc::new(db))
-                }
-                None => {
-                    warn!("Failed to load GeoIP City database from {}", path);
-                    None
-                }
-            });
-
-        let geoip_asn_db = config
-            .geoip_asn_db
-            .as_deref()
-            .and_then(|path| match GeoIpAsnDb::new(path) {
-                Some(db) => {
-                    info!("Loaded GeoIP ASN database from {}", path);
-                    Some(Arc::new(db))
-                }
-                None => {
-                    warn!("Failed to load GeoIP ASN database from {}", path);
-                    None
-                }
-            });
-
-        let tor_exit_nodes = config
-            .tor_exit_nodes
-            .as_deref()
-            .map(|path| {
-                let nodes = TorExitNodes::from_file(path);
-                info!("Loaded Tor exit nodes from {}", path);
-                nodes
-            })
-            .unwrap_or_else(TorExitNodes::empty);
+        let enrichment = EnrichmentContext::load(config).await;
 
         let project_info = ProjectInfo {
             name: config.project_name.clone(),
@@ -97,13 +42,6 @@ impl AppState {
             base_url: config.base_url.clone(),
             site_name: config.site_name.clone().unwrap_or_else(|| config.base_url.clone()),
         };
-
-        let dns_resolver = ResolverGroupBuilder::new()
-            .system()
-            .build()
-            .await
-            .expect("Failed to create DNS resolver from system config");
-        info!("DNS resolver initialized from system config");
 
         let per_minute =
             NonZeroU32::new(config.rate_limit.per_ip_per_minute as u32).expect("per_ip_per_minute must be > 0");
@@ -145,6 +83,9 @@ impl AppState {
                 geoip_asn_db: config.geoip_asn_db.clone(),
                 user_agent_regexes: config.user_agent_regexes.clone(),
                 tor_exit_nodes: config.tor_exit_nodes.clone(),
+                cloud_provider_ranges: config.cloud_provider_ranges.clone(),
+                feodo_botnet_ips: config.feodo_botnet_ips.clone(),
+                vpn_ranges: config.vpn_ranges.clone(),
                 filtered_headers: config.filtered_headers.clone(),
                 rate_limit: crate::config::RateLimitConfig {
                     per_ip_per_minute: config.rate_limit.per_ip_per_minute,
@@ -152,11 +93,7 @@ impl AppState {
                 },
             }),
             project_info: Arc::new(project_info),
-            user_agent_parser,
-            geoip_city_db,
-            geoip_asn_db,
-            tor_exit_nodes: Arc::new(tor_exit_nodes),
-            dns_resolver: Arc::new(dns_resolver),
+            enrichment: Arc::new(ArcSwap::from_pointee(enrichment)),
             rate_limiter,
             header_filters: Arc::new(header_filters),
         }

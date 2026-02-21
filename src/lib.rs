@@ -1,5 +1,6 @@
 pub mod backend;
 pub mod config;
+pub mod enrichment;
 pub mod error;
 pub mod extractors;
 pub mod format;
@@ -9,11 +10,14 @@ pub mod negotiate;
 pub mod routes;
 pub mod state;
 
+use arc_swap::ArcSwap;
 use axum::middleware as axum_mw;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Router;
+use enrichment::EnrichmentContext;
 use state::AppState;
+use std::sync::Arc;
 
 pub use config::Config;
 pub use state::ProjectInfo;
@@ -21,10 +25,13 @@ pub use state::ProjectInfo;
 pub struct AppBundle {
     pub app: Router,
     pub admin_app: Option<Router>,
+    /// Handle to the shared `ArcSwap<EnrichmentContext>` for SIGHUP-based hot-reload.
+    pub enrichment_handle: Arc<ArcSwap<EnrichmentContext>>,
 }
 
 pub async fn build_app(config: &Config) -> AppBundle {
     let state = AppState::new(config).await;
+    let enrichment_handle = Arc::clone(&state.enrichment);
 
     // Try to install metrics recorder. May fail in tests where multiple
     // build_app calls run in the same process — that's fine, skip metrics.
@@ -67,5 +74,9 @@ pub async fn build_app(config: &Config) -> AppBundle {
         )
     });
 
-    AppBundle { app, admin_app }
+    AppBundle {
+        app,
+        admin_app,
+        enrichment_handle,
+    }
 }
