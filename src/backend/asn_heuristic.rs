@@ -85,6 +85,7 @@ static HOSTING_PATTERNS: &[(&str, &str)] = &[
 
 static VPN_PATTERNS: &[(&str, &str)] = &[
     ("mullvad", "Mullvad"),
+    ("31173 services", "Mullvad"),
     ("nordvpn", "NordVPN"),
     ("expressvpn", "ExpressVPN"),
     ("surfshark", "Surfshark"),
@@ -122,6 +123,14 @@ mod tests {
     fn classify_mullvad() {
         assert_eq!(
             classify_asn("MULLVAD-VPN-SE"),
+            AsnClassification::Vpn { provider: "Mullvad" }
+        );
+    }
+
+    #[test]
+    fn classify_mullvad_31173() {
+        assert_eq!(
+            classify_asn("31173 Services AB"),
             AsnClassification::Vpn { provider: "Mullvad" }
         );
     }
