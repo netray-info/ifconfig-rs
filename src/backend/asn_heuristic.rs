@@ -38,6 +38,7 @@ pub fn classify_asn(asn_org: &str) -> AsnClassification {
 
 static HOSTING_PATTERNS: &[(&str, &str)] = &[
     // Named providers (specific matches first)
+    ("google llc", "Google"),
     ("hetzner", "Hetzner"),
     ("digitalocean", "DigitalOcean"),
     ("ovh", "OVH"),
@@ -199,6 +200,14 @@ mod tests {
             AsnClassification::Hosting {
                 provider: "datacenter"
             }
+        );
+    }
+
+    #[test]
+    fn classify_google_llc() {
+        assert_eq!(
+            classify_asn("Google LLC"),
+            AsnClassification::Hosting { provider: "Google" }
         );
     }
 
