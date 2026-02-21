@@ -659,48 +659,68 @@ async fn batch_dispatch(
         }
     };
 
-    let ctx = state.enrichment.load();
-    let (uap, city, asn, tor) = match resolve_backends(&ctx) {
-        Some(backends) => backends,
-        None => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "backends not available"),
-    };
+    let ctx: std::sync::Arc<EnrichmentContext> = std::sync::Arc::clone(&*state.enrichment.load());
+
+    // Early check: required backends must be available
+    if ctx.user_agent_parser.is_none() || ctx.geoip_city_db.is_none() || ctx.geoip_asn_db.is_none() {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, "backends not available");
+    }
 
     let dns_opt_in = parse_dns_param(&req_info.uri);
     let fields = format::parse_fields_param(&req_info.uri);
-    let ua_ref = req_info.user_agent.as_deref();
-    let ua_opt: Option<&str> = ua_ref;
+    let skip_dns = !dns_opt_in;
+    let ua_owned: Option<String> = req_info.user_agent.clone();
 
-    let mut results: Vec<serde_json::Value> = Vec::with_capacity(ips.len());
-    for ip_str in &ips {
-        let safe_input: &str = if ip_str.len() > 45 { &ip_str[..45] } else { ip_str };
+    // Pre-validate IPs and spawn concurrent lookups
+    let mut results: Vec<serde_json::Value> = vec![json!(null); ips.len()];
+    let mut set = tokio::task::JoinSet::new();
+
+    for (i, ip_str) in ips.iter().enumerate() {
+        let safe_input: String = if ip_str.len() > 45 { ip_str[..45].to_string() } else { ip_str.clone() };
         let ip: IpAddr = match ip_str.parse() {
             Ok(ip) => ip,
             Err(_) => {
-                results.push(json!({"error": "invalid IP address", "input": safe_input}));
+                results[i] = json!({"error": "invalid IP address", "input": safe_input});
                 continue;
             }
         };
 
         if !is_global_ip(ip) {
-            results.push(json!({"error": "private/loopback IP not allowed", "input": safe_input}));
+            results[i] = json!({"error": "private/loopback IP not allowed", "input": safe_input});
             continue;
         }
 
-        let target_addr = SocketAddr::new(ip, 0);
-        let skip_dns = !dns_opt_in;
-        let ifconfig = handlers::make_ifconfig(
-            &target_addr, &ua_opt, uap, city, asn, tor,
-            ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(),
-            ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(),
-            ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(),
-            &ctx.dns_resolver, skip_dns,
-        ).await;
+        let ctx = std::sync::Arc::clone(&ctx);
+        let ua = ua_owned.clone();
+        let fields = fields.clone();
+        set.spawn(async move {
+            let uap = ctx.user_agent_parser.as_deref().unwrap();
+            let city = ctx.geoip_city_db.as_deref().unwrap();
+            let asn = ctx.geoip_asn_db.as_deref().unwrap();
+            let tor = &*ctx.tor_exit_nodes;
+            let ua_ref = ua.as_deref();
+            let target_addr = SocketAddr::new(ip, 0);
 
-        let mut val = serde_json::to_value(&ifconfig).unwrap_or(json!(null));
-        if let Some(ref f) = fields {
-            val = format::filter_fields(val, f);
+            let ifconfig = handlers::make_ifconfig(
+                &target_addr, &ua_ref, uap, city, asn, tor,
+                ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(),
+                ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(),
+                ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(),
+                &ctx.dns_resolver, skip_dns,
+            ).await;
+
+            let mut val = serde_json::to_value(&ifconfig).unwrap_or(json!(null));
+            if let Some(ref f) = fields {
+                val = format::filter_fields(val, f);
+            }
+            (i, val)
+        });
+    }
+
+    while let Some(res) = set.join_next().await {
+        if let Ok((i, val)) = res {
+            results[i] = val;
         }
-        results.push(val);
     }
 
     let format = match suffix {
