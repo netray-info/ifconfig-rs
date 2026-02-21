@@ -1,8 +1,9 @@
 pub mod user_agent;
 pub use user_agent::*;
 
-use hickory_resolver::TokioResolver;
 use maxminddb::{self, geoip2};
+use mhost::resolver::{MultiQuery, ResolverGroup};
+use mhost::RecordType;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
@@ -136,23 +137,22 @@ pub struct IfconfigParam<'a> {
     pub geoip_city_db: &'a GeoIpCityDb,
     pub geoip_asn_db: &'a GeoIpAsnDb,
     pub tor_exit_nodes: &'a TorExitNodes,
-    pub dns_resolver: &'a TokioResolver,
+    pub dns_resolver: &'a ResolverGroup,
 }
 
 pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
-    let host = param
-        .dns_resolver
-        .reverse_lookup(param.remote.ip())
-        .await
-        .ok()
-        .and_then(|lookup| {
-            lookup.into_iter().next().map(|name| {
-                let s = name.to_string();
-                Host {
-                    name: s.strip_suffix('.').unwrap_or(&s).to_string(),
-                }
-            })
-        });
+    let host = async {
+        let resolver = param.dns_resolver.resolvers().first()?;
+        let query = MultiQuery::single(param.remote.ip(), RecordType::PTR).ok()?;
+        let lookups = resolver.lookup(query).await.ok()?;
+        lookups.ptr().into_iter().next().map(|name| {
+            let s = name.to_string();
+            Host {
+                name: s.strip_suffix('.').unwrap_or(&s).to_string(),
+            }
+        })
+    }
+    .await;
 
     let ip_addr = param.remote.ip().to_string();
     let ip_version = if param.remote.is_ipv4() { "4" } else { "6" };

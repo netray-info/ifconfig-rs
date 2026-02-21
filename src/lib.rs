@@ -23,8 +23,8 @@ pub struct AppBundle {
     pub admin_app: Option<Router>,
 }
 
-pub fn build_app(config: &Config) -> AppBundle {
-    let state = AppState::new(config);
+pub async fn build_app(config: &Config) -> AppBundle {
+    let state = AppState::new(config).await;
 
     // Try to install metrics recorder. May fail in tests where multiple
     // build_app calls run in the same process — that's fine, skip metrics.

@@ -31,7 +31,7 @@ async fn main() {
     let bind_addr: SocketAddr = config.server.bind.parse().expect("Invalid bind address");
     info!("Starting server on {}", bind_addr);
 
-    let bundle = build_app(&config);
+    let bundle = build_app(&config).await;
 
     // Spawn admin server if configured
     if let Some(admin_app) = bundle.admin_app {

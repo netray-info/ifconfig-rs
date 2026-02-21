@@ -5,7 +5,7 @@ use governor::clock::DefaultClock;
 use governor::middleware::StateInformationMiddleware;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
-use hickory_resolver::TokioResolver;
+use mhost::resolver::{ResolverGroup, ResolverGroupBuilder};
 use serde::Serialize;
 use std::net::IpAddr;
 use std::num::NonZeroU32;
@@ -23,7 +23,7 @@ pub struct AppState {
     pub geoip_city_db: Option<Arc<GeoIpCityDb>>,
     pub geoip_asn_db: Option<Arc<GeoIpAsnDb>>,
     pub tor_exit_nodes: Arc<TorExitNodes>,
-    pub dns_resolver: Arc<TokioResolver>,
+    pub dns_resolver: Arc<ResolverGroup>,
     pub rate_limiter: Arc<KeyedRateLimiter>,
 }
 
@@ -36,7 +36,7 @@ pub struct ProjectInfo {
 }
 
 impl AppState {
-    pub fn new(config: &Config) -> Self {
+    pub async fn new(config: &Config) -> Self {
         let user_agent_parser = config
             .user_agent_regexes
             .as_deref()
@@ -96,9 +96,11 @@ impl AppState {
             site_name: config.site_name.clone().unwrap_or_else(|| config.base_url.clone()),
         };
 
-        let dns_resolver = TokioResolver::builder_tokio()
-            .expect("Failed to read system DNS config")
-            .build();
+        let dns_resolver = ResolverGroupBuilder::new()
+            .system()
+            .build()
+            .await
+            .expect("Failed to create DNS resolver from system config");
         info!("DNS resolver initialized from system config");
 
         let per_minute =

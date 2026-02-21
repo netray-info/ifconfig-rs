@@ -12,7 +12,7 @@ fn test_config() -> Config {
 
 async fn send_request(req: Request<Body>, _remote: SocketAddr) -> (StatusCode, axum::http::HeaderMap, String) {
     let config = test_config();
-    let app = ifconfig_rs::build_app(&config).app;
+    let app = ifconfig_rs::build_app(&config).await.app;
 
     // Bind a real listener so ConnectInfo works
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

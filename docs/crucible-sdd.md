@@ -73,16 +73,16 @@ Note: `Ip.version` was originally `&'a str` (always `"4"` or `"6"`). Using `&'st
 
 1. **Commit 1** — Owned types (§3.1 above)
 2. **Commit 2** — Flatten `handler!`, `endpoint_handler!`, `endpoint_format_handler!` macros into explicit modules with `to_json(&Ifconfig)` / `to_plain(&Ifconfig)` functions. Refactor `dispatch_standard` to compute `Ifconfig` once per request via fn pointers. Still synchronous.
-3. **Commit 3** — Make `get_ifconfig` and `make_ifconfig` async. Replace `dns-lookup` with `hickory-resolver` for async PTR lookups. Update `dispatch_standard` and `ip_version_dispatch` to async.
+3. **Commit 3** — Make `get_ifconfig` and `make_ifconfig` async. Replace `dns-lookup` with async DNS for PTR lookups. Update `dispatch_standard` and `ip_version_dispatch` to async.
 
-**DNS replacement — hickory-resolver:**
+**DNS replacement — mhost:**
 
 ```toml
 [dependencies]
-hickory-resolver = { version = "0.25", features = ["tokio", "system-config"] }
+mhost = { version = "0.11", default-features = false }
 ```
 
-The original plan specified `mhost` (same author), but mhost 0.11.0 has a bug: its `Error` enum unconditionally references `serde_json::Error` even when `serde_json` is disabled via `default-features = false`, making the minimal build uncompilable. `hickory-resolver` is the underlying DNS library that mhost wraps, and provides a cleaner API for our use case: `TokioResolver::reverse_lookup(IpAddr)` does async PTR lookups directly, with built-in DNS caching and configurable timeouts. Since `TokioResolver::builder_tokio()` is synchronous, `build_app()` and `AppState::new()` remained sync — no changes to test infrastructure were needed.
+Uses mhost (same author) as the DNS library. mhost wraps `hickory-resolver` and provides multi-server concurrent DNS lookups with result aggregation. Initially blocked on a build bug in mhost 0.11.0 (`serde_json::Error` not feature-gated), which was worked around with `hickory-resolver` directly. mhost 0.11.1 fixed the build defect, and we migrated back. Note: `build_app()` and `AppState::new()` are now async because `ResolverGroupBuilder::build()` is async. We use `Resolver::lookup()` (single-resolver) rather than `ResolverGroup::lookup()` for PTR queries because the latter's `uni_lookup` path holds a non-Send `ThreadRng` across an await point, making the future incompatible with Axum's Send requirement.
 
 **Implemented `dispatch_standard`:**
 
@@ -124,7 +124,7 @@ Each handler module (`handlers::ip`, `handlers::location`, etc.) exposes `to_jso
 |------|--------|-------------|--------|
 | Owned data types (§3.1) | `c136ae6` | +57/-57 | Done |
 | Flatten macros + compute-once dispatch (§3.2, commit 2) | `7f0929a` | +401/-388 | Done |
-| Async backend with hickory-resolver (§3.2, commit 3) | `a5cce31` | +877/-44 | Done |
+| Async backend with mhost DNS (§3.2, commit 3) | `a5cce31` | +877/-44 | Done |
 
 **Milestone:** All 117 existing tests pass after each commit. No new features, no API changes. The codebase is async-ready and macro-free.
 
@@ -249,7 +249,7 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 | Abuse Contact Lookup (RDAP) | Five RIR endpoints with different schemas. Rarely needed in hot path. |
 | GreyNoise / AbuseIPDB | Rate-limited free tiers (10-1000 queries/day) make them non-viable for production. Breaks offline-first positioning. |
 | OpenTelemetry Tracing | Valuable but not blocking. Add when operational maturity demands it. |
-| GeoIP Result Caching (moka) | Profile first. MaxMind lookups are sub-microsecond. DNS is the bottleneck and hickory-resolver handles DNS caching internally. |
+| GeoIP Result Caching (moka) | Profile first. MaxMind lookups are sub-microsecond. DNS is the bottleneck and hickory-resolver (via mhost) handles DNS caching internally. |
 | Layered config with clap | Current config-file + env-var approach works. clap adds value only with complex subcommands. |
 
 ---
@@ -273,7 +273,7 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 
 | Phase | Crate | Purpose | Status |
 |-------|-------|---------|--------|
-| 1a | `hickory-resolver` 0.25 (tokio, system-config) | Async DNS (PTR lookups) replacing blocking `dns-lookup` | **Added** — `mhost` was originally planned but has a build bug with `default-features = false` |
+| 1a | `mhost` 0.11 (default-features = false) | Async DNS (PTR lookups) replacing blocking `dns-lookup` | **Added** — wraps hickory-resolver with multi-server concurrent lookups. Initially used hickory-resolver directly due to mhost 0.11.0 build bug; migrated to mhost after 0.11.1 fix |
 | 1b | `metrics-exporter-prometheus` 0.16 | Prometheus metrics recorder + `/metrics` render handle | **Added** — `axum-prometheus` was originally planned but panics on repeated global recorder installation (breaks integration tests) |
 | 1b | `metrics-process` 2.3 | OS-level process metrics (CPU, memory, FDs) for `/metrics` | **Added** |
 | 1b | `tracing-subscriber` json feature | Structured JSON log output via `IFCONFIG_LOG_FORMAT=json` | **Added** (feature flag on existing dep) |
@@ -290,15 +290,15 @@ These features require an async enrichment pipeline with caching, timeouts, retr
 
 1. **Cloud provider update cadence:** AWS/GCP/Azure publish IP ranges with weekly-ish changes. Daily refresh at startup sufficient, or periodic background refresh needed?
 2. **VPN range data sources:** X4BNet/lists_vpn is one option. Are there more reliable/comprehensive public sources?
-3. ~~**mhost version pinning**~~ — Resolved: switched to `hickory-resolver` 0.25 directly. mhost 0.11.0 has a build defect (`serde_json::Error` in `Error` enum is not feature-gated, making `default-features = false` uncompilable). `hickory-resolver` provides `TokioResolver::reverse_lookup(IpAddr)` with less indirection.
+3. ~~**mhost version pinning**~~ — Resolved: migrated to mhost 0.11.1 which fixes the `serde_json::Error` feature-gating build defect from 0.11.0.
 
 ---
 
 ## References
 
 - [Original RFC](crucible-rfc.md)
-- [hickory-resolver](https://docs.rs/hickory-resolver) — Async DNS resolver (used for PTR lookups)
-- [mhost](https://github.com/lukaspustina/mhost) — Async DNS library (same author) — originally planned but has build defect in 0.11.0
+- [mhost](https://github.com/lukaspustina/mhost) — Async DNS library (same author) wrapping hickory-resolver — used for PTR lookups
+- [hickory-resolver](https://docs.rs/hickory-resolver) — Underlying async DNS resolver (transitive dep via mhost)
 - [ip_network_table](https://docs.rs/ip_network_table) — IP prefix trie
 - [metrics-exporter-prometheus](https://docs.rs/metrics-exporter-prometheus) — Prometheus metrics exporter (replaced axum-prometheus due to global recorder conflict in tests)
 - [metrics-process](https://docs.rs/metrics-process) — OS-level process metrics
