@@ -1,5 +1,5 @@
 use crate::backend::user_agent::UserAgentParser;
-use crate::backend::{CloudProviderDb, FeodoBotnetIps, GeoIpAsnDb, GeoIpCityDb, TorExitNodes, VpnRanges};
+use crate::backend::{BotDb, CloudProviderDb, DatacenterRanges, FeodoBotnetIps, GeoIpAsnDb, GeoIpCityDb, SpamhausDrop, TorExitNodes, VpnRanges};
 use crate::config::Config;
 use mhost::resolver::{ResolverGroup, ResolverGroupBuilder};
 use std::sync::Arc;
@@ -16,6 +16,9 @@ pub struct EnrichmentContext {
     pub feodo_botnet_ips: Option<Arc<FeodoBotnetIps>>,
     pub cloud_provider_db: Option<Arc<CloudProviderDb>>,
     pub vpn_ranges: Option<Arc<VpnRanges>>,
+    pub datacenter_ranges: Option<Arc<DatacenterRanges>>,
+    pub bot_db: Option<Arc<BotDb>>,
+    pub spamhaus_drop: Option<Arc<SpamhausDrop>>,
     pub dns_resolver: Arc<ResolverGroup>,
 }
 
@@ -107,6 +110,45 @@ impl EnrichmentContext {
             }
         });
 
+        let datacenter_ranges = config.datacenter_ranges.as_deref().and_then(|path| {
+            match DatacenterRanges::from_file(path) {
+                Some(db) => {
+                    info!("Loaded datacenter ranges from {}", path);
+                    Some(Arc::new(db))
+                }
+                None => {
+                    warn!("Failed to load datacenter ranges from {}", path);
+                    None
+                }
+            }
+        });
+
+        let bot_db = config.bot_ranges.as_deref().and_then(|path| {
+            match BotDb::from_file(path) {
+                Some(db) => {
+                    info!("Loaded bot ranges from {}", path);
+                    Some(Arc::new(db))
+                }
+                None => {
+                    warn!("Failed to load bot ranges from {}", path);
+                    None
+                }
+            }
+        });
+
+        let spamhaus_drop = config.spamhaus_drop.as_deref().and_then(|path| {
+            match SpamhausDrop::from_file(path) {
+                Some(db) => {
+                    info!("Loaded Spamhaus DROP from {}", path);
+                    Some(Arc::new(db))
+                }
+                None => {
+                    warn!("Failed to load Spamhaus DROP from {}", path);
+                    None
+                }
+            }
+        });
+
         let dns_resolver = ResolverGroupBuilder::new()
             .system()
             .build()
@@ -122,6 +164,9 @@ impl EnrichmentContext {
             feodo_botnet_ips,
             cloud_provider_db,
             vpn_ranges,
+            datacenter_ranges,
+            bot_db,
+            spamhaus_drop,
             dns_resolver: Arc::new(dns_resolver),
         }
     }

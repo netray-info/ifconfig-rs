@@ -10,6 +10,9 @@ tor_exit_nodes = "data/tor_exit_nodes.txt"
 cloud_provider_ranges = "data/cloud_provider_ranges.jsonl"
 feodo_botnet_ips = "data/feodo_botnet_ips.txt"
 vpn_ranges = "data/vpn_ranges.txt"
+datacenter_ranges = "data/datacenter_ranges.txt"
+bot_ranges = "data/bot_ranges.jsonl"
+spamhaus_drop = "data/spamhaus_drop.txt"
 
 # Regex patterns to exclude from /headers responses (matched against header names).
 # filtered_headers = ["^x-koyeb-", "^cf-"]

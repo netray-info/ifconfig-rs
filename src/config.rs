@@ -19,6 +19,9 @@ pub struct Config {
     pub cloud_provider_ranges: Option<String>,
     pub feodo_botnet_ips: Option<String>,
     pub vpn_ranges: Option<String>,
+    pub datacenter_ranges: Option<String>,
+    pub bot_ranges: Option<String>,
+    pub spamhaus_drop: Option<String>,
     /// Regex patterns matched against header names. Matching headers are
     /// excluded from `/headers` responses. Case-insensitive match.
     #[serde(default)]

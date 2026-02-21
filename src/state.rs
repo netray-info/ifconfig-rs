@@ -86,6 +86,9 @@ impl AppState {
                 cloud_provider_ranges: config.cloud_provider_ranges.clone(),
                 feodo_botnet_ips: config.feodo_botnet_ips.clone(),
                 vpn_ranges: config.vpn_ranges.clone(),
+                datacenter_ranges: config.datacenter_ranges.clone(),
+                bot_ranges: config.bot_ranges.clone(),
+                spamhaus_drop: config.spamhaus_drop.clone(),
                 filtered_headers: config.filtered_headers.clone(),
                 rate_limit: crate::config::RateLimitConfig {
                     per_ip_per_minute: config.rate_limit.per_ip_per_minute,

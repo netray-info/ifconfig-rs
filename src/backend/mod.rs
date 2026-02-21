@@ -1,10 +1,16 @@
 pub mod asn_heuristic;
+pub mod bot;
 pub mod cloud_provider;
+pub mod datacenter;
 pub mod feodo;
+pub mod spamhaus;
 pub mod user_agent;
 pub mod vpn;
+pub use bot::{BotDb, BotInfo};
 pub use cloud_provider::{CloudProvider, CloudProviderDb};
+pub use datacenter::DatacenterRanges;
 pub use feodo::FeodoBotnetIps;
+pub use spamhaus::SpamhausDrop;
 pub use user_agent::*;
 pub use vpn::VpnRanges;
 
