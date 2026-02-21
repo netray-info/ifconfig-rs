@@ -1,12 +1,12 @@
 # Dev Review — Mitigation Plan
 
-Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low. **25 resolved** across Phases 1, 4–7. Phases 2, 3 remain open.
+Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low. **33 resolved** across all phases. Only H2+H3 (accessibility) and H4 (SEO) remain open.
 
 | Severity | Total | Resolved | Open |
 |----------|-------|----------|------|
 | Critical | 0     | 0        | 0    |
-| High     | 4     | 0        | 4    |
-| Medium   | 18    | 12       | 6    |
+| High     | 4     | 2        | 2    |
+| Medium   | 18    | 18       | 0    |
 | Low      | 15    | 13       | 2    |
 
 ---
@@ -85,146 +85,77 @@ High-priority items that reduce attack surface. Mostly small, isolated changes. 
 
 ---
 
-## Phase 2: Correctness & Reliability
+## Phase 2: Correctness & Reliability ✅
 
-Fixes for correctness bugs, data loss risks, and reliability issues.
+Fixes for correctness bugs, data loss risks, and reliability issues. **All 5 items resolved.**
 
-### H1. Synchronous Blocking I/O in Async Context — Effort: M
+### ~~H1. Synchronous Blocking I/O in Async Context~~ — RESOLVED
 
-**Severity**: High | **Category**: Code Quality / Performance
-
-**Problem**: All backend `from_file()` methods use `std::fs::read_to_string` but are called from the async `EnrichmentContext::load()`. This blocks a tokio worker thread during startup and SIGHUP reload.
-
-**Mitigation**: Use `tokio::fs::read_to_string` or wrap the file reads in `tokio::task::spawn_blocking`.
-
-**Files**: `src/enrichment.rs`, `src/backend/cloud_provider.rs:26`, `src/backend/vpn.rs:10`, `src/backend/bot.rs:22`, `src/backend/datacenter.rs:10`, `src/backend/spamhaus.rs:10`, `src/backend/feodo.rs:8`, `src/backend/mod.rs:76`
+Converted all 10 backend `from_file()`/`new()`/`from_yaml()` methods from `std::fs` to `tokio::fs`. All callers updated to async. Commit `d17efd7`.
 
 ---
 
-### L1. Spamhaus DROP Inline Comments Silently Dropped — Effort: S
+### ~~L1. Spamhaus DROP Inline Comments Silently Dropped~~ — RESOLVED
 
-**Severity**: Low | **Category**: Code Quality
-
-**Problem**: `src/backend/spamhaus.rs:14-19` doesn't handle ` ; SB123456` inline comments. Lines with trailing comments fail `parse::<IpNetwork>()` and are silently dropped, reducing coverage.
-
-**Mitigation**: Strip inline comments (everything after ` ;`) before parsing.
-
-**Files**: `src/backend/spamhaus.rs`
+Added `line.split(" ;").next()` to strip inline comments before parsing. Added `parses_inline_comments` test. Commit `5d74de0`.
 
 ---
 
-### L2. X-Request-Id Not Propagated to Request Headers — Effort: S
+### ~~L2. X-Request-Id Not Propagated to Request Headers~~ — RESOLVED
 
-**Severity**: Low | **Category**: Observability
-
-**Problem**: Generated request IDs are only set on the response (`src/middleware.rs:35-48`). The `TraceLayer` span tries to read from request headers, so server-generated IDs always show as `"-"` in logs.
-
-**Mitigation**: Also insert generated request IDs into the request headers before the span is created.
-
-**Files**: `src/middleware.rs`
+Made `req` mutable and insert generated ID into request headers before `next.run(req)`, so `TraceLayer` spans include the ID. Commit `da4fabd`.
 
 ---
 
-### L7. DNS PTR Lookup Has No Timeout — Effort: S
+### ~~L7. DNS PTR Lookup Has No Timeout~~ — RESOLVED
 
-**Severity**: Low | **Category**: Reliability / Performance
-
-**Problem**: `src/backend/mod.rs:230-245` has no explicit timeout on DNS lookups. A slow DNS server stalls request handling.
-
-**Mitigation**: Wrap DNS lookups in `tokio::time::timeout` (e.g., 2 seconds).
-
-**Files**: `src/backend/mod.rs`
+Wrapped DNS PTR lookup in `tokio::time::timeout(Duration::from_secs(2))`. Timeout returns `None` (no host). Commit `52a9dc2`.
 
 ---
 
-### M11. `u64` to `u32` Truncation in Rate Config — Effort: S
+### ~~M11. `u64` to `u32` Truncation in Rate Config~~ — RESOLVED
 
-**Severity**: Medium | **Category**: Code Quality
-
-**Problem**: `src/state.rs:49` casts `per_ip_per_minute` from `u64` to `u32` with silent truncation.
-
-**Mitigation**: Use `u32::try_from().unwrap_or(u32::MAX)` or change the config field type to `u32`.
-
-**Files**: `src/state.rs` or `src/config.rs`
+Changed `per_ip_per_minute` config field from `u64` to `u32`. Removed `as u32` cast in `state.rs`. Commit `e03bde4`.
 
 ---
 
-## Phase 3: Code Quality & Cleanup
+## Phase 3: Code Quality & Cleanup ✅
 
-Internal quality improvements. No user-visible behavior changes.
+Internal quality improvements. No user-visible behavior changes. **All 6 items resolved.**
 
-### M5. Manual Config Clone is Fragile — Effort: S
+### ~~M5. Manual Config Clone is Fragile~~ — RESOLVED
 
-**Severity**: Medium | **Category**: Code Quality
-
-**Problem**: `src/state.rs:96-127` manually clones every `Config` field. Adding a new field requires updating this block or it's silently dropped.
-
-**Mitigation**: Derive `Clone` on `Config` and replace the manual field-by-field clone with `config.clone()`.
-
-**Files**: `src/config.rs`, `src/state.rs`
+Derived `Clone` on `Config` and replaced manual field-by-field clone with `config.clone()`. Part of H1 commit `d17efd7`.
 
 ---
 
-### M6. Duplicate `RustEmbed` Derivation — Effort: S
+### ~~M6. Duplicate `RustEmbed` Derivation~~ — RESOLVED
 
-**Severity**: Medium | **Category**: Code Quality
-
-**Problem**: `Assets` struct is derived twice: `src/routes.rs:130` (inside `serve_spa()`) and `src/routes.rs:1098` (module level). Both compile to the same embed; one is redundant.
-
-**Mitigation**: Remove the duplicate derivation, keep the module-level one.
-
-**Files**: `src/routes.rs`
+Removed the duplicate `Assets` struct derivation inside `serve_spa()`, keeping the module-level one. Commit `639448f`.
 
 ---
 
-### M7. Dead Code (6 items) — Effort: S
+### ~~M7. Dead Code (6 items)~~ — RESOLVED
 
-**Severity**: Medium | **Category**: Code Quality
-
-**Problem**: Several functions and enum variants are never used:
-- `not_found_handler()` in `src/middleware.rs:144`
-- `AppError::NotFound`, `AppError::IpVersionMismatch`, `AppError::Internal` in `src/error.rs:24-29`
-- `OutputFormat::from_name`, `OutputFormat::mime_type` in `src/format.rs:13,23` (only used in tests)
-
-**Mitigation**: Remove dead code. Gate test-only items with `#[cfg(test)]`.
-
-**Files**: `src/middleware.rs`, `src/error.rs`, `src/format.rs`
+Removed `not_found_handler()`, unused `AppError` variants, and gated test-only `OutputFormat` methods with `#[cfg(test)]`. Commit `5bd6e96`.
 
 ---
 
-### M8. `is_proxy` Always False — Effort: S
+### ~~M8. `is_proxy` Always False~~ — RESOLVED
 
-**Severity**: Medium | **Category**: Code Quality / API Design
-
-**Problem**: `Network.is_proxy` in `src/backend/mod.rs:382` is hardcoded to `false` everywhere. Dead field that misleads API consumers.
-
-**Mitigation**: Remove the field, or add a `TODO` with the reason it's kept for future use.
-
-**Files**: `src/backend/mod.rs`
+Added `TODO` explaining the field is kept for future use but has no data source yet. Commit `7e70be9`.
 
 ---
 
-### M10. Route Handler Boilerplate — Effort: M
+### ~~M10. Route Handler Boilerplate~~ — RESOLVED
 
-**Severity**: Medium | **Category**: Code Quality
-
-**Problem**: ~15 handler pairs (`X_handler` + `X_format_handler`) repeat the same 4-line pattern. ~500 lines of duplication.
-
-**Mitigation**: Extract a macro or factory function to generate handler pairs.
-
-**Files**: `src/routes.rs`
+Extracted `standard_endpoint!` macro to generate handler pairs, eliminating ~500 lines of duplication. Commit `009cf0c`.
 
 ---
 
-### L14. Unused `_state` Parameter — Effort: S
+### ~~L14. Unused `_state` Parameter~~ — RESOLVED
 
-**Severity**: Low | **Category**: Code Quality
-
-**Problem**: `src/routes.rs:56` takes `_state: AppState` that is never used, forcing an unnecessary `.clone()` on every request through the dispatcher.
-
-**Mitigation**: Remove the unused parameter and update the route registration in `src/lib.rs`.
-
-**Files**: `src/routes.rs`, `src/lib.rs`
+Removed unused `_state: AppState` parameter from `router()` and updated route registration. Commit `779c38e`.
 
 ---
 
@@ -398,9 +329,9 @@ These items are worth tracking but have minimal risk or impact.
 ## Suggested Implementation Order
 
 1. ~~**Phase 1** — Security hardening.~~ ✅ Complete (7/7 items resolved).
-2. **Phase 2** — Correctness. H1 (spawn_blocking) is the largest item; the rest are small.
+2. ~~**Phase 2** — Correctness & reliability.~~ ✅ Complete (5/5 items resolved).
 3. ~~**Phase 4** — Dependencies & build.~~ ✅ Complete (6/6 items resolved).
-4. **Phase 3** — Code cleanup. All items are safe refactors. M10 (handler macro) is the most involved.
+4. ~~**Phase 3** — Code quality & cleanup.~~ ✅ Complete (6/6 items resolved).
 5. ~~**Phase 5** — Frontend improvements.~~ ✅ Complete (4/4 resolved; H2+H3 and H4 remain open).
 6. ~~**Phase 6** — Test coverage.~~ ✅ Complete (7/7 items resolved).
 7. ~~**Phase 7** — Documentation.~~ ✅ Complete (3/3 items resolved).
