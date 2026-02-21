@@ -41,9 +41,9 @@ cargo test                   # All tests including integration
 cargo clippy                 # Lint
 cargo fmt                    # Format
 cargo run -- ifconfig.dev.toml  # Local dev server on :8080
-make frontend                # Build frontend via make
+make frontend-build          # Build frontend via make
 make dev                     # Run dev server
-make tests                   # Unit + Docker integration + Playwright E2E
+make test                    # Unit + Docker integration + Playwright E2E
 make integration             # Docker-based integration tests only
 make acceptance              # Playwright E2E tests only
 make bench                   # Run Criterion benchmarks
@@ -53,11 +53,11 @@ cargo bench                  # Run benchmarks directly (negotiation, asn_heurist
 
 ### Test Guidelines
 
-- `cargo test --lib` is the fast reliable check — no network or external services needed (~115 unit tests).
-- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (100 tests covering all endpoints, content types, `?ip=` lookups, `?fields=` filtering, batch, OpenAPI, and `/docs`), `tests/error_handler.rs`, and `tests/rate_limit.rs` (5 tests covering rate limit headers, 429 behavior, and probe exemptions). Total: ~220 tests.
+- `cargo test --lib` is the fast reliable check — no network or external services needed (~150 unit tests).
+- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (~110 tests covering all endpoints, content types, `?ip=` lookups, `?fields=` filtering, batch, `/ipv6`, security headers, OpenAPI, and `/docs`), `tests/error_handler.rs`, and `tests/rate_limit.rs` (5 tests covering rate limit headers, 429 behavior, and probe exemptions). Total: ~265 tests.
 - Integration tests spawn real TCP listeners with hyper_util for each test case.
 - Docker integration tests (`make integration`) build and test inside a container via `tests/Dockerfile.tests`.
-- Playwright E2E tests (`make acceptance`) run against production at `https://ip.pdt.sh` across Chromium, Firefox, and WebKit.
+- Playwright E2E tests (`make acceptance`) use configurable `baseURL` (default `http://127.0.0.1:8000`, override via `BASE_URL` env var) across Chromium, Firefox, and WebKit.
 
 ## Architecture
 
@@ -77,7 +77,7 @@ Key modules:
 - `src/state.rs` — `AppState` wrapping Arc'd backends (GeoIP, UA parser, Tor nodes); `KeyedRateLimiter` uses `StateInformationMiddleware` for burst-capacity tracking; `trusted_proxies: Arc<Vec<IpNetwork>>` for CIDR-aware XFF parsing
 - `src/backend/mod.rs` — Core logic: `get_ifconfig()` orchestrates GeoIP, reverse DNS, UA parsing, network classification
 - `src/backend/user_agent.rs` — UA parsing wrapper around `uaparser`
-- `src/backend/asn_heuristic.rs` — ASN name-based classification (hosting/VPN detection by ISP name). Covers ~40 hosting providers (including Google LLC, Hetzner, DigitalOcean, etc.) and ~12 VPN providers (including Mullvad via "31173 Services AB" alias). Matching is case-insensitive substring on ASN org name.
+- `src/backend/asn_heuristic.rs` — ASN name-based classification (hosting/VPN detection by ISP name). Covers ~33 named hosting providers + generic keyword patterns (including Google LLC, Hetzner, DigitalOcean, etc.) and ~12 VPN providers (including Mullvad via "31173 Services AB" alias). Matching is case-insensitive substring on ASN org name.
 - `src/backend/cloud_provider.rs` — Cloud provider CIDR matching (AWS, GCP, Azure, Cloudflare, etc.)
 - `src/backend/vpn.rs` — VPN range CIDR matching
 - `src/backend/bot.rs` — Bot IP range matching (Googlebot, Bingbot, etc.)
@@ -96,7 +96,7 @@ Key modules:
 
 **Content negotiation priority**: Format suffix (`/ip/json`) → CLI detection (curl/wget/httpie + Accept: */*) → Accept header → HTML (serve SPA).
 
-**API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/health`, `/ready` — all (except probes and `/ip/cidr`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability. `/docs` serves the Scalar API reference UI. `/api-docs/openapi.json` serves the OpenAPI spec.
+**API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/meta`, `/health`, `/ready` — all (except probes, `/ip/cidr`, and `/meta`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/meta` returns JSON site metadata (site name, version) used by the SPA. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability. `/docs` serves the Scalar API reference UI. `/api-docs/openapi.json` serves the OpenAPI spec.
 
 **Batch endpoint**: `POST /batch` (and `/batch/{format}`) accepts a JSON array of IP addresses and returns enrichment results for each. Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens. Supports `?fields=` and `?dns=true`.
 
@@ -108,7 +108,7 @@ Key modules:
 
 SolidJS 1.9 SPA in `frontend/`:
 - `src/App.tsx` — Main component with data fetching; footer links to GitHub, `/docs` (API reference), and author
-- `src/components/` — IpDisplay, InfoCards, ApiDocs, ThemeToggle
+- `src/components/` — IpDisplay, InfoCards, ApiExplorer, RequestHeaders, Faq, ThemeToggle
 - `src/lib/api.ts` — Fetches `/json` endpoint
 - `src/lib/types.ts` — TypeScript interfaces matching Rust `Ifconfig` struct
 - `src/styles/global.css` — Dark-mode-first design with CSS custom properties
@@ -164,7 +164,7 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 - Config values are loaded from a TOML file (`ifconfig.dev.toml` for local dev) via the `config` crate with env var overrides.
 - `AppState` is shared via Axum's `State` extractor; all backends are `Arc`-wrapped.
 - `build_app()` returns `AppBundle { app, admin_app }` — `admin_app` is `Some` only when `server.admin_bind` is configured and the metrics recorder installs successfully. In tests, multiple `build_app()` calls silently skip metrics (global recorder can only be set once).
-- Rate limit middleware emits `X-RateLimit-Limit`, `X-RateLimit-Remaining` on all responses and `Retry-After` on 429s. `/health` and `/ready` are exempt.
+- Rate limit middleware emits `X-RateLimit-Limit`, `X-RateLimit-Remaining` on all responses and `Retry-After` on 429s. `/health`, `/ready`, and `/batch` are exempt (batch has its own per-IP token consumption: N IPs = N tokens).
 - Response compression via `CompressionLayer` (gzip) — outermost layer, respects `Accept-Encoding`.
 - `X-Request-Id` header on every response — propagates client-sent IDs, otherwise generates 16-char hex IDs via atomic counter + random seed. Included in `TraceLayer` spans for log correlation.
 - CORS via `tower_http::cors::CorsLayer` — configurable origins (default `["*"]`), handles OPTIONS preflight.
