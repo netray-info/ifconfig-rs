@@ -12,7 +12,7 @@ fn test_config() -> Config {
 
 async fn send_request(req: Request<Body>) -> (StatusCode, String) {
     let config = test_config();
-    let app = ifconfig_rs::build_app(&config);
+    let app = ifconfig_rs::build_app(&config).app;
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

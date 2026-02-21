@@ -31,8 +31,28 @@ async fn main() {
     let bind_addr: SocketAddr = config.server.bind.parse().expect("Invalid bind address");
     info!("Starting server on {}", bind_addr);
 
-    let app = build_app(&config).into_make_service_with_connect_info::<SocketAddr>();
+    let bundle = build_app(&config);
 
+    // Spawn admin server if configured
+    if let Some(admin_app) = bundle.admin_app {
+        let admin_bind: SocketAddr = config
+            .server
+            .admin_bind
+            .as_ref()
+            .expect("admin_bind must be set")
+            .parse()
+            .expect("Invalid admin bind address");
+        let admin_listener = TcpListener::bind(admin_bind).await.expect("Failed to bind admin port");
+        info!("Admin server listening on {}", admin_listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            axum::serve(admin_listener, admin_app)
+                .with_graceful_shutdown(shutdown_signal())
+                .await
+                .expect("Admin server error");
+        });
+    }
+
+    let app = bundle.app.into_make_service_with_connect_info::<SocketAddr>();
     let listener = TcpListener::bind(bind_addr).await.expect("Failed to bind");
     info!("Listening on {}", listener.local_addr().unwrap());
 

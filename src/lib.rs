@@ -10,18 +10,35 @@ pub mod routes;
 pub mod state;
 
 use axum::middleware as axum_mw;
+use axum::response::IntoResponse;
+use axum::routing::get;
 use axum::Router;
 use state::AppState;
 
 pub use config::Config;
 pub use state::ProjectInfo;
 
-pub fn build_app(config: &Config) -> Router {
+pub struct AppBundle {
+    pub app: Router,
+    pub admin_app: Option<Router>,
+}
+
+pub fn build_app(config: &Config) -> AppBundle {
     let state = AppState::new(config);
+
+    // Try to install metrics recorder. May fail in tests where multiple
+    // build_app calls run in the same process — that's fine, skip metrics.
+    let metrics_handle = metrics_exporter_prometheus::PrometheusBuilder::new()
+        .install_recorder()
+        .ok();
+
+    if metrics_handle.is_some() {
+        metrics_process::Collector::default().describe();
+    }
 
     let api_routes = routes::router(state.clone());
 
-    Router::new()
+    let app = Router::new()
         .merge(api_routes)
         .fallback(routes::static_handler)
         .layer(axum_mw::from_fn(middleware::security_headers))
@@ -30,5 +47,28 @@ pub fn build_app(config: &Config) -> Router {
             state.clone(),
             extractors::requester_info_middleware,
         ))
-        .with_state(state)
+        .with_state(state);
+
+    let admin_app = config.server.admin_bind.as_ref().and_then(|_| {
+        let handle = metrics_handle?;
+        Some(
+            Router::new()
+                .route(
+                    "/metrics",
+                    get(move || {
+                        let h = handle.clone();
+                        async move {
+                            metrics_process::Collector::default().collect();
+                            h.render().into_response()
+                        }
+                    }),
+                )
+                .route(
+                    "/health",
+                    get(|| async { axum::http::StatusCode::OK.into_response() }),
+                ),
+        )
+    });
+
+    AppBundle { app, admin_app }
 }

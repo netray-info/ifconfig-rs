@@ -27,10 +27,12 @@ path = "src/main.rs"
 [dependencies]
 axum = { version = "0.8", features = ["json"] }
 axum-extra = { version = "0.10", features = ["typed-header"] }
+metrics-exporter-prometheus = "0.16"
 config = "0.15"
 hickory-resolver = { version = "0.25", features = ["tokio", "system-config"] }
 governor = "0.8"
 maxminddb = "0.27"
+metrics-process = "2.3"
 mime_guess = "2"
 regex = "1"
 rust-embed = "8"

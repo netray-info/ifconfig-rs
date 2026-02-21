@@ -116,6 +116,7 @@ impl AppState {
             config: Arc::new(Config {
                 server: crate::config::ServerConfig {
                     bind: config.server.bind.clone(),
+                    admin_bind: config.server.admin_bind.clone(),
                     trusted_proxies: config.server.trusted_proxies.clone(),
                 },
                 base_url: config.base_url.clone(),

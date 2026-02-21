@@ -36,6 +36,7 @@ impl Config {
 pub struct ServerConfig {
     #[serde(default = "ServerConfig::default_bind")]
     pub bind: String,
+    pub admin_bind: Option<String>,
     #[serde(default)]
     pub trusted_proxies: Vec<String>,
 }
@@ -44,6 +45,7 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             bind: Self::default_bind(),
+            admin_bind: None,
             trusted_proxies: Vec::new(),
         }
     }
