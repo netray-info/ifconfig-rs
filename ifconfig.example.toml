@@ -35,6 +35,19 @@ base_url = "ip.pdt.sh"
 # If omitted, Tor exit node detection is disabled.
 # tor_exit_nodes = "data/tor_exit_nodes.txt"
 
+# Path to normalized JSONL file of cloud provider CIDR ranges.
+# Each line: {"cidr":"...","provider":"...","service":"...","region":"..."}
+# If omitted, cloud provider detection is disabled.
+# cloud_provider_ranges = "data/cloud_provider_ranges.jsonl"
+
+# Path to a newline-delimited list of Feodo botnet C2 IPs.
+# If omitted, botnet C2 detection is disabled.
+# feodo_botnet_ips = "data/feodo_botnet_ips.txt"
+
+# Path to a newline-delimited list of VPN CIDR ranges.
+# If omitted, CIDR-based VPN detection is disabled (ASN heuristic still works).
+# vpn_ranges = "data/vpn_ranges.txt"
+
 # Regex patterns matched against header names. Any header whose name matches
 # a pattern is excluded from /headers responses. Useful for hiding infrastructure
 # headers injected by hosting providers.
