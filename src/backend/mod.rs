@@ -1,5 +1,12 @@
+pub mod asn_heuristic;
+pub mod cloud_provider;
+pub mod feodo;
 pub mod user_agent;
+pub mod vpn;
+pub use cloud_provider::{CloudProvider, CloudProviderDb};
+pub use feodo::FeodoBotnetIps;
 pub use user_agent::*;
+pub use vpn::VpnRanges;
 
 use maxminddb::{self, geoip2};
 use mhost::resolver::{MultiQuery, ResolverGroup};
@@ -126,6 +133,9 @@ pub struct Ifconfig {
     pub location: Location,
     pub isp: Isp,
     pub is_tor: Option<bool>,
+    pub is_botnet_c2: Option<bool>,
+    pub is_vpn: Option<bool>,
+    pub cloud: Option<CloudProvider>,
     pub user_agent: Option<UserAgent>,
     pub user_agent_header: Option<String>,
 }
@@ -137,6 +147,9 @@ pub struct IfconfigParam<'a> {
     pub geoip_city_db: &'a GeoIpCityDb,
     pub geoip_asn_db: &'a GeoIpAsnDb,
     pub tor_exit_nodes: &'a TorExitNodes,
+    pub feodo_botnet_ips: Option<&'a FeodoBotnetIps>,
+    pub vpn_ranges: Option<&'a VpnRanges>,
+    pub cloud_provider_db: Option<&'a CloudProviderDb>,
     pub dns_resolver: &'a ResolverGroup,
 }
 
@@ -192,6 +205,33 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
 
     let is_tor = param.tor_exit_nodes.lookup(&param.remote.ip());
 
+    let is_botnet_c2 = param
+        .feodo_botnet_ips
+        .and_then(|db| db.lookup(&param.remote.ip()));
+
+    let cloud = param
+        .cloud_provider_db
+        .and_then(|db| db.lookup(param.remote.ip()).cloned());
+
+    let is_vpn = {
+        let cidr_match = param
+            .vpn_ranges
+            .map(|db| db.lookup(param.remote.ip()))
+            .unwrap_or(false);
+        if cidr_match {
+            Some(true)
+        } else {
+            // Fallback: ASN heuristic
+            match &isp.name {
+                Some(name) => match asn_heuristic::classify_asn(name) {
+                    asn_heuristic::AsnClassification::Vpn { .. } => Some(true),
+                    _ => param.vpn_ranges.map(|_| false),
+                },
+                None => param.vpn_ranges.map(|_| false),
+            }
+        }
+    };
+
     let user_agent = param.user_agent_header.map(|s| param.user_agent_parser.parse(s));
 
     Ifconfig {
@@ -201,6 +241,9 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         location,
         isp,
         is_tor,
+        is_botnet_c2,
+        is_vpn,
+        cloud,
         user_agent,
         user_agent_header: param.user_agent_header.map(|s| s.to_string()),
     }

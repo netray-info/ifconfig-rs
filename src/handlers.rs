@@ -12,6 +12,9 @@ pub(crate) async fn make_ifconfig(
     geoip_city_db: &GeoIpCityDb,
     geoip_asn_db: &GeoIpAsnDb,
     tor_exit_nodes: &TorExitNodes,
+    feodo_botnet_ips: Option<&FeodoBotnetIps>,
+    vpn_ranges: Option<&VpnRanges>,
+    cloud_provider_db: Option<&CloudProviderDb>,
     dns_resolver: &ResolverGroup,
 ) -> Ifconfig {
     let param = IfconfigParam {
@@ -21,6 +24,9 @@ pub(crate) async fn make_ifconfig(
         geoip_city_db,
         geoip_asn_db,
         tor_exit_nodes,
+        feodo_botnet_ips,
+        vpn_ranges,
+        cloud_provider_db,
         dns_resolver,
     };
     get_ifconfig(&param).await
@@ -162,6 +168,18 @@ pub mod all {
         }
         if let Some(is_tor) = ifconfig.is_tor {
             lines.push(format!("tor:        {}", is_tor));
+        }
+        if let Some(is_vpn) = ifconfig.is_vpn {
+            lines.push(format!("vpn:        {}", is_vpn));
+        }
+        if let Some(ref cloud) = ifconfig.cloud {
+            lines.push(format!("cloud:      {}", cloud.provider));
+            if let Some(ref service) = cloud.service {
+                lines.push(format!("cloud_svc:  {}", service));
+            }
+            if let Some(ref region) = cloud.region {
+                lines.push(format!("cloud_rgn:  {}", region));
+            }
         }
         lines.push(format!("port:       {}", ifconfig.tcp.port));
         if let Some(ref ua) = ifconfig.user_agent {

@@ -16,6 +16,9 @@ pub struct Config {
     pub geoip_asn_db: Option<String>,
     pub user_agent_regexes: Option<String>,
     pub tor_exit_nodes: Option<String>,
+    pub cloud_provider_ranges: Option<String>,
+    pub feodo_botnet_ips: Option<String>,
+    pub vpn_ranges: Option<String>,
     /// Regex patterns matched against header names. Matching headers are
     /// excluded from `/headers` responses. Case-insensitive match.
     #[serde(default)]
