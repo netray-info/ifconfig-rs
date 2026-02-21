@@ -232,75 +232,39 @@ Internal quality improvements. No user-visible behavior changes.
 
 Dependency hygiene, CI improvements, and supply-chain hardening.
 
-### M9. `serde_yaml` is Unmaintained — Effort: M
+### ~~M9. `serde_yaml` is Unmaintained~~ — RESOLVED
 
-**Severity**: Medium | **Category**: Dependencies
-
-**Problem**: `serde_yaml = "0.9"` was deprecated by dtolnay in January 2024. The crate is no longer maintained.
-
-**Mitigation**: Migrate to `serde_yml` (maintained fork with compatible API).
-
-**Files**: `Cargo.toml`, `src/format.rs`
+Migrated to `serde_yaml_ng` 0.10 via Cargo rename trick. Note: the originally suggested `serde_yml` has RUSTSEC-2025-0068 (unsoundness) and is archived.
 
 ---
 
-### L6. `tokio = { features = ["full"] }` — Effort: S
+### ~~L6. `tokio = { features = ["full"] }`~~ — RESOLVED
 
-**Severity**: Low | **Category**: Build
-
-**Problem**: `Cargo.toml:49` pulls in all tokio features. Only `rt-multi-thread`, `net`, `macros`, `signal`, `sync`, `time` are needed.
-
-**Mitigation**: Replace `features = ["full"]` with the specific required features. Verify build still compiles.
-
-**Files**: `Cargo.toml`
+Replaced with specific features: `fs`, `macros`, `net`, `rt-multi-thread`, `signal`, `sync`, `time`.
 
 ---
 
-### L15. Typo in CI Job Name — Effort: S
+### ~~L15. Typo in CI Job Name~~ — RESOLVED
 
-**Severity**: Low | **Category**: CI
-
-**Problem**: `.github/workflows/ci.yml:46` says "Cargo Ftm" instead of "Cargo Fmt".
-
-**Mitigation**: Fix the typo.
-
-**Files**: `.github/workflows/ci.yml`
+Fixed "Cargo Ftm" → "Cargo Fmt".
 
 ---
 
-### M12. CI Does Not Run Integration Tests — Effort: S
+### ~~M12. CI Does Not Run Integration Tests~~ — RESOLVED
 
-**Severity**: Medium | **Category**: CI / Test Coverage
-
-**Problem**: `ci.yml:61` runs only `cargo test --lib`. The in-process integration tests (`tests/ok_handlers.rs`, `tests/error_handler.rs`, `tests/rate_limit.rs`) are fast and could catch regressions missed by unit tests, but only run inside Docker.
-
-**Mitigation**: Add a CI step that runs `cargo test` (without `--lib` filter), or at least `cargo test --test ok_handlers --test error_handler --test rate_limit`.
-
-**Files**: `.github/workflows/ci.yml`
+Added integration test step running `ok_handlers`, `error_handler`, and `rate_limit` after unit tests.
 
 ---
 
-### L13. CI Action Versions Not SHA-Pinned — Effort: S
+### ~~L13. CI Action Versions Not SHA-Pinned~~ — RESOLVED
 
-**Severity**: Low | **Category**: CI / Security
-
-**Problem**: `actions/checkout@v3` is tag-based (mutable), while Docker actions are SHA-pinned. Inconsistent pinning across workflows.
-
-**Mitigation**: SHA-pin all third-party actions for supply-chain safety.
-
-**Files**: `.github/workflows/ci.yml`, `.github/workflows/docker-prod-image.yml`
+SHA-pinned `actions/checkout` (v4.3.1) and `actions/setup-node` (v4.4.0) across both workflows. Also upgraded checkout from v3 to v4.
 
 ---
 
-### L12. Koyeb CLI Installed via Piped Curl — Effort: S
+### ~~L12. Koyeb CLI Installed via Piped Curl~~ — RESOLVED
 
-**Severity**: Low | **Category**: CI / Security
-
-**Problem**: `.github/workflows/docker-prod-image.yml:26` runs `curl | sh` without checksum verification. Supply chain risk in CI.
-
-**Mitigation**: Pin to a specific Koyeb CLI version and verify checksum, or use an official GitHub Action.
-
-**Files**: `.github/workflows/docker-prod-image.yml`
+Pinned to Koyeb CLI v5.9.1 via direct release tarball download instead of `curl | sh`.
 
 ---
 
