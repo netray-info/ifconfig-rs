@@ -37,6 +37,7 @@ pub fn classify_asn(asn_org: &str) -> AsnClassification {
 }
 
 static HOSTING_PATTERNS: &[(&str, &str)] = &[
+    // Named providers (specific matches first)
     ("hetzner", "Hetzner"),
     ("digitalocean", "DigitalOcean"),
     ("ovh", "OVH"),
@@ -46,6 +47,7 @@ static HOSTING_PATTERNS: &[(&str, &str)] = &[
     ("choopa", "Vultr"),
     ("linode", "Linode"),
     ("akamai connected cloud", "Linode"),
+    ("akamai", "Akamai"),
     ("contabo", "Contabo"),
     ("ionos", "IONOS"),
     ("leaseweb", "Leaseweb"),
@@ -57,9 +59,27 @@ static HOSTING_PATTERNS: &[(&str, &str)] = &[
     ("rackspace", "Rackspace"),
     ("softlayer", "IBM Cloud"),
     ("ibm cloud", "IBM Cloud"),
-    ("oracle cloud", "Oracle Cloud"),
+    ("oracle", "Oracle Cloud"),
     ("alibaba", "Alibaba Cloud"),
     ("tencent cloud", "Tencent Cloud"),
+    ("fastly", "Fastly"),
+    ("cloudflare", "Cloudflare"),
+    ("zscaler", "Zscaler"),
+    ("godaddy", "GoDaddy"),
+    ("dreamhost", "DreamHost"),
+    ("colocrossing", "ColoCrossing"),
+    ("quadranet", "QuadraNet"),
+    ("psychz", "Psychz Networks"),
+    ("phoenixnap", "PhoenixNAP"),
+    ("m247", "M247"),
+    ("zenlayer", "Zenlayer"),
+    ("sharktech", "Sharktech"),
+    // Generic keyword patterns (catch-all, last so named providers win)
+    ("hosting", "hosting provider"),
+    ("datacenter", "datacenter"),
+    ("data center", "datacenter"),
+    ("colocation", "colocation"),
+    ("dedicated server", "dedicated hosting"),
 ];
 
 static VPN_PATTERNS: &[(&str, &str)] = &[
@@ -132,6 +152,59 @@ mod tests {
             classify_asn("Akamai Connected Cloud"),
             AsnClassification::Hosting { provider: "Linode" }
         );
+    }
+
+    #[test]
+    fn classify_akamai_technologies() {
+        assert_eq!(
+            classify_asn("Akamai Technologies, Inc."),
+            AsnClassification::Hosting { provider: "Akamai" }
+        );
+    }
+
+    #[test]
+    fn classify_oracle_corporation() {
+        assert_eq!(
+            classify_asn("Oracle Corporation"),
+            AsnClassification::Hosting {
+                provider: "Oracle Cloud"
+            }
+        );
+    }
+
+    #[test]
+    fn classify_cloudflare() {
+        assert_eq!(
+            classify_asn("CLOUDFLARENET"),
+            AsnClassification::Hosting {
+                provider: "Cloudflare"
+            }
+        );
+    }
+
+    #[test]
+    fn classify_generic_hosting() {
+        assert_eq!(
+            classify_asn("Example Hosting Ltd"),
+            AsnClassification::Hosting {
+                provider: "hosting provider"
+            }
+        );
+    }
+
+    #[test]
+    fn classify_generic_datacenter() {
+        assert_eq!(
+            classify_asn("XYZ Datacenter GmbH"),
+            AsnClassification::Hosting {
+                provider: "datacenter"
+            }
+        );
+    }
+
+    #[test]
+    fn no_false_positive_google_fiber() {
+        assert_eq!(classify_asn("Google Fiber Inc."), AsnClassification::None);
     }
 
     #[test]
