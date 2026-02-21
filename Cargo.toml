@@ -28,7 +28,7 @@ path = "src/main.rs"
 axum = { version = "0.8", features = ["json"] }
 axum-extra = { version = "0.10", features = ["typed-header"] }
 config = "0.15"
-dns-lookup = "3"
+hickory-resolver = { version = "0.25", features = ["tokio", "system-config"] }
 governor = "0.8"
 maxminddb = "0.27"
 mime_guess = "2"

@@ -100,7 +100,7 @@ fn resolve_backends(state: &AppState) -> Option<(&UserAgentParser, &GeoIpCityDb,
     Some((uap, city, asn, tor))
 }
 
-fn dispatch_standard(
+async fn dispatch_standard(
     format: NegotiatedFormat,
     req_info: &RequesterInfo,
     state: &AppState,
@@ -118,7 +118,7 @@ fn dispatch_standard(
 
     let ua_ref = req_info.user_agent.as_deref();
     let ua_opt: Option<&str> = ua_ref;
-    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor);
+    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, &state.dns_resolver).await;
 
     match format {
         NegotiatedFormat::Html => unreachable!(),
@@ -158,6 +158,7 @@ async fn root_handler(
         handlers::root::to_json,
         handlers::root::to_plain,
     )
+    .await
 }
 
 async fn root_format_handler(
@@ -176,6 +177,7 @@ async fn root_format_handler(
         handlers::root::to_json,
         handlers::root::to_plain,
     )
+    .await
 }
 
 // ---- Standard endpoint handlers ----
@@ -183,7 +185,7 @@ async fn root_format_handler(
 async fn ip_handler(State(state): State<AppState>, headers: HeaderMap, extensions: axum::http::Extensions) -> Response {
     let req_info = get_requester_info(&headers, &extensions);
     let format = negotiate(None, &headers);
-    dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain)
+    dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain).await
 }
 
 async fn ip_format_handler(
@@ -194,7 +196,7 @@ async fn ip_format_handler(
 ) -> Response {
     let req_info = get_requester_info(&headers, &extensions);
     let format = negotiate(Some(&fmt), &headers);
-    dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain)
+    dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain).await
 }
 
 async fn tcp_handler(
@@ -211,6 +213,7 @@ async fn tcp_handler(
         handlers::tcp::to_json,
         handlers::tcp::to_plain,
     )
+    .await
 }
 
 async fn tcp_format_handler(
@@ -228,6 +231,7 @@ async fn tcp_format_handler(
         handlers::tcp::to_json,
         handlers::tcp::to_plain,
     )
+    .await
 }
 
 async fn host_handler(
@@ -244,6 +248,7 @@ async fn host_handler(
         handlers::host::to_json,
         handlers::host::to_plain,
     )
+    .await
 }
 
 async fn host_format_handler(
@@ -261,6 +266,7 @@ async fn host_format_handler(
         handlers::host::to_json,
         handlers::host::to_plain,
     )
+    .await
 }
 
 async fn location_handler(
@@ -277,6 +283,7 @@ async fn location_handler(
         handlers::location::to_json,
         handlers::location::to_plain,
     )
+    .await
 }
 
 async fn location_format_handler(
@@ -294,6 +301,7 @@ async fn location_format_handler(
         handlers::location::to_json,
         handlers::location::to_plain,
     )
+    .await
 }
 
 async fn isp_handler(
@@ -310,6 +318,7 @@ async fn isp_handler(
         handlers::isp::to_json,
         handlers::isp::to_plain,
     )
+    .await
 }
 
 async fn isp_format_handler(
@@ -327,6 +336,7 @@ async fn isp_format_handler(
         handlers::isp::to_json,
         handlers::isp::to_plain,
     )
+    .await
 }
 
 async fn user_agent_handler(
@@ -343,6 +353,7 @@ async fn user_agent_handler(
         handlers::user_agent::to_json,
         handlers::user_agent::to_plain,
     )
+    .await
 }
 
 async fn user_agent_format_handler(
@@ -360,6 +371,7 @@ async fn user_agent_format_handler(
         handlers::user_agent::to_json,
         handlers::user_agent::to_plain,
     )
+    .await
 }
 
 async fn all_handler(
@@ -376,6 +388,7 @@ async fn all_handler(
         handlers::all::to_json,
         handlers::all::to_plain,
     )
+    .await
 }
 
 async fn all_format_handler(
@@ -393,6 +406,7 @@ async fn all_format_handler(
         handlers::all::to_json,
         handlers::all::to_plain,
     )
+    .await
 }
 
 // ---- Headers handler ----
@@ -436,7 +450,7 @@ async fn ipv4_handler(
     headers: HeaderMap,
     extensions: axum::http::Extensions,
 ) -> Response {
-    ip_version_dispatch("4", None, &state, &headers, &extensions)
+    ip_version_dispatch("4", None, &state, &headers, &extensions).await
 }
 
 async fn ipv4_format_handler(
@@ -445,7 +459,7 @@ async fn ipv4_format_handler(
     headers: HeaderMap,
     extensions: axum::http::Extensions,
 ) -> Response {
-    ip_version_dispatch("4", Some(&fmt), &state, &headers, &extensions)
+    ip_version_dispatch("4", Some(&fmt), &state, &headers, &extensions).await
 }
 
 async fn ipv6_handler(
@@ -453,7 +467,7 @@ async fn ipv6_handler(
     headers: HeaderMap,
     extensions: axum::http::Extensions,
 ) -> Response {
-    ip_version_dispatch("6", None, &state, &headers, &extensions)
+    ip_version_dispatch("6", None, &state, &headers, &extensions).await
 }
 
 async fn ipv6_format_handler(
@@ -462,10 +476,10 @@ async fn ipv6_format_handler(
     headers: HeaderMap,
     extensions: axum::http::Extensions,
 ) -> Response {
-    ip_version_dispatch("6", Some(&fmt), &state, &headers, &extensions)
+    ip_version_dispatch("6", Some(&fmt), &state, &headers, &extensions).await
 }
 
-fn ip_version_dispatch(
+async fn ip_version_dispatch(
     version: &str,
     suffix: Option<&str>,
     state: &AppState,
@@ -486,7 +500,7 @@ fn ip_version_dispatch(
 
     let ua_ref = req_info.user_agent.as_deref();
     let ua_opt: Option<&str> = ua_ref;
-    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor);
+    let ifconfig = handlers::make_ifconfig(&req_info.remote, &ua_opt, uap, city, asn, tor, &state.dns_resolver).await;
 
     if ifconfig.ip.version != version {
         return (StatusCode::NOT_FOUND, "not implemented").into_response();

@@ -32,9 +32,3 @@ pub fn build_app(config: &Config) -> Router {
         ))
         .with_state(state)
 }
-
-/// Build an app suitable for testing (without ConnectInfo requirement).
-/// Tests should add their own ConnectInfo layer or use the real TCP listener.
-pub fn build_app_for_test(config: &Config) -> Router {
-    build_app(config)
-}

@@ -4,6 +4,7 @@ use crate::config::Config;
 use governor::clock::DefaultClock;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
+use hickory_resolver::TokioResolver;
 use serde::Serialize;
 use std::net::IpAddr;
 use std::num::NonZeroU32;
@@ -20,6 +21,7 @@ pub struct AppState {
     pub geoip_city_db: Option<Arc<GeoIpCityDb>>,
     pub geoip_asn_db: Option<Arc<GeoIpAsnDb>>,
     pub tor_exit_nodes: Arc<TorExitNodes>,
+    pub dns_resolver: Arc<TokioResolver>,
     pub rate_limiter: Arc<KeyedRateLimiter>,
 }
 
@@ -92,6 +94,11 @@ impl AppState {
             site_name: config.site_name.clone().unwrap_or_else(|| config.base_url.clone()),
         };
 
+        let dns_resolver = TokioResolver::builder_tokio()
+            .expect("Failed to read system DNS config")
+            .build();
+        info!("DNS resolver initialized from system config");
+
         let per_minute =
             NonZeroU32::new(config.rate_limit.per_ip_per_minute as u32).expect("per_ip_per_minute must be > 0");
         let burst = NonZeroU32::new(config.rate_limit.per_ip_burst).expect("per_ip_burst must be > 0");
@@ -126,6 +133,7 @@ impl AppState {
             geoip_city_db,
             geoip_asn_db,
             tor_exit_nodes: Arc::new(tor_exit_nodes),
+            dns_resolver: Arc::new(dns_resolver),
             rate_limiter,
         }
     }

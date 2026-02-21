@@ -1,16 +1,18 @@
 use crate::backend::user_agent::UserAgentParser;
 use crate::backend::*;
+use hickory_resolver::TokioResolver;
 use std::net::SocketAddr;
 
 pub(crate) static UNKNOWN_STR: &str = "unknown";
 
-pub(crate) fn make_ifconfig(
+pub(crate) async fn make_ifconfig(
     remote: &SocketAddr,
     user_agent: &Option<&str>,
     user_agent_parser: &UserAgentParser,
     geoip_city_db: &GeoIpCityDb,
     geoip_asn_db: &GeoIpAsnDb,
     tor_exit_nodes: &TorExitNodes,
+    dns_resolver: &TokioResolver,
 ) -> Ifconfig {
     let param = IfconfigParam {
         remote,
@@ -19,8 +21,9 @@ pub(crate) fn make_ifconfig(
         geoip_city_db,
         geoip_asn_db,
         tor_exit_nodes,
+        dns_resolver,
     };
-    get_ifconfig(&param)
+    get_ifconfig(&param).await
 }
 
 pub mod root {
