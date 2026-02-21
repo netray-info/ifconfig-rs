@@ -6,7 +6,7 @@ use axum::Router;
 use serde_json::json;
 
 use crate::backend::*;
-use crate::extractors::{extract_headers, RequesterInfo};
+use crate::extractors::{extract_headers, filter_headers, RequesterInfo};
 use crate::format::OutputFormat;
 use crate::handlers;
 use crate::negotiate::{negotiate, NegotiatedFormat};
@@ -412,15 +412,19 @@ async fn all_format_handler(
 
 // ---- Headers handler ----
 
-async fn headers_handler(headers: HeaderMap) -> Response {
+async fn headers_handler(State(state): State<AppState>, headers: HeaderMap) -> Response {
     let format = negotiate(None, &headers);
-    let req_headers = extract_headers(&headers);
+    let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
     dispatch_headers(format, &req_headers)
 }
 
-async fn headers_format_handler(Path(fmt): Path<String>, headers: HeaderMap) -> Response {
+async fn headers_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+) -> Response {
     let format = negotiate(Some(&fmt), &headers);
-    let req_headers = extract_headers(&headers);
+    let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
     dispatch_headers(format, &req_headers)
 }
 

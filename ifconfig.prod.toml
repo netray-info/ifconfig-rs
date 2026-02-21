@@ -35,6 +35,11 @@ user_agent_regexes = "data/regexes.yaml"
 # If omitted, Tor exit node detection is disabled.
 tor_exit_nodes = "data/tor_exit_nodes.txt"
 
+# Regex patterns matched against header names. Any header whose name matches
+# a pattern is excluded from /headers responses. Useful for hiding infrastructure
+# headers injected by hosting providers.
+filtered_headers = ["^x-koyeb-", "^cf-"]
+
 [server]
 # Address and port to bind the HTTP server to.
 # Default: "127.0.0.1:8080"

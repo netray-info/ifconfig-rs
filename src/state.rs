@@ -6,6 +6,7 @@ use governor::middleware::StateInformationMiddleware;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
 use mhost::resolver::{ResolverGroup, ResolverGroupBuilder};
+use regex::Regex;
 use serde::Serialize;
 use std::net::IpAddr;
 use std::num::NonZeroU32;
@@ -25,6 +26,7 @@ pub struct AppState {
     pub tor_exit_nodes: Arc<TorExitNodes>,
     pub dns_resolver: Arc<ResolverGroup>,
     pub rate_limiter: Arc<KeyedRateLimiter>,
+    pub header_filters: Arc<Vec<Regex>>,
 }
 
 #[derive(Serialize)]
@@ -113,6 +115,21 @@ impl AppState {
             config.rate_limit.per_ip_per_minute, config.rate_limit.per_ip_burst
         );
 
+        let header_filters: Vec<Regex> = config
+            .filtered_headers
+            .iter()
+            .filter_map(|pattern| match Regex::new(pattern) {
+                Ok(re) => Some(re),
+                Err(e) => {
+                    warn!("Invalid header filter regex '{}': {}", pattern, e);
+                    None
+                }
+            })
+            .collect();
+        if !header_filters.is_empty() {
+            info!("Header filters loaded: {} patterns", header_filters.len());
+        }
+
         AppState {
             config: Arc::new(Config {
                 server: crate::config::ServerConfig {
@@ -128,6 +145,7 @@ impl AppState {
                 geoip_asn_db: config.geoip_asn_db.clone(),
                 user_agent_regexes: config.user_agent_regexes.clone(),
                 tor_exit_nodes: config.tor_exit_nodes.clone(),
+                filtered_headers: config.filtered_headers.clone(),
                 rate_limit: crate::config::RateLimitConfig {
                     per_ip_per_minute: config.rate_limit.per_ip_per_minute,
                     per_ip_burst: config.rate_limit.per_ip_burst,
@@ -140,6 +158,7 @@ impl AppState {
             tor_exit_nodes: Arc::new(tor_exit_nodes),
             dns_resolver: Arc::new(dns_resolver),
             rate_limiter,
+            header_filters: Arc::new(header_filters),
         }
     }
 }

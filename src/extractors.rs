@@ -81,6 +81,20 @@ pub fn extract_headers(headers: &HeaderMap) -> Vec<(String, String)> {
         .collect()
 }
 
+/// Remove headers whose names match any of the provided regex filters.
+pub fn filter_headers(
+    headers: Vec<(String, String)>,
+    filters: &[regex::Regex],
+) -> Vec<(String, String)> {
+    if filters.is_empty() {
+        return headers;
+    }
+    headers
+        .into_iter()
+        .filter(|(name, _)| !filters.iter().any(|re| re.is_match(name)))
+        .collect()
+}
+
 /// Middleware that extracts RequesterInfo and stores it as a request extension.
 pub async fn requester_info_middleware(
     State(state): State<AppState>,
@@ -124,6 +138,50 @@ mod tests {
         let trusted = vec!["10.0.0.1".to_string()];
         let result = extract_client_ip(peer, &headers, &trusted);
         assert_eq!(result.ip(), "1.2.3.4".parse::<IpAddr>().unwrap());
+    }
+
+    #[test]
+    fn filter_headers_empty_filters() {
+        let headers = vec![
+            ("host".into(), "example.com".into()),
+            ("x-koyeb-id".into(), "abc".into()),
+        ];
+        let result = filter_headers(headers.clone(), &[]);
+        assert_eq!(result, headers);
+    }
+
+    #[test]
+    fn filter_headers_removes_matching() {
+        let headers = vec![
+            ("host".into(), "example.com".into()),
+            ("x-koyeb-id".into(), "abc".into()),
+            ("x-koyeb-region".into(), "par".into()),
+            ("cf-ray".into(), "123".into()),
+            ("accept".into(), "*/*".into()),
+        ];
+        let filters = vec![
+            regex::Regex::new("^x-koyeb-").unwrap(),
+            regex::Regex::new("^cf-").unwrap(),
+        ];
+        let result = filter_headers(headers, &filters);
+        assert_eq!(
+            result,
+            vec![
+                ("host".into(), "example.com".into()),
+                ("accept".into(), "*/*".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn filter_headers_no_match_keeps_all() {
+        let headers = vec![
+            ("host".into(), "example.com".into()),
+            ("accept".into(), "text/html".into()),
+        ];
+        let filters = vec![regex::Regex::new("^x-koyeb-").unwrap()];
+        let result = filter_headers(headers.clone(), &filters);
+        assert_eq!(result, headers);
     }
 
     #[test]
