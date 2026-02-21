@@ -1252,7 +1252,7 @@ dependencies = [
 
 [[package]]
 name = "ifconfig-rs"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arc-swap",
  "axum",
@@ -1265,6 +1265,7 @@ dependencies = [
  "ip_network",
  "ip_network_table",
  "maxminddb",
+ "metrics",
  "metrics-exporter-prometheus",
  "metrics-process",
  "mhost",

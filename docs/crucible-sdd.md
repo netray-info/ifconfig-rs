@@ -22,7 +22,7 @@ ifconfig-rs evolves from a "what's my IP" utility into a **self-hostable IP enri
 - **Multi-format content negotiation** — JSON, YAML, TOML, CSV, plain text across all endpoints including batch
 - **Single binary with embedded SPA** — zero deployment dependencies beyond the binary and MMDB files
 
-Until Phase 2 ships, the competitive advantage is architectural: single Rust binary, sub-ms lookups, 5-format content negotiation, and an embedded SolidJS frontend for interactive exploration.
+With Phases 1–5 complete, the competitive advantage spans architecture (single Rust binary, sub-ms lookups, 5-format content negotiation, embedded SolidJS frontend) and enrichment depth (cloud provider fingerprinting, network classification, batch lookup).
 
 **The SolidJS frontend remains as a demo/marketing surface**, not a co-equal development priority.
 
@@ -384,7 +384,7 @@ The current rate limiter (governor, keyed by IP) is extended with a clear scopin
 | Scope | Behavior | Status |
 |-------|----------|--------|
 | **Main port (8080)** | All API endpoints rate-limited per IP. `/health` and `/ready` exempt. | **Done** |
-| **Admin port (configurable)** | No rate limiter. Not publicly exposed — protected by network policy. Serves `/metrics` (Prometheus) and `/health`. | **Done** |
+| **Admin port (configurable)** | No rate limiter. Not publicly exposed — protected by network policy. Serves `/metrics` (Prometheus: application + process metrics) and `/health`. | **Done** |
 | **Batch endpoint** | A batch of N IPs costs N rate-limit tokens. Rate-limit check happens before processing. `/batch` exempt from standard middleware; handler applies its own N-token check via `check_key_n`. | **Done** |
 | **Response headers** | `X-RateLimit-Limit`, `X-RateLimit-Remaining` on all rate-limited responses. `Retry-After` on 429 responses. | **Done** |
 

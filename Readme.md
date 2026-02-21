@@ -103,6 +103,9 @@ There are plenty of "what's my IP" services. Here's why this one is worth self-h
 | SPA with interactive API explorer | | | | **yes** |
 | Dark / light / system theme | | | | **yes** |
 | Trusted-proxy / XFF support | | yes | | **yes** |
+| Prometheus metrics | | | | **yes** |
+| Response compression (gzip) | | | | **yes** |
+| Request ID for log correlation | | | | **yes** |
 | Zero external runtime dependencies | | | | **yes** |
 | Self-host in 5 minutes | | | | **yes** |
 
@@ -339,6 +342,7 @@ Config is a TOML file (see [`ifconfig.example.toml`](ifconfig.example.toml) for 
 | `project_name` | string | `"ifconfig-rs"` | Project name returned by the `/meta` endpoint. |
 | `project_version` | string | *(crate version)* | Project version returned by the `/meta` endpoint. |
 | `filtered_headers` | string[] | `[]` | Regex patterns matched against header names. Matching headers are excluded from `/headers` responses. Useful for hiding infrastructure headers (e.g. `["^x-koyeb-", "^cf-"]`). |
+| `watch_data_files` | boolean | `false` | Watch data file directories for changes and auto-reload enrichment data (like SIGHUP but filesystem-triggered). Useful for Kubernetes/Docker deployments with geoipupdate. |
 
 ### Data Files
 
@@ -380,8 +384,9 @@ Use `data/Makefile` to fetch and normalize all enrichment data files. GeoLite2 d
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `server.bind` | string | `"127.0.0.1:8080"` | Address and port to bind the HTTP server. |
-| `server.admin_bind` | string | *(disabled)* | Optional admin port serving Prometheus `/metrics` and `/health`. Not rate-limited — protect via network policy. |
+| `server.admin_bind` | string | *(disabled)* | Optional admin port serving Prometheus `/metrics` (application + process metrics) and `/health`. Not rate-limited — protect via network policy. |
 | `server.trusted_proxies` | string[] | `[]` | CIDR ranges of trusted proxies for X-Forwarded-For parsing. Only the rightmost untrusted IP in the XFF chain is used as the client IP. |
+| `server.cors_allowed_origins` | string[] | `["*"]` | Allowed origins for CORS. Handles OPTIONS preflight automatically. Set to specific origins to restrict cross-origin access. |
 
 ### Rate Limiting
 
@@ -398,6 +403,17 @@ All rate-limited responses include `X-RateLimit-Limit` and `X-RateLimit-Remainin
 |-----|------|---------|-------------|
 | `batch.enabled` | boolean | `false` | Enable the `POST /batch` endpoint for bulk IP lookups. |
 | `batch.max_size` | integer | `100` | Maximum number of IPs per batch request. Each IP consumes one rate-limit token. |
+
+### Operational Features
+
+| Feature | Description |
+|---------|-------------|
+| Response compression | Gzip compression via `Accept-Encoding`. Transparent — clients that don't request it get uncompressed responses. |
+| Request ID | Every response includes an `X-Request-Id` header. If the client sends one, it's propagated; otherwise a unique ID is generated. Included in log spans for correlation across reverse proxies. |
+| CORS | Configurable via `cors_allowed_origins`. Handles OPTIONS preflight automatically. Defaults to `["*"]`. |
+| Prometheus metrics | Admin port (`/metrics`) exposes `http_requests_total`, `http_request_duration_seconds`, `enrichment_sources_loaded`, `geoip_database_age_seconds`, plus OS-level process metrics. |
+| Hot-reload | SIGHUP reloads all data files without downtime. `watch_data_files = true` enables automatic filesystem-triggered reloads. |
+| Structured logging | `IFCONFIG_LOG_FORMAT=json` enables JSON log output. Request ID is included in every log span. |
 
 ### Example Config
 
@@ -416,10 +432,13 @@ datacenter_ranges = "data/datacenter_ranges.txt"
 bot_ranges = "data/bot_ranges.jsonl"
 spamhaus_drop = "data/spamhaus_drop.txt"
 
+# watch_data_files = true
+
 [server]
 bind = "0.0.0.0:8080"
 # admin_bind = "127.0.0.1:9090"
 # trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12"]
+# cors_allowed_origins = ["*"]
 
 [rate_limit]
 per_ip_per_minute = 60
@@ -442,7 +461,9 @@ IFCONFIG_SERVER__TRUSTED_PROXIES='["10.0.0.0/8"]'
 IFCONFIG_RATE_LIMIT__PER_IP_PER_MINUTE=120
 IFCONFIG_BATCH__ENABLED=true
 IFCONFIG_BATCH__MAX_SIZE=50
+IFCONFIG_SERVER__CORS_ALLOWED_ORIGINS='["https://ip.pdt.sh"]'
 IFCONFIG_FILTERED_HEADERS='["^x-koyeb-", "^cf-"]'
+IFCONFIG_WATCH_DATA_FILES=true
 IFCONFIG_LOG_FORMAT=json   # structured JSON logging (default: human-readable)
 ```
 

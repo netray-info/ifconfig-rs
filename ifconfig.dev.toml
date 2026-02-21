@@ -24,6 +24,7 @@ filtered_headers = ["^x-koyeb-", "^cf-"]
 [server]
 bind = "127.0.0.1:8080"
 admin_bind = "127.0.0.1:9090"
+# cors_allowed_origins = ["*"]
 
 [rate_limit]
 per_ip_per_minute = 60
