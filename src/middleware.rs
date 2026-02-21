@@ -1,3 +1,8 @@
+use std::collections::hash_map::RandomState;
+use std::hash::{BuildHasher, Hasher};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::LazyLock;
+
 use axum::extract::State;
 use axum::http::{HeaderValue, Request, StatusCode};
 use axum::middleware::Next;
@@ -7,6 +12,29 @@ use governor::clock::{Clock, DefaultClock};
 use crate::error::AppError;
 use crate::extractors::RequesterInfo;
 use crate::state::AppState;
+
+static REQUEST_ID_SEED: LazyLock<u64> = LazyLock::new(|| RandomState::new().build_hasher().finish());
+static REQUEST_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn generate_request_id() -> String {
+    let count = REQUEST_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("{:016x}", REQUEST_ID_SEED.wrapping_add(count))
+}
+
+pub async fn request_id(req: Request<axum::body::Body>, next: Next) -> Response {
+    let id = req
+        .headers()
+        .get("x-request-id")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from)
+        .unwrap_or_else(generate_request_id);
+
+    let mut response = next.run(req).await;
+    if let Ok(val) = HeaderValue::from_str(&id) {
+        response.headers_mut().insert("x-request-id", val);
+    }
+    response
+}
 
 pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::Body>, next: Next) -> Response {
     let path = req.uri().path();

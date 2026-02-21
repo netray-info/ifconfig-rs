@@ -71,7 +71,22 @@ pub async fn build_app(config: &Config) -> AppBundle {
             state.clone(),
             extractors::requester_info_middleware,
         ))
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|req: &axum::http::Request<axum::body::Body>| {
+                let request_id = req
+                    .headers()
+                    .get("x-request-id")
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("-");
+                tracing::info_span!(
+                    "http_request",
+                    method = %req.method(),
+                    uri = %req.uri(),
+                    request_id = %request_id,
+                )
+            }),
+        )
+        .layer(axum_mw::from_fn(middleware::request_id))
         .layer(CompressionLayer::new())
         .with_state(state);
 
