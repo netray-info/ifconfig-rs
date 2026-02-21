@@ -105,8 +105,7 @@ impl AppState {
             NonZeroU32::new(config.rate_limit.per_ip_per_minute as u32).expect("per_ip_per_minute must be > 0");
         let burst = NonZeroU32::new(config.rate_limit.per_ip_burst).expect("per_ip_burst must be > 0");
         let quota = Quota::per_minute(per_minute).allow_burst(burst);
-        let rate_limiter =
-            Arc::new(RateLimiter::keyed(quota).with_middleware::<StateInformationMiddleware>());
+        let rate_limiter = Arc::new(RateLimiter::keyed(quota).with_middleware::<StateInformationMiddleware>());
         info!(
             "Rate limiter configured: {} req/min, burst {}",
             config.rate_limit.per_ip_per_minute, config.rate_limit.per_ip_burst

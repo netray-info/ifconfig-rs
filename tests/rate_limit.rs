@@ -131,14 +131,8 @@ async fn rate_limit_headers_on_429() {
 
     let resp = do_get_full(addr, "/ip").await;
     assert_eq!(resp.status, StatusCode::TOO_MANY_REQUESTS);
-    assert_eq!(
-        resp.headers.get("x-ratelimit-limit").map(|s| s.as_str()),
-        Some("2"),
-    );
-    assert_eq!(
-        resp.headers.get("x-ratelimit-remaining").map(|s| s.as_str()),
-        Some("0"),
-    );
+    assert_eq!(resp.headers.get("x-ratelimit-limit").map(|s| s.as_str()), Some("2"),);
+    assert_eq!(resp.headers.get("x-ratelimit-remaining").map(|s| s.as_str()), Some("0"),);
     let retry_after: u64 = resp
         .headers
         .get("retry-after")

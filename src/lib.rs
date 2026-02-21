@@ -63,10 +63,7 @@ pub fn build_app(config: &Config) -> AppBundle {
                         }
                     }),
                 )
-                .route(
-                    "/health",
-                    get(|| async { axum::http::StatusCode::OK.into_response() }),
-                ),
+                .route("/health", get(|| async { axum::http::StatusCode::OK.into_response() })),
         )
     });
 
