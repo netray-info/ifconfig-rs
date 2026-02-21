@@ -7,6 +7,9 @@ geoip_city_db = "data/GeoLite2-City.mmdb"
 geoip_asn_db = "data/GeoLite2-ASN.mmdb"
 user_agent_regexes = "data/regexes.yaml"
 tor_exit_nodes = "data/tor_exit_nodes.txt"
+cloud_provider_ranges = "data/cloud_provider_ranges.jsonl"
+feodo_botnet_ips = "data/feodo_botnet_ips.txt"
+vpn_ranges = "data/vpn_ranges.txt"
 
 # Regex patterns to exclude from /headers responses (matched against header names).
 # filtered_headers = ["^x-koyeb-", "^cf-"]

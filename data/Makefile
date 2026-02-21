@@ -1,5 +1,7 @@
 all:
 
+get_all: regexes.yaml tor_exit_nodes.txt feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl
+
 regexes.yaml:
 	curl -s https://raw.githubusercontent.com/ua-parser/uap-core/master/regexes.yaml -o $@
 
@@ -67,4 +69,4 @@ clean_vpn:
 clean_cloud:
 	rm -f cloud_provider_ranges.jsonl .aws.json .gcp.json .cloudflare-v4.txt .cloudflare-v6.txt
 
-.PHONY: all build push clean clean_regexes clean_tor clean_feodo clean_vpn clean_cloud
+.PHONY: all get_all build push clean clean_regexes clean_tor clean_feodo clean_vpn clean_cloud
