@@ -83,7 +83,7 @@ impl ServerConfig {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RateLimitConfig {
     #[serde(default = "RateLimitConfig::default_per_ip_per_minute")]
-    pub per_ip_per_minute: u64,
+    pub per_ip_per_minute: u32,
     #[serde(default = "RateLimitConfig::default_per_ip_burst")]
     pub per_ip_burst: u32,
 }
@@ -98,7 +98,7 @@ impl Default for RateLimitConfig {
 }
 
 impl RateLimitConfig {
-    fn default_per_ip_per_minute() -> u64 {
+    fn default_per_ip_per_minute() -> u32 {
         60
     }
     fn default_per_ip_burst() -> u32 {
