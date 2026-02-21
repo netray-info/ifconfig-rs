@@ -59,6 +59,8 @@ jobs:
         run: cargo build --verbose
       - name: Cargo Unit Test
         run: cargo test --lib --no-fail-fast
+      - name: Cargo Integration Test
+        run: cargo test --test ok_handlers --test error_handler --test rate_limit --no-fail-fast
 
   integration-test:
     needs: [check, build-n-test]
