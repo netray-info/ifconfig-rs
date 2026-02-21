@@ -250,7 +250,12 @@ A separate module `src/backend/asn_heuristic.rs` contains ASN-name-based classif
 - **Hosting/datacenter detection** for providers without official CIDR lists (Hetzner, DigitalOcean, OVH, Vultr, Linode, etc.) — matched by ASN organization name from the existing MaxMind ASN database.
 - **VPN fallback** for VPN providers not covered by X4BNet — matched by known VPN ASN names.
 
-The heuristic is a single point of change: a lookup table mapping ASN name patterns to classification tags. No external data dependency — uses the MaxMind ASN data already loaded.
+The heuristic is a single point of change: a lookup table mapping ASN name patterns to classification tags. No external data dependency — uses the MaxMind ASN data already loaded. Matching is case-insensitive substring on the ASN organization name.
+
+Notable patterns:
+- **Google LLC** (AS15169) → `Hosting { provider: "Google" }` — distinct from "Google Fiber Inc." which is residential and must not match.
+- **31173 Services AB** (AS39351) → `Vpn { provider: "Mullvad" }` — Mullvad's infrastructure subsidiary, often seen instead of the "Mullvad" ASN name.
+- **Akamai Connected Cloud** → `Hosting { provider: "Linode" }` — Linode rebranding; matched before the generic "Akamai" pattern.
 
 ```rust
 // src/backend/asn_heuristic.rs — single source of truth for name-based classification
@@ -314,13 +319,13 @@ This is a **breaking change** from the current API where `is_tor` is a top-level
 
 - **`/ip/cidr`:** Returns `{ip}/32` (IPv4) or `{ip}/128` (IPv6) as plain text. Terraform/Ansible convenience endpoint.
 
-- **`?ip=` arbitrary IP lookup:** All endpoints using `dispatch_standard()` gained an optional `?ip=` query parameter. When present, lookup targets that IP instead of the caller's. Input validation rejects RFC 1918, link-local, loopback, and unspecified addresses (400 Bad Request). PTR/reverse DNS is skipped by default for arbitrary IPs (opt-in via `?dns=true`). `IfconfigParam` gained `skip_dns: bool` to support this.
+- **`?ip=` arbitrary IP lookup:** All endpoints using `dispatch_standard()` gained an optional `?ip=` query parameter. When present, lookup targets that IP instead of the caller's. Input validation rejects RFC 1918, link-local, loopback, and unspecified addresses (400 Bad Request). PTR/reverse DNS is skipped by default for arbitrary IPs (opt-in via `?dns=true`). `IfconfigParam` gained `skip_dns: bool` to support this. `tcp` is `Option<Tcp>` — set to `None` for `?ip=` queries (the synthetic port 0 was meaningless). `host` is also omitted when `skip_dns` is true.
 
 - **Field filtering (`?fields=`):** Parses `?fields=ip,location,isp` from the URI, filters the `serde_json::Value` after `to_json_fn()` produces it. Top-level field names only. Applies to JSON, YAML, TOML, CSV formats. Combines with `?ip=`: `GET /all/json?ip=8.8.8.8&fields=ip,location`.
 
 - **Batch endpoint:** `POST /batch` accepts a JSON array of IP addresses (max configurable, default 100). Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens (checked before processing). Per-IP error handling: invalid/private IPs return `{"error": "...", "input": "..."}` inline. Full content negotiation: `/batch/json`, `/batch/yaml`, `/batch/toml`, `/batch/csv`. Batch CSV uses tabular format (one row per IP, dot-notated column headers). Exempt from standard per-request rate limiting middleware; batch handler applies its own N-token check via `check_key_n`.
 
-- **OpenAPI via utoipa:** The macro-free handler architecture from Phase 1a made utoipa viable (decision record confirmed). All 16 public handlers annotated with `#[utoipa::path]`. Response types derive `ToSchema`: `Ifconfig`, `Ip`, `Tcp`, `Host`, `Location`, `Isp`, `Network`, `UserAgent`, `Browser`, `OS`, `Device`. Spec served at `GET /api-docs/openapi.json`. Swagger UI deferred (adds too many deps for marginal value).
+- **OpenAPI via utoipa:** The macro-free handler architecture from Phase 1a made utoipa viable (decision record confirmed). All 16 public handlers annotated with `#[utoipa::path]`. Response types derive `ToSchema`: `Ifconfig`, `Ip`, `Tcp`, `Host`, `Location`, `Isp`, `Network`, `UserAgent`, `Browser`, `OS`, `Device`. Spec served at `GET /api-docs/openapi.json`. Swagger UI deferred (adds too many deps for marginal value). **Caveat:** The version in the `#[openapi]` attribute (`src/routes.rs`) is a string literal — utoipa doesn't support `env!()` or `const` there, so it must be manually updated on version bumps.
 
 ### Phase 4: API Surface & Operational Polish ✓
 
@@ -374,6 +379,18 @@ This is a **breaking change** from the current API where `is_tor` is a top-level
 - **Application metrics:** Added `metrics` 0.24 as direct dependency (already transitive via `metrics-exporter-prometheus`, zero compile cost). Instrumented: `http_requests_total{method,status}` counter, `http_request_duration_seconds{method}` histogram, `enrichment_sources_loaded{source}` gauge (updated on reload), `geoip_database_age_seconds` gauge. Labels kept to `method+status` to avoid unbounded cardinality from path-level labels.
 
 **Middleware stack (outermost → innermost):** CompressionLayer → request_id → record_metrics → TraceLayer → requester_info → rate_limit → geoip_date_headers → CorsLayer → security_headers → Router
+
+#### Post-Phase 5 Bug Fixes
+
+Three issues discovered from production testing after Phase 5 shipped:
+
+| Fix | Commit | Description |
+|-----|--------|-------------|
+| Omit tcp for `?ip=` queries | `aab22ef` | `?ip=` queries returned `"tcp": {"port": 0}` — a meaningless synthetic port. Changed `Ifconfig.tcp` from `Tcp` to `Option<Tcp>`, set to `None` when `skip_dns` is true. Updated handlers, frontend types, and InfoCards component. Also fixed stale OpenAPI version (was still "0.7.0"). |
+| Google LLC hosting heuristic | `a8cfcac` | Google LLC (AS15169, Google's infrastructure ASN) was classified as "residential". Added `("google llc", "Google")` to `HOSTING_PATTERNS`. Placed before generic patterns; "Google Fiber Inc." remains correctly unmatched (residential). |
+| Mullvad VPN via 31173 Services AB | `12d5c47` | Mullvad VPN IPs under AS39351 ("31173 Services AB", Mullvad's infrastructure subsidiary) were not detected as VPN. Added `("31173 services", "Mullvad")` to `VPN_PATTERNS`. |
+
+**Post-fix test count:** 215 tests (110 unit + 99 ok_handlers + 1 error_handler + 5 rate_limit).
 
 ---
 

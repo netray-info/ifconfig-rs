@@ -75,7 +75,7 @@ Key modules:
 - `src/state.rs` — `AppState` wrapping Arc'd backends (GeoIP, UA parser, Tor nodes); `KeyedRateLimiter` uses `StateInformationMiddleware` for burst-capacity tracking; `trusted_proxies: Arc<Vec<IpNetwork>>` for CIDR-aware XFF parsing
 - `src/backend/mod.rs` — Core logic: `get_ifconfig()` orchestrates GeoIP, reverse DNS, UA parsing, network classification
 - `src/backend/user_agent.rs` — UA parsing wrapper around `uaparser`
-- `src/backend/asn_heuristic.rs` — ASN name-based classification (hosting/VPN detection by ISP name)
+- `src/backend/asn_heuristic.rs` — ASN name-based classification (hosting/VPN detection by ISP name). Covers ~40 hosting providers (including Google LLC, Hetzner, DigitalOcean, etc.) and ~12 VPN providers (including Mullvad via "31173 Services AB" alias). Matching is case-insensitive substring on ASN org name.
 - `src/backend/cloud_provider.rs` — Cloud provider CIDR matching (AWS, GCP, Azure, Cloudflare, etc.)
 - `src/backend/vpn.rs` — VPN range CIDR matching
 - `src/backend/bot.rs` — Bot IP range matching (Googlebot, Bingbot, etc.)
@@ -97,9 +97,9 @@ Key modules:
 
 **Batch endpoint**: `POST /batch` (and `/batch/{format}`) accepts a JSON array of IP addresses and returns enrichment results for each. Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens. Supports `?fields=` and `?dns=true`.
 
-**Query parameters**: Most endpoints support `?ip=` (look up an arbitrary global IP instead of the caller's), `?fields=` (comma-separated top-level field names to include in response), and `?dns=true` (opt-in PTR lookup for `?ip=` queries; PTR is skipped by default for arbitrary IPs).
+**Query parameters**: Most endpoints support `?ip=` (look up an arbitrary global IP instead of the caller's), `?fields=` (comma-separated top-level field names to include in response), and `?dns=true` (opt-in PTR lookup for `?ip=` queries; PTR is skipped by default for arbitrary IPs). For `?ip=` queries, `tcp` and `host` are omitted from the response (port is synthetic, PTR is slow and usually unwanted).
 
-**OpenAPI**: Spec served at `GET /api-docs/openapi.json` via utoipa. All public endpoints are annotated with `#[utoipa::path]` and response types derive `ToSchema`.
+**OpenAPI**: Spec served at `GET /api-docs/openapi.json` via utoipa. All public endpoints are annotated with `#[utoipa::path]` and response types derive `ToSchema`. **Note:** The version in the `#[openapi]` attribute (`src/routes.rs`) is a string literal — it must be manually updated on version bumps (utoipa doesn't support `env!()` there).
 
 ## Frontend
 
@@ -156,7 +156,7 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 ## Common Patterns
 
 - Routes use explicit handler functions with `dispatch_standard()` for compute-once dispatch. Each handler module in `handlers.rs` exposes `to_json(&Ifconfig) -> Option<Value>` and `to_plain(&Ifconfig) -> String` fn pointers.
-- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `Location` includes `region`, `region_code`, `postal_code`, `is_eu`, and `accuracy_radius_km` from GeoIP. `Network` struct holds IP classification (type, provider, flags).
+- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `tcp` is `Option<Tcp>` (null for `?ip=` queries where the port is synthetic). `Location` includes `region`, `region_code`, `postal_code`, `is_eu`, and `accuracy_radius_km` from GeoIP. `Network` struct holds IP classification (type, provider, flags).
 - CLI client detection in `negotiate.rs` checks User-Agent patterns and `Accept: */*` header.
 - Config values are loaded from a TOML file (`ifconfig.dev.toml` for local dev) via the `config` crate with env var overrides.
 - `AppState` is shared via Axum's `State` extractor; all backends are `Arc`-wrapped.

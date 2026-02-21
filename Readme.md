@@ -162,6 +162,8 @@ curl 'ip.pdt.sh/network/json?ip=1.1.1.1'
 curl 'ip.pdt.sh/all/json?ip=8.8.8.8&dns=true'
 ```
 
+For `?ip=` lookups, `tcp` (source port) and `host` (reverse DNS) are omitted from the response since they aren't meaningful for arbitrary IPs. Use `&dns=true` to opt in to PTR lookups.
+
 Private, loopback, and link-local addresses are rejected (400 Bad Request).
 
 ### Field Filtering (`?fields=`)
@@ -234,6 +236,8 @@ curl -H "Accept: text/csv"         ip.pdt.sh/all
 | CSV | `/csv` | `text/csv` |
 
 ### Sample JSON Response (`/all/json`)
+
+> **Note:** For `?ip=` queries, `tcp` and `host` are `null` (source port and reverse DNS aren't meaningful for arbitrary IPs).
 
 ```json
 {
