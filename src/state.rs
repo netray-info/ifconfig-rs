@@ -5,6 +5,7 @@ use governor::clock::DefaultClock;
 use governor::middleware::StateInformationMiddleware;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
+use ip_network::IpNetwork;
 use regex::Regex;
 use serde::Serialize;
 use std::net::IpAddr;
@@ -22,6 +23,7 @@ pub struct AppState {
     pub enrichment: Arc<ArcSwap<EnrichmentContext>>,
     pub rate_limiter: Arc<KeyedRateLimiter>,
     pub header_filters: Arc<Vec<Regex>>,
+    pub trusted_proxies: Arc<Vec<IpNetwork>>,
 }
 
 #[derive(Serialize)]
@@ -68,6 +70,28 @@ impl AppState {
             info!("Header filters loaded: {} patterns", header_filters.len());
         }
 
+        let trusted_proxies: Vec<IpNetwork> = config
+            .server
+            .trusted_proxies
+            .iter()
+            .filter_map(|s| match s.parse::<IpNetwork>() {
+                Ok(net) => Some(net),
+                Err(_) => {
+                    // Fall back to parsing as bare IP (host-only CIDR)
+                    match s.parse::<IpAddr>() {
+                        Ok(ip) => Some(IpNetwork::from(ip)),
+                        Err(e) => {
+                            warn!("Invalid trusted proxy '{}': {}", s, e);
+                            None
+                        }
+                    }
+                }
+            })
+            .collect();
+        if !trusted_proxies.is_empty() {
+            info!("Trusted proxies loaded: {} entries", trusted_proxies.len());
+        }
+
         AppState {
             config: Arc::new(Config {
                 server: crate::config::ServerConfig {
@@ -103,6 +127,7 @@ impl AppState {
             enrichment: Arc::new(ArcSwap::from_pointee(enrichment)),
             rate_limiter,
             header_filters: Arc::new(header_filters),
+            trusted_proxies: Arc::new(trusted_proxies),
         }
     }
 }

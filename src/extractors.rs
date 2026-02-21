@@ -2,6 +2,7 @@ use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, Request, Uri};
 use axum::middleware::Next;
 use axum::response::Response;
+use ip_network::IpNetwork;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 
@@ -22,7 +23,7 @@ impl RequesterInfo {
         state: &AppState,
     ) -> Self {
         let peer = connect_info.0;
-        let remote = extract_client_ip(peer, headers, &state.config.server.trusted_proxies);
+        let remote = extract_client_ip(peer, headers, &state.trusted_proxies);
         let user_agent = headers
             .get("user-agent")
             .and_then(|v| v.to_str().ok())
@@ -37,7 +38,7 @@ impl RequesterInfo {
     }
 }
 
-fn extract_client_ip(peer: SocketAddr, headers: &HeaderMap, trusted_proxies: &[String]) -> SocketAddr {
+fn extract_client_ip(peer: SocketAddr, headers: &HeaderMap, trusted_proxies: &[IpNetwork]) -> SocketAddr {
     if trusted_proxies.is_empty() {
         return peer;
     }
@@ -47,17 +48,13 @@ fn extract_client_ip(peer: SocketAddr, headers: &HeaderMap, trusted_proxies: &[S
         None => return peer,
     };
 
-    // Parse trusted proxy CIDRs/IPs
-    let trusted: Vec<IpAddr> = trusted_proxies
-        .iter()
-        .filter_map(|s| IpAddr::from_str(s).ok())
-        .collect();
+    let is_trusted = |ip: IpAddr| trusted_proxies.iter().any(|net| net.contains(ip));
 
     // Walk the XFF chain from right to left, skipping trusted proxies
     let ips: Vec<&str> = xff.split(',').map(str::trim).collect();
     for ip_str in ips.iter().rev() {
         if let Ok(ip) = IpAddr::from_str(ip_str) {
-            if !trusted.contains(&ip) {
+            if !is_trusted(ip) {
                 return SocketAddr::new(ip, peer.port());
             }
         }
@@ -123,6 +120,10 @@ mod tests {
         map
     }
 
+    fn net(s: &str) -> IpNetwork {
+        s.parse().unwrap()
+    }
+
     #[test]
     fn no_trusted_proxies_returns_peer() {
         let peer: SocketAddr = "1.2.3.4:1234".parse().unwrap();
@@ -132,12 +133,40 @@ mod tests {
     }
 
     #[test]
-    fn xff_with_trusted_proxy() {
+    fn xff_with_trusted_proxy_exact_ip() {
         let peer: SocketAddr = "10.0.0.1:1234".parse().unwrap();
         let headers = headers_with(&[("x-forwarded-for", "1.2.3.4, 10.0.0.1")]);
-        let trusted = vec!["10.0.0.1".to_string()];
+        let trusted = vec![net("10.0.0.1/32")];
         let result = extract_client_ip(peer, &headers, &trusted);
         assert_eq!(result.ip(), "1.2.3.4".parse::<IpAddr>().unwrap());
+    }
+
+    #[test]
+    fn xff_with_trusted_proxy_cidr() {
+        let peer: SocketAddr = "10.0.0.5:1234".parse().unwrap();
+        let headers = headers_with(&[("x-forwarded-for", "1.2.3.4, 10.0.0.5")]);
+        let trusted = vec![net("10.0.0.0/8")];
+        let result = extract_client_ip(peer, &headers, &trusted);
+        assert_eq!(result.ip(), "1.2.3.4".parse::<IpAddr>().unwrap());
+    }
+
+    #[test]
+    fn xff_with_multiple_trusted_cidrs() {
+        let peer: SocketAddr = "172.16.0.1:1234".parse().unwrap();
+        let headers = headers_with(&[("x-forwarded-for", "8.8.8.8, 10.0.0.1, 172.16.0.1")]);
+        let trusted = vec![net("10.0.0.0/8"), net("172.16.0.0/12")];
+        let result = extract_client_ip(peer, &headers, &trusted);
+        assert_eq!(result.ip(), "8.8.8.8".parse::<IpAddr>().unwrap());
+    }
+
+    #[test]
+    fn xff_untrusted_ip_not_in_cidr() {
+        let peer: SocketAddr = "192.168.1.1:1234".parse().unwrap();
+        let headers = headers_with(&[("x-forwarded-for", "1.2.3.4, 192.168.1.1")]);
+        let trusted = vec![net("10.0.0.0/8")];
+        let result = extract_client_ip(peer, &headers, &trusted);
+        // 192.168.1.1 is not in 10.0.0.0/8, so it's the client IP
+        assert_eq!(result.ip(), "192.168.1.1".parse::<IpAddr>().unwrap());
     }
 
     #[test]
@@ -188,7 +217,7 @@ mod tests {
     fn xff_no_header_returns_peer() {
         let peer: SocketAddr = "1.2.3.4:1234".parse().unwrap();
         let headers = HeaderMap::new();
-        let trusted = vec!["10.0.0.1".to_string()];
+        let trusted = vec![net("10.0.0.1/32")];
         let result = extract_client_ip(peer, &headers, &trusted);
         assert_eq!(result, peer);
     }
