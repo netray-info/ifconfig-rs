@@ -1269,3 +1269,14 @@ async fn openapi_spec_valid_json() {
     assert!(json["paths"]["/batch"].is_object(), "Should have /batch path");
     assert!(json["components"]["schemas"]["Ifconfig"].is_object(), "Should have Ifconfig schema");
 }
+
+#[tokio::test]
+async fn docs_serves_scalar_html() {
+    let remote = remote_v4("127.0.0.1", 12345);
+    let (status, headers, body) = send_request(get("/docs"), remote).await;
+    assert_eq!(status, StatusCode::OK);
+    let ct = content_type_str(&headers);
+    assert!(is_html(&ct), "Expected HTML, got {:?}", ct);
+    assert!(body.contains("scalar"), "Body should reference Scalar");
+    assert!(body.contains("/api-docs/openapi.json"), "Body should reference the OpenAPI spec URL");
+}

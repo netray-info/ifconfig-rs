@@ -94,8 +94,9 @@ pub fn router(_state: AppState) -> Router<AppState> {
         // Probe endpoints (no content negotiation)
         .route("/health", get(health_handler))
         .route("/ready", get(ready_handler))
-        // OpenAPI spec
+        // OpenAPI spec + docs UI
         .route("/api-docs/openapi.json", get(openapi_handler))
+        .route("/docs", get(docs_handler))
 }
 
 fn get_requester_info(headers: &HeaderMap, extensions: &axum::http::Extensions) -> RequesterInfo {
@@ -1084,6 +1085,12 @@ async fn openapi_handler() -> Response {
     spec.info.version = env!("CARGO_PKG_VERSION").to_string();
     let json = spec.to_pretty_json().unwrap_or_default();
     respond_formatted("application/json", json)
+}
+
+// ---- API docs UI handler ----
+
+async fn docs_handler() -> Response {
+    Html(include_str!("scalar_docs.html")).into_response()
 }
 
 // ---- Static file serving ----
