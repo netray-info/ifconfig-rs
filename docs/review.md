@@ -1,101 +1,87 @@
 # Dev Review — Mitigation Plan
 
-Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low.
+Comprehensive review of ifconfig-rs across code quality, security, test coverage, UX/UI, and documentation. No critical findings. **37 total**: 4 high, 18 medium, 15 low. **7 resolved** (Phase 1 complete).
 
-| Severity | Count |
-|----------|-------|
-| Critical | 0     |
-| High     | 4     |
-| Medium   | 18    |
-| Low      | 15    |
+| Severity | Total | Resolved | Open |
+|----------|-------|----------|------|
+| Critical | 0     | 0        | 0    |
+| High     | 4     | 0        | 4    |
+| Medium   | 18    | 4        | 14   |
+| Low      | 15    | 3        | 12   |
 
 ---
 
-## Phase 1: Security Hardening
+## Phase 1: Security Hardening ✅
 
-High-priority items that reduce attack surface. Mostly small, isolated changes.
+High-priority items that reduce attack surface. Mostly small, isolated changes. **All 7 items resolved.**
 
-### M2. No Request Body Size Limit — Effort: S
+### M2. No Request Body Size Limit — ✅ Resolved
 
 **Severity**: Medium | **Category**: Security
 
 **Problem**: No `DefaultBodyLimit` layer configured. The batch endpoint reads the entire body as `Bytes` (`src/routes.rs:753`). A multi-GB JSON payload would be buffered and deserialized before any size check.
 
-**Mitigation**: Add `DefaultBodyLimit::max(1_048_576)` (1 MB) as a tower layer in `build_app()`.
-
-**Files**: `src/lib.rs`
+**Resolution**: Added `DefaultBodyLimit::max(1_048_576)` (1 MB) as the innermost layer in `build_app()`. Commit `2e3f277`.
 
 ---
 
-### M4. IPv6 Private Address Validation Gap — Effort: S
+### M4. IPv6 Private Address Validation Gap — ✅ Resolved
 
 **Severity**: Medium | **Category**: Security
 
-**Problem**: `is_global_ip()` (`src/routes.rs:162-170`) accepts all non-loopback/unspecified IPv6 addresses including ULA (`fc00::/7`), link-local (`fe80::/10`), and IPv4-mapped private addresses (`::ffff:10.0.0.1`). Combined with `?dns=true`, this enables internal DNS enumeration.
+**Problem**: `is_global_ip()` accepted all non-loopback/unspecified IPv6 addresses including ULA (`fc00::/7`), link-local (`fe80::/10`), and IPv4-mapped private addresses (`::ffff:10.0.0.1`). Combined with `?dns=true`, this enables internal DNS enumeration.
 
-**Mitigation**: Extend `is_global_ip()` to reject ULA, link-local, and IPv4-mapped private addresses.
-
-**Files**: `src/routes.rs`
+**Resolution**: Extended `is_global_ip()` to reject ULA, link-local, multicast, and IPv4-mapped private addresses. Added 2 new unit tests (10 assertions). Commit `529e451`.
 
 ---
 
-### M1. Batch Endpoint Bypasses Rate Limiting — Effort: M
+### M1. Batch Endpoint Bypasses Rate Limiting — ✅ Resolved
 
 **Severity**: Medium | **Category**: Security
 
-**Problem**: `/batch` is exempt from middleware rate limiting (`src/middleware.rs:52`). The internal `check_key_n` call silently ignores `InsufficientCapacity` errors (`src/routes.rs:813-818`), processing requests anyway when `max_size > per_ip_burst`.
+**Problem**: `/batch` is exempt from middleware rate limiting (`src/middleware.rs:52`). The internal `check_key_n` call silently ignored `InsufficientCapacity` errors, processing requests anyway when `max_size > per_ip_burst`.
 
-**Mitigation**: Enforce rate limiting on the batch endpoint. Return 429 when `check_key_n` fails instead of silently proceeding.
-
-**Files**: `src/routes.rs`, `src/middleware.rs`
+**Resolution**: `Err(_insufficient)` arm now returns 429 with `X-RateLimit-*` and `Retry-After` headers, consistent with the `Ok(Err(not_until))` arm. Removed dead `rate_ok` variable. Commit `ca5b1e1`.
 
 ---
 
-### M3. Missing Content-Security-Policy Header — Effort: S
+### M3. Missing Content-Security-Policy Header — ✅ Resolved
 
 **Severity**: Medium | **Category**: Security
 
-**Problem**: `security_headers` middleware (`src/middleware.rs:87-116`) sets X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, but no CSP. The Scalar docs page loads JS from `cdn.jsdelivr.net` without SRI hash.
+**Problem**: `security_headers` middleware set X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, but no CSP. The Scalar docs page loaded JS from `cdn.jsdelivr.net` without SRI hash.
 
-**Mitigation**: Add a Content-Security-Policy header to the security headers middleware. Add SRI `integrity` and `crossorigin` attributes to the CDN script tag.
-
-**Files**: `src/middleware.rs`, `src/scalar_docs.html`
+**Resolution**: Added CSP header to all responses. `/docs` path allows `script-src https://cdn.jsdelivr.net`; all other paths restrict to `script-src 'self'` only. Combined with L10 in commit `b8c9203`.
 
 ---
 
-### L5. `Location::unknown()` Uses Strings Instead of None — Effort: S
+### L5. `Location::unknown()` Uses Strings Instead of None — ✅ Resolved
 
 **Severity**: Low | **Category**: Code Quality / API Design
 
-**Problem**: `src/backend/mod.rs:133-150` sets fields to `Some("unknown")` instead of `None`. API consumers can't distinguish "no data" from "literally the word unknown."
+**Problem**: `Location::unknown()` and `Isp::unknown()` set fields to `Some("unknown")` instead of `None`. API consumers couldn't distinguish "no data" from a literal value.
 
-**Mitigation**: Use `None` instead of `Some("unknown")` for missing data. This is a behavioral change — verify downstream consumers handle `null` correctly.
-
-**Files**: `src/backend/mod.rs`
+**Resolution**: Changed to `None` for all string fields. JSON output now returns `null` instead of `"unknown"`. Plain text unchanged (handlers use `unwrap_or`). Commit `e205178`.
 
 ---
 
-### L9. Batch Input Reflected Unsanitized in Error Responses — Effort: S
+### L9. Batch Input Reflected Unsanitized in Error Responses — ✅ Resolved
 
 **Severity**: Low | **Category**: Security
 
-**Problem**: `src/routes.rs:838,844` echoes `ip_str` verbatim in error messages. Very long strings amplify response size.
+**Problem**: Batch error responses echoed `ip_str` verbatim. Very long strings amplify response size.
 
-**Mitigation**: Truncate reflected input in error messages (e.g., first 45 characters).
-
-**Files**: `src/routes.rs`
+**Resolution**: Truncated reflected input to 45 characters (max length of a valid IPv6 address) in both batch error paths. Commit `ef5997d`.
 
 ---
 
-### L10. CDN Script Without SRI Hash — Effort: S
+### L10. CDN Script Without SRI Hash — ✅ Resolved
 
 **Severity**: Low | **Category**: Security
 
-**Problem**: `src/scalar_docs.html:10` loads Scalar from jsdelivr without an `integrity` attribute. CDN compromise would execute arbitrary JS.
+**Problem**: `scalar_docs.html` loaded Scalar from jsdelivr without an `integrity` attribute. CDN compromise would execute arbitrary JS.
 
-**Mitigation**: Add `integrity` and `crossorigin="anonymous"` attributes to the script tag. (Can be combined with M3.)
-
-**Files**: `src/scalar_docs.html`
+**Resolution**: Pinned `@scalar/api-reference` to v1.44.25 with `integrity="sha384-..."` and `crossorigin="anonymous"`. Combined with M3 in commit `b8c9203`.
 
 ---
 
@@ -499,10 +485,10 @@ These items are worth tracking but have minimal risk or impact.
 
 ## Suggested Implementation Order
 
-1. **Phase 1** — Security hardening. Small changes, high value. Start with M2 (body limit) and M4 (IPv6 validation) as they're one-line fixes.
+1. ~~**Phase 1** — Security hardening.~~ ✅ Complete (7/7 items resolved).
 2. **Phase 2** — Correctness. H1 (spawn_blocking) is the largest item; the rest are small.
 3. **Phase 4** — Dependencies. M9 (serde_yaml replacement) is the most involved; CI fixes are quick wins.
 4. **Phase 3** — Code cleanup. All items are safe refactors. M10 (handler macro) is the most involved.
 5. **Phase 5** — Frontend. H2+H3 (accessibility) has the highest user impact. SEO tags (H4) are a quick win.
-6. **Phase 6** — Tests. Tackle alongside the phases they relate to (e.g., write security header tests when adding CSP in Phase 1).
+6. **Phase 6** — Tests. Tackle alongside the phases they relate to (e.g., write security header integration tests for the new CSP header).
 7. **Phase 7** — Documentation. Can be done at any time.
