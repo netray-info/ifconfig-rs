@@ -314,35 +314,60 @@ async fn root_format_handler(
 }
 
 // ---- Standard endpoint handlers ----
+//
+// Each standard endpoint follows the same pattern: negotiate format, build
+// requester info, delegate to dispatch_standard with module-specific
+// to_json/to_plain functions. The macro below eliminates the per-endpoint
+// boilerplate while preserving the utoipa annotations for OpenAPI generation.
 
-#[utoipa::path(
-    get, path = "/ip",
-    description = "Returns the caller's IP address and version (4 or 6).",
-    params(
-        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-    ),
-    responses(
-        (status = 200, description = "IP address info", body = Ip),
-        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-    )
-)]
-async fn ip_handler(State(state): State<AppState>, headers: HeaderMap, extensions: axum::http::Extensions) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
-    dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain).await
+macro_rules! standard_endpoint {
+    (
+        $(#[$meta:meta])*
+        handler = $handler:ident,
+        format_handler = $format_handler:ident,
+        module = $($module:ident)::+ $(,)?
+    ) => {
+        $(#[$meta])*
+        async fn $handler(
+            State(state): State<AppState>,
+            headers: HeaderMap,
+            extensions: axum::http::Extensions,
+        ) -> Response {
+            let req_info = get_requester_info(&headers, &extensions);
+            let format = negotiate(None, &headers);
+            dispatch_standard(format, &req_info, &state, $($module)::+::to_json, $($module)::+::to_plain).await
+        }
+
+        async fn $format_handler(
+            State(state): State<AppState>,
+            Path(fmt): Path<String>,
+            headers: HeaderMap,
+            extensions: axum::http::Extensions,
+        ) -> Response {
+            let req_info = get_requester_info(&headers, &extensions);
+            let format = negotiate(Some(&fmt), &headers);
+            dispatch_standard(format, &req_info, &state, $($module)::+::to_json, $($module)::+::to_plain).await
+        }
+    };
 }
 
-async fn ip_format_handler(
-    State(state): State<AppState>,
-    Path(fmt): Path<String>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(Some(&fmt), &headers);
-    dispatch_standard(format, &req_info, &state, handlers::ip::to_json, handlers::ip::to_plain).await
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/ip",
+        description = "Returns the caller's IP address and version (4 or 6).",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ),
+        responses(
+            (status = 200, description = "IP address info", body = Ip),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = ip_handler,
+    format_handler = ip_format_handler,
+    module = handlers::ip,
 }
 
 #[utoipa::path(
@@ -360,342 +385,139 @@ async fn ip_cidr_handler(headers: HeaderMap, extensions: axum::http::Extensions)
     respond_plain(format!("{}/{}\n", ip, prefix_len))
 }
 
-#[utoipa::path(
-    get, path = "/tcp",
-    description = "Returns the caller's source TCP port. Omitted for ?ip= queries.",
-    params(
-        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-    ),
-    responses(
-        (status = 200, description = "TCP port info", body = Tcp),
-        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-    )
-)]
-async fn tcp_handler(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::tcp::to_json,
-        handlers::tcp::to_plain,
-    )
-    .await
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/tcp",
+        description = "Returns the caller's source TCP port. Omitted for ?ip= queries.",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ),
+        responses(
+            (status = 200, description = "TCP port info", body = Tcp),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = tcp_handler,
+    format_handler = tcp_format_handler,
+    module = handlers::tcp,
 }
 
-async fn tcp_format_handler(
-    State(state): State<AppState>,
-    Path(fmt): Path<String>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(Some(&fmt), &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::tcp::to_json,
-        handlers::tcp::to_plain,
-    )
-    .await
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/host",
+        description = "Returns the reverse DNS (PTR) hostname for the caller's IP. Skipped by default for ?ip= queries unless ?dns=true.",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
+        ),
+        responses(
+            (status = 200, description = "Reverse DNS hostname", body = Host),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = host_handler,
+    format_handler = host_format_handler,
+    module = handlers::host,
 }
 
-#[utoipa::path(
-    get, path = "/host",
-    description = "Returns the reverse DNS (PTR) hostname for the caller's IP. Skipped by default for ?ip= queries unless ?dns=true.",
-    params(
-        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-        ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
-    ),
-    responses(
-        (status = 200, description = "Reverse DNS hostname", body = Host),
-        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-    )
-)]
-async fn host_handler(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::host::to_json,
-        handlers::host::to_plain,
-    )
-    .await
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/location",
+        description = "Returns geolocation data (city, country, coordinates, timezone) from the GeoIP database.",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ),
+        responses(
+            (status = 200, description = "Geolocation data", body = Location),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = location_handler,
+    format_handler = location_format_handler,
+    module = handlers::location,
 }
 
-async fn host_format_handler(
-    State(state): State<AppState>,
-    Path(fmt): Path<String>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(Some(&fmt), &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::host::to_json,
-        handlers::host::to_plain,
-    )
-    .await
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/isp",
+        description = "Returns ISP name and ASN number from the GeoIP ASN database.",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ),
+        responses(
+            (status = 200, description = "ISP / ASN info", body = Isp),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = isp_handler,
+    format_handler = isp_format_handler,
+    module = handlers::isp,
 }
 
-#[utoipa::path(
-    get, path = "/location",
-    description = "Returns geolocation data (city, country, coordinates, timezone) from the GeoIP database.",
-    params(
-        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-    ),
-    responses(
-        (status = 200, description = "Geolocation data", body = Location),
-        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-    )
-)]
-async fn location_handler(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::location::to_json,
-        handlers::location::to_plain,
-    )
-    .await
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/user_agent",
+        description = "Returns the parsed User-Agent header (browser, OS, device families and versions).",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ),
+        responses(
+            (status = 200, description = "Parsed User-Agent", body = UserAgent),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = user_agent_handler,
+    format_handler = user_agent_format_handler,
+    module = handlers::user_agent,
 }
 
-async fn location_format_handler(
-    State(state): State<AppState>,
-    Path(fmt): Path<String>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(Some(&fmt), &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::location::to_json,
-        handlers::location::to_plain,
-    )
-    .await
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/network",
+        description = "Returns network classification (cloud, VPN, Tor, bot, hosting, residential) with provider details and boolean flags.",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ),
+        responses(
+            (status = 200, description = "Network classification", body = Network),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = network_handler,
+    format_handler = network_format_handler,
+    module = handlers::network,
 }
 
-#[utoipa::path(
-    get, path = "/isp",
-    description = "Returns ISP name and ASN number from the GeoIP ASN database.",
-    params(
-        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-    ),
-    responses(
-        (status = 200, description = "ISP / ASN info", body = Isp),
-        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-    )
-)]
-async fn isp_handler(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::isp::to_json,
-        handlers::isp::to_plain,
-    )
-    .await
-}
-
-async fn isp_format_handler(
-    State(state): State<AppState>,
-    Path(fmt): Path<String>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(Some(&fmt), &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::isp::to_json,
-        handlers::isp::to_plain,
-    )
-    .await
-}
-
-#[utoipa::path(
-    get, path = "/user_agent",
-    description = "Returns the parsed User-Agent header (browser, OS, device families and versions).",
-    params(
-        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-    ),
-    responses(
-        (status = 200, description = "Parsed User-Agent", body = UserAgent),
-        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-    )
-)]
-async fn user_agent_handler(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::user_agent::to_json,
-        handlers::user_agent::to_plain,
-    )
-    .await
-}
-
-async fn user_agent_format_handler(
-    State(state): State<AppState>,
-    Path(fmt): Path<String>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(Some(&fmt), &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::user_agent::to_json,
-        handlers::user_agent::to_plain,
-    )
-    .await
-}
-
-#[utoipa::path(
-    get, path = "/network",
-    description = "Returns network classification (cloud, VPN, Tor, bot, hosting, residential) with provider details and boolean flags.",
-    params(
-        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-    ),
-    responses(
-        (status = 200, description = "Network classification", body = Network),
-        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-    )
-)]
-async fn network_handler(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::network::to_json,
-        handlers::network::to_plain,
-    )
-    .await
-}
-
-async fn network_format_handler(
-    State(state): State<AppState>,
-    Path(fmt): Path<String>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(Some(&fmt), &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::network::to_json,
-        handlers::network::to_plain,
-    )
-    .await
-}
-
-#[utoipa::path(
-    get, path = "/all",
-    description = "Returns all enrichment data. Equivalent to / but always returns structured data (never HTML).",
-    params(
-        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-        ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
-    ),
-    responses(
-        (status = 200, description = "All enrichment data", body = Ifconfig),
-        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-    )
-)]
-async fn all_handler(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::all::to_json,
-        handlers::all::to_plain,
-    )
-    .await
-}
-
-async fn all_format_handler(
-    State(state): State<AppState>,
-    Path(fmt): Path<String>,
-    headers: HeaderMap,
-    extensions: axum::http::Extensions,
-) -> Response {
-    let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(Some(&fmt), &headers);
-    dispatch_standard(
-        format,
-        &req_info,
-        &state,
-        handlers::all::to_json,
-        handlers::all::to_plain,
-    )
-    .await
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/all",
+        description = "Returns all enrichment data. Equivalent to / but always returns structured data (never HTML).",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
+        ),
+        responses(
+            (status = 200, description = "All enrichment data", body = Ifconfig),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = all_handler,
+    format_handler = all_format_handler,
+    module = handlers::all,
 }
 
 // ---- Headers handler ----
