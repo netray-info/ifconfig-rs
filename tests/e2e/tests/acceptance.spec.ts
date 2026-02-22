@@ -11,8 +11,8 @@ test('homepage loads and shows IP address', async ({ page }) => {
   const ipText = await page.locator('.ip-display').textContent();
   expect(ipText).toMatch(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/);
 
-  // Version badge is visible
-  await expect(page.locator('.version-badge')).toContainText(/IPv[46]/);
+  // Version badge is visible in the badge bar above the info cards
+  await expect(page.locator('.net-badge--version')).toContainText(/IPv[46]/);
 });
 
 test('theme toggle works', async ({ page }) => {

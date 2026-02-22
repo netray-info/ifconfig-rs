@@ -19,6 +19,13 @@ function radiusToZoom(radiusKm: number): number {
 export default function InfoCards(props: Props) {
   const loc = () => props.data.location;
   const net = () => props.data.network;
+  const type = () => net().classification.type;
+
+  // Deduplication: skip flag badge when the type already conveys the same meaning
+  const showDatacenter = () => net().classification.is_datacenter && type() !== "datacenter";
+  const showVpn = () => net().classification.is_vpn && type() !== "vpn";
+  const showTor = () => net().classification.is_tor && type() !== "tor";
+  const showBot = () => net().classification.is_bot && type() !== "bot" && type() !== "botnet_c2";
 
   const mapsUrl = () => {
     const { latitude, longitude, accuracy_radius_km } = loc();
@@ -28,6 +35,32 @@ export default function InfoCards(props: Props) {
   };
 
   return (
+    <>
+    <div class="badge-bar">
+      <span class="net-badge net-badge--version">IPv{props.data.ip.version}</span>
+      <Show when={loc().is_eu === true}>
+        <span class="net-badge net-badge--eu">EU</span>
+      </Show>
+      <Show when={loc().is_eu === false}>
+        <span class="net-badge net-badge--non-eu">non-EU</span>
+      </Show>
+      <span class={`net-badge net-badge--${type()}`}>{type()}</span>
+      <Show when={showDatacenter()}>
+        <span class="net-badge net-badge--datacenter">datacenter</span>
+      </Show>
+      <Show when={showVpn()}>
+        <span class="net-badge net-badge--vpn">vpn</span>
+      </Show>
+      <Show when={showTor()}>
+        <span class="net-badge net-badge--tor">tor</span>
+      </Show>
+      <Show when={showBot()}>
+        <span class="net-badge net-badge--bot">bot</span>
+      </Show>
+      <Show when={net().classification.is_threat}>
+        <span class="net-badge net-badge--threat">threat</span>
+      </Show>
+    </div>
     <div class="cards">
       {/* Network Card */}
       <div class="card">
@@ -72,26 +105,6 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{net().provider}</span>
           </div>
         </Show>
-        <div class="net-badges">
-          <span class={`net-badge net-badge--${net().classification.type}`}>
-            {net().classification.type}
-          </span>
-          <Show when={net().classification.is_datacenter}>
-            <span class="net-badge net-badge--datacenter">datacenter</span>
-          </Show>
-          <Show when={net().classification.is_vpn}>
-            <span class="net-badge net-badge--vpn">vpn</span>
-          </Show>
-          <Show when={net().classification.is_tor}>
-            <span class="net-badge net-badge--tor">tor</span>
-          </Show>
-          <Show when={net().classification.is_bot}>
-            <span class="net-badge net-badge--bot">bot</span>
-          </Show>
-          <Show when={net().classification.is_threat}>
-            <span class="net-badge net-badge--threat">threat</span>
-          </Show>
-        </div>
       </div>
 
       {/* User Agent Card */}
@@ -131,12 +144,7 @@ export default function InfoCards(props: Props) {
 
       {/* Location Card */}
       <div class="card">
-        <div class="card-title-row">
-          <div class="card-title">Location</div>
-          <Show when={loc().is_eu === true}>
-            <span class="eu-badge">EU</span>
-          </Show>
-        </div>
+        <div class="card-title">Location</div>
         <Show when={known(loc().city)}>
           <div class="card-row">
             <span class="card-label">City</span>
@@ -203,5 +211,6 @@ export default function InfoCards(props: Props) {
         </Show>
       </div>
     </div>
+    </>
   );
 }

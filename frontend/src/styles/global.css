@@ -156,6 +156,15 @@ button:focus-visible {
   word-break: break-all;
 }
 
+.version-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
 .hostname-row {
   display: flex;
   justify-content: center;
@@ -197,15 +206,6 @@ button:focus-visible {
   background: rgba(34, 197, 94, 0.1);
 }
 
-.version-badge {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  background: var(--accent-glow);
-  color: var(--accent);
-  margin-left: 0.25rem;
-}
 
 /* ---- Info Cards ---- */
 
@@ -213,7 +213,7 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  margin: 2rem 0;
+  margin: 0.5rem 0 2rem;
 }
 
 .card {
@@ -358,23 +358,27 @@ button:focus-visible {
   color: #ef4444; /* bright red — active C2 node */
 }
 
-.net-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 0 var(--card-pad) 0.5rem;
-  margin-top: 0.75rem;
+.net-badge--version {
+  background: var(--accent-glow);
+  color: var(--accent); /* accent — IP protocol version */
 }
 
-.eu-badge {
-  display: inline-block;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  font-family: var(--font-mono);
+.net-badge--eu {
   background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
+  color: #60a5fa; /* blue — EU jurisdiction */
+}
+
+.net-badge--non-eu {
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--text-muted); /* muted — outside EU */
+}
+
+.badge-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
 }
 
 /* ---- Sections (collapsible) ---- */
