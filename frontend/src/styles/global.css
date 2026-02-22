@@ -19,6 +19,25 @@
   --radius-lg: 12px;
 }
 
+/* System light mode — applies when OS preference is light and user hasn't
+   explicitly overridden to dark. No JS required; CSP-safe. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg-primary: #fafafa;
+    --bg-secondary: #f4f4f5;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8f8fa;
+    --border: #e4e4e7;
+    --text-primary: #18181b;
+    --text-secondary: #52525b;
+    --text-muted: #6b6b73;
+    --accent: #0891b2;
+    --accent-dim: #06b6d4;
+    --accent-glow: rgba(8, 145, 178, 0.1);
+  }
+}
+
+/* Explicit light mode override (user chose "light" via ThemeToggle). */
 [data-theme="light"] {
   --bg-primary: #fafafa;
   --bg-secondary: #f4f4f5;

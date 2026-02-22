@@ -48,7 +48,6 @@ export default function ApiExplorer() {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
-  const cache = new Map<string, string>();
   let currentReqId = 0;
 
   const copyCurl = async () => {
@@ -63,12 +62,6 @@ export default function ApiExplorer() {
   createEffect(
     on([activeEndpoint, activeFormat, open], ([ep, fmt, isOpen]) => {
       if (!isOpen) return;
-      const key = `${ep}|${fmt}`;
-      if (cache.has(key)) {
-        setResponse(cache.get(key)!);
-        setError(null);
-        return;
-      }
       const reqId = ++currentReqId;
       setLoading(true);
       setError(null);
@@ -87,7 +80,6 @@ export default function ApiExplorer() {
         .then((text) => {
           if (reqId !== currentReqId) return;
           const display = fmt === "json" ? prettyJson(text) : text;
-          cache.set(key, display);
           setResponse(display);
         })
         .catch((e: unknown) => {

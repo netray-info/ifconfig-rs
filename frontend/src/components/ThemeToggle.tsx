@@ -1,37 +1,25 @@
-import { createSignal, onMount, onCleanup } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 
 type ThemeChoice = "dark" | "light" | "system";
 
-function resolveSystemTheme(): "dark" | "light" {
-  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-}
-
 function applyTheme(choice: ThemeChoice) {
-  const resolved = choice === "system" ? resolveSystemTheme() : choice;
-  document.documentElement.setAttribute("data-theme", resolved);
+  if (choice === "system") {
+    // Remove the attribute so the CSS @media (prefers-color-scheme) rule takes over.
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    document.documentElement.setAttribute("data-theme", choice);
+  }
 }
 
 export default function ThemeToggle() {
   const [theme, setTheme] = createSignal<ThemeChoice>("system");
 
-  const onSystemChange = () => {
-    if (theme() === "system") {
-      applyTheme("system");
-    }
-  };
-
   onMount(() => {
     const saved = localStorage.getItem("theme");
-    if (saved === "light" || saved === "dark" || saved === "system") {
-      setTheme(saved);
-    }
-    // Theme is already applied synchronously via inline script in index.html
-
-    window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", onSystemChange);
-  });
-
-  onCleanup(() => {
-    window.matchMedia("(prefers-color-scheme: light)").removeEventListener("change", onSystemChange);
+    const choice: ThemeChoice =
+      saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+    setTheme(choice);
+    applyTheme(choice);
   });
 
   const toggle = () => {
