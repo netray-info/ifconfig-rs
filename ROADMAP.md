@@ -62,17 +62,13 @@ New `audit` job in CI: installs `cargo-audit` and runs `cargo audit`, then runs 
 
 A config flag (`internal_mode = true`) that allows the service to respond to requests from private and reserved IP ranges. Affected subnets: RFC 1918 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1/128`), link-local (`169.254.0.0/16`, `fe80::/10`), ULA (`fc00::/7`). GeoIP lookups return no results (expected); `network.classification.type` reflects `"internal"`. The `extractors.rs` global-IP guard and `get_ifconfig()` validation must be conditioned on this flag via `AppState`.
 
-#### 22. Port reachability check
-
-New endpoint `/port/{number}` that attempts a TCP connect back to the requester's IP. Returns open/closed/filtered. Needs a timeout and connection limits to avoid abuse. This has to be discussed first, before it gets implemented, because I dont know if I want it.
-
 #### 23. DNS reverse lookup caching
 
 Reverse DNS lookup has no caching. Add an in-memory LRU cache with a short TTL (e.g., 60s).
 
-#### 44. Nested `?fields=` dot-notation
+#### 22. Port reachability check — pending discussion
 
-Extend `?fields=` to support dot-notation for sub-fields (e.g., `?fields=location.city,network.asn`). Currently `filter_fields()` in `format.rs` only handles top-level JSON keys. This has to be discussed first, before it gets implemented, because I dont know if I want it.
+New endpoint `/port/{number}` that attempts a TCP connect back to the requester's IP. Returns open/closed/filtered. Needs a timeout and connection limits to avoid abuse. To be discussed after 43 and 23 are done.
 
 ---
 
@@ -174,6 +170,10 @@ Add tarpaulin (Rust) and c8 (JS) with reporting to Codecov or similar.
 ---
 
 ## Won't Do
+
+### 44. Nested `?fields=` dot-notation
+
+Complexity cost (recursive descent in `filter_fields()`, special-casing in plain-text and CSV serialisers) outweighs the benefit given that `jq` covers the use case on the client side.
 
 ### 12. JSONP callback support
 
