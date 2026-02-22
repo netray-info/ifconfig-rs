@@ -73,8 +73,8 @@ impl EnrichmentContext {
                     Some(Arc::new(parser))
                 }
                 Err(e) => {
-                    warn!("Failed to load User-Agent regexes from {}: {}", path, e);
-                    None
+                    error!("Failed to load User-Agent regexes from {}: {}", path, e);
+                    return Err(LoadError(format!("Failed to load User-Agent regexes from {path}: {e}")));
                 }
             }
         } else {
@@ -295,11 +295,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn nonexistent_ua_regex_path_yields_none() {
+    async fn nonexistent_ua_regex_path_returns_error() {
         let mut config = Config::load(None).unwrap();
         config.user_agent_regexes = Some("/nonexistent/regexes.yaml".to_string());
-        let ctx = EnrichmentContext::load(&config).await.unwrap();
-        assert!(ctx.user_agent_parser.is_none());
+        let result = EnrichmentContext::load(&config).await;
+        assert!(result.is_err());
     }
 
     #[tokio::test]
