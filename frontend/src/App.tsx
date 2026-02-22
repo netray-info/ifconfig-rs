@@ -48,7 +48,24 @@ export default function App() {
 
   return (
     <>
-      <ThemeToggle />
+      <div class="corner-controls">
+        <ThemeToggle />
+        <select
+          class="lang-select"
+          value={lang()}
+          onChange={(e) => { setLang(e.currentTarget.value); loadData(lookupIp() ?? undefined); }}
+          aria-label="Location language"
+        >
+          <option value="en">EN</option>
+          <option value="de">DE</option>
+          <option value="es">ES</option>
+          <option value="fr">FR</option>
+          <option value="ja">JA</option>
+          <option value="pt-BR">PT</option>
+          <option value="ru">RU</option>
+          <option value="zh-CN">ZH</option>
+        </select>
+      </div>
       <div class="container">
         <header class="site-header">
           <h1 class="site-title">{siteName()}</h1>
@@ -91,7 +108,7 @@ export default function App() {
 
         <Show when={data()}>
           <IpDisplay data={data()!} />
-          <InfoCards data={data()!} lang={lang()} onLangChange={(l) => { setLang(l); loadData(lookupIp() ?? undefined); }} />
+          <InfoCards data={data()!} />
           <IpLookupForm
             onLookup={(ip) => loadData(ip)}
             loading={loading()}
