@@ -53,8 +53,8 @@ cargo bench                  # Run benchmarks directly (negotiation, asn_heurist
 
 ### Test Guidelines
 
-- `cargo test --lib` is the fast reliable check — no network or external services needed (~150 unit tests).
-- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (~110 tests covering all endpoints, content types, `?ip=` lookups, `?fields=` filtering, batch, `/ipv6`, security headers, OpenAPI, and `/docs`), `tests/error_handler.rs`, and `tests/rate_limit.rs` (5 tests covering rate limit headers, 429 behavior, and probe exemptions). Total: ~265 tests.
+- `cargo test --lib` is the fast reliable check — no network or external services needed (~168 unit tests).
+- `cargo test` also runs integration tests in `tests/ok_handlers.rs` (~124 tests covering all endpoints, content types, `?ip=` lookups, `?fields=` filtering, batch, `/ipv6`, security headers, OpenAPI, and `/docs`), `tests/error_handler.rs`, `tests/rate_limit.rs` (5 tests covering rate limit headers, 429 behavior, and probe exemptions), and `tests/admin.rs` (admin port bearer auth). Total: ~300 tests.
 - Integration tests spawn real TCP listeners with hyper_util for each test case.
 - Docker integration tests (`make integration`) build and test inside a container via `tests/Dockerfile.tests`.
 - Playwright E2E tests (`make acceptance`) use configurable `baseURL` (default `http://127.0.0.1:8000`, override via `BASE_URL` env var) across Chromium, Firefox, and WebKit.
@@ -84,7 +84,7 @@ Key modules:
 - `src/backend/datacenter.rs` — Datacenter IP range matching
 - `src/backend/feodo.rs` — Feodo C2 botnet IP matching
 - `src/backend/spamhaus.rs` — Spamhaus DROP/EDROP threat list matching
-- `src/enrichment.rs` — `EnrichmentContext` struct with `ArcSwap` hot-reload via SIGHUP; emits `enrichment_sources_loaded` gauges on load/reload
+- `src/enrichment.rs` — `EnrichmentContext` struct with `ArcSwap` hot-reload via SIGHUP; emits `enrichment_sources_loaded` gauges on load/reload; populates `missing_optional: Vec<&'static str>` with names of configured-but-failed optional sources and emits a single consolidated `WARN` summary line
 - `src/routes.rs` — Axum router with explicit handler functions, `dispatch_standard()` compute-once dispatch, batch handler, OpenAPI spec via utoipa, Scalar API docs UI at `/docs`, static file serving via rust-embed
 - `src/scalar_docs.html` — Lightweight HTML page for Scalar API reference UI (loaded via `include_str!()`; CDN dependency is client-side only)
 - `src/handlers.rs` — Per-endpoint `to_json`/`to_plain` functions used as fn pointers by `dispatch_standard()`
@@ -96,7 +96,7 @@ Key modules:
 
 **Content negotiation priority**: Format suffix (`/ip/json`) → CLI detection (curl/wget/httpie + Accept: */*) → Accept header → HTML (serve SPA).
 
-**API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/meta`, `/health`, `/ready` — all (except probes, `/ip/cidr`, and `/meta`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/meta` returns JSON site metadata (site name, version) used by the SPA. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability. `/docs` serves the Scalar API reference UI. `/api-docs/openapi.json` serves the OpenAPI spec.
+**API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/meta`, `/health`, `/ready` — all (except probes, `/ip/cidr`, and `/meta`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/meta` returns JSON site metadata (site name, version) used by the SPA. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability and returns a `warnings` array for any configured-but-failed optional sources. `/docs` serves the Scalar API reference UI. `/api-docs/openapi.json` serves the OpenAPI spec.
 
 **Batch endpoint**: `POST /batch` (and `/batch/{format}`) accepts a JSON array of IP addresses and returns enrichment results for each. Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens. Supports `?fields=` and `?dns=true`.
 
@@ -119,7 +119,7 @@ Build: `cd frontend && npm run build` (outputs to `frontend/dist/`).
 ## Configuration
 
 Config files: `ifconfig.dev.toml` (local dev), `ifconfig.example.toml` (all options documented).
-Runtime config via a TOML file with `IFCONFIG_` env var overrides (separator: `__`):
+Runtime config via a TOML file with `IFCONFIG_` env var overrides (`_` separates prefix from key, `__` separates nested sections):
 
 ```toml
 base_url = "localhost"
@@ -128,10 +128,19 @@ geoip_city_db = "data/GeoLite2-City.mmdb"
 geoip_asn_db = "data/GeoLite2-ASN.mmdb"
 user_agent_regexes = "data/regexes.yaml"
 tor_exit_nodes = "data/tor_exit_nodes.txt"
+cloud_provider_ranges = "data/cloud_provider_ranges.jsonl"
+feodo_botnet_ips = "data/feodo_botnet_ips.txt"
+vpn_ranges = "data/vpn_ranges.txt"
+datacenter_ranges = "data/datacenter_ranges.txt"
+bot_ranges = "data/bot_ranges.jsonl"
+spamhaus_drop = "data/spamhaus_drop.txt"
+# filtered_headers = ["^x-koyeb-", "^cf-"]
+# watch_data_files = false
 
 [server]
 bind = "127.0.0.1:8080"
 # admin_bind = "127.0.0.1:9090"  # Optional: Prometheus /metrics + /health
+# admin_token = "change-me"      # Bearer token for admin port; unauthenticated if unset
 # trusted_proxies = ["10.0.0.0/8"]
 # cors_allowed_origins = ["*"]   # Default: allow all; handles OPTIONS preflight
 
@@ -146,9 +155,11 @@ max_size = 100     # max IPs per batch request
 
 `watch_data_files = true` enables filesystem watcher for auto-reload of data files (alternative to SIGHUP).
 
-Env var examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.pdt.sh`.
+Env var examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.pdt.sh`, `IFCONFIG_SERVER__ADMIN_TOKEN=secret`.
 Structured JSON logging: `IFCONFIG_LOG_FORMAT=json`.
 Print effective config and exit: `--print-config` flag.
+
+Config is validated at load time (`Config::validate()`) — zero rate-limit values are rejected with a descriptive error before the server starts.
 
 GeoIP data in `data/`: `GeoLite2-City.mmdb`, `GeoLite2-ASN.mmdb`.
 

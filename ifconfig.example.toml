@@ -84,8 +84,14 @@ base_url = "ip.pdt.sh"
 bind = "0.0.0.0:8080"
 
 # Optional admin port serving Prometheus /metrics and /health.
-# Disabled by default. Not rate-limited — protect via network policy.
+# Disabled by default. Not rate-limited — protect via network policy or bind to loopback.
 # admin_bind = "127.0.0.1:9090"
+
+# Bearer token required for all admin port requests.
+# When set, every request to the admin port must include:
+#   Authorization: Bearer <token>
+# If unset, the admin port is unauthenticated — restrict access via network policy.
+# admin_token = "change-me"
 
 # List of trusted proxy CIDR ranges for X-Forwarded-For parsing.
 # Only the rightmost untrusted IP in the XFF chain is used as the client IP.

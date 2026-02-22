@@ -136,7 +136,7 @@ Every endpoint accepts a format suffix or an `Accept` header — see [Output For
 | `/api-docs/openapi.json` | OpenAPI 3.1 specification | `curl ip.pdt.sh/api-docs/openapi.json` |
 | `/docs` | Interactive API reference (Scalar UI) | Open in browser |
 | `/health` | Liveness probe | `curl ip.pdt.sh/health` |
-| `/ready` | Readiness probe (checks GeoIP DBs) | `curl ip.pdt.sh/ready` |
+| `/ready` | Readiness probe (checks GeoIP DBs are loaded; body includes `warnings` for missing optional sources) | `curl ip.pdt.sh/ready` |
 
 ### Content Negotiation
 
@@ -402,7 +402,8 @@ Use `data/Makefile` to fetch and normalize all enrichment data files. GeoLite2 d
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `server.bind` | string | `"127.0.0.1:8080"` | Address and port to bind the HTTP server. |
-| `server.admin_bind` | string | *(disabled)* | Optional admin port serving Prometheus `/metrics` (application + process metrics) and `/health`. Not rate-limited — protect via network policy. |
+| `server.admin_bind` | string | *(disabled)* | Optional admin port serving Prometheus `/metrics` (application + process metrics) and `/health`. Not rate-limited — protect via network policy or `admin_token`. |
+| `server.admin_token` | string | *(none)* | Bearer token required for all admin port requests. When set, every request must include `Authorization: Bearer <token>`. If unset the admin port is unauthenticated. |
 | `server.trusted_proxies` | string[] | `[]` | CIDR ranges of trusted proxies for X-Forwarded-For parsing. Only the rightmost untrusted IP in the XFF chain is used as the client IP. |
 | `server.cors_allowed_origins` | string[] | `["*"]` | Allowed origins for CORS. Handles OPTIONS preflight automatically. Set to specific origins to restrict cross-origin access. |
 
@@ -413,7 +414,7 @@ Use `data/Makefile` to fetch and normalize all enrichment data files. GeoLite2 d
 | `rate_limit.per_ip_per_minute` | integer | `60` | Maximum sustained requests per IP per minute. |
 | `rate_limit.per_ip_burst` | integer | `10` | Burst capacity — requests allowed in a quick burst before limiting kicks in. |
 
-All rate-limited responses include `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers. Responses that exceed the limit (HTTP 429) also include a `Retry-After` header. `/health` and `/ready` are exempt.
+All rate-limited responses include `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers. Responses that exceed the limit (HTTP 429) also include `Retry-After` and `X-RateLimit-Reset` (Unix timestamp) headers. `/health` and `/ready` are exempt.
 
 ### Batch
 
@@ -450,11 +451,13 @@ datacenter_ranges = "data/datacenter_ranges.txt"
 bot_ranges = "data/bot_ranges.jsonl"
 spamhaus_drop = "data/spamhaus_drop.txt"
 
+# filtered_headers = ["^x-koyeb-", "^cf-"]
 # watch_data_files = true
 
 [server]
 bind = "0.0.0.0:8080"
 # admin_bind = "127.0.0.1:9090"
+# admin_token = "change-me"
 # trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12"]
 # cors_allowed_origins = ["*"]
 
@@ -480,6 +483,7 @@ IFCONFIG_RATE_LIMIT__PER_IP_PER_MINUTE=120
 IFCONFIG_BATCH__ENABLED=true
 IFCONFIG_BATCH__MAX_SIZE=50
 IFCONFIG_SERVER__CORS_ALLOWED_ORIGINS='["https://ip.pdt.sh"]'
+IFCONFIG_SERVER__ADMIN_TOKEN=change-me
 IFCONFIG_FILTERED_HEADERS='["^x-koyeb-", "^cf-"]'
 IFCONFIG_WATCH_DATA_FILES=true
 IFCONFIG_LOG_FORMAT=json   # structured JSON logging (default: human-readable)
