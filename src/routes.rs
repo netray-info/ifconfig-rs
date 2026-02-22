@@ -193,12 +193,13 @@ fn parse_dns_param(uri: &str) -> bool {
 
 // ---- Compute-once dispatch ----
 
-fn resolve_core_backends(ctx: &EnrichmentContext) -> Option<(&UserAgentParser, &GeoIpCityDb, &GeoIpAsnDb, &TorExitNodes)> {
-    let uap = ctx.user_agent_parser.as_deref()?;
-    let city = ctx.geoip_city_db.as_deref()?;
-    let asn = ctx.geoip_asn_db.as_deref()?;
-    let tor = &*ctx.tor_exit_nodes;
-    Some((uap, city, asn, tor))
+fn resolve_core_backends(ctx: &EnrichmentContext) -> (Option<&UserAgentParser>, Option<&GeoIpCityDb>, Option<&GeoIpAsnDb>, &TorExitNodes) {
+    (
+        ctx.user_agent_parser.as_deref(),
+        ctx.geoip_city_db.as_deref(),
+        ctx.geoip_asn_db.as_deref(),
+        &*ctx.tor_exit_nodes,
+    )
 }
 
 async fn dispatch_standard(
@@ -230,10 +231,7 @@ async fn dispatch_standard(
 
     let ctx = state.enrichment.load();
 
-    let (uap, city, asn, tor) = match resolve_core_backends(&ctx) {
-        Some(backends) => backends,
-        None => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "backends not available"),
-    };
+    let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
     let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns).await;
@@ -550,10 +548,7 @@ async fn dispatch_all(
     };
 
     let ctx = state.enrichment.load();
-    let (uap, city, asn, tor) = match resolve_core_backends(&ctx) {
-        Some(backends) => backends,
-        None => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "backends not available"),
-    };
+    let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
     let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns).await;
@@ -880,11 +875,6 @@ async fn batch_dispatch(
 
     let ctx: std::sync::Arc<EnrichmentContext> = std::sync::Arc::clone(&*state.enrichment.load());
 
-    // Early check: required backends must be available
-    if ctx.user_agent_parser.is_none() || ctx.geoip_city_db.is_none() || ctx.geoip_asn_db.is_none() {
-        return error_response(StatusCode::INTERNAL_SERVER_ERROR, "backends not available");
-    }
-
     let dns_opt_in = parse_dns_param(&req_info.uri);
     let fields = format::parse_fields_param(&req_info.uri);
     let skip_dns = !dns_opt_in;
@@ -918,9 +908,9 @@ async fn batch_dispatch(
         let permit = std::sync::Arc::clone(&sem).acquire_owned().await.unwrap();
         set.spawn(async move {
             let _permit = permit;
-            let uap = ctx.user_agent_parser.as_deref().unwrap();
-            let city = ctx.geoip_city_db.as_deref().unwrap();
-            let asn = ctx.geoip_asn_db.as_deref().unwrap();
+            let uap = ctx.user_agent_parser.as_deref();
+            let city = ctx.geoip_city_db.as_deref();
+            let asn = ctx.geoip_asn_db.as_deref();
             let tor = &*ctx.tor_exit_nodes;
             let ua_ref = ua.as_deref();
             let target_addr = SocketAddr::new(ip, 0);
@@ -1083,10 +1073,7 @@ async fn ip_version_dispatch(
 
     let ctx = state.enrichment.load();
 
-    let (uap, city, asn, tor) = match resolve_core_backends(&ctx) {
-        Some(backends) => backends,
-        None => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "backends not available"),
-    };
+    let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
     let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns).await;

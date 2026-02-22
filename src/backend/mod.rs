@@ -256,9 +256,12 @@ pub struct Ifconfig {
 pub struct IfconfigParam<'a> {
     pub remote: &'a SocketAddr,
     pub user_agent_header: &'a Option<&'a str>,
-    pub user_agent_parser: &'a UserAgentParser,
-    pub geoip_city_db: &'a GeoIpCityDb,
-    pub geoip_asn_db: &'a GeoIpAsnDb,
+    /// `None` when the UA-parser regexes file is not configured/loaded.
+    pub user_agent_parser: Option<&'a UserAgentParser>,
+    /// `None` when the GeoLite2-City database is not configured/loaded.
+    pub geoip_city_db: Option<&'a GeoIpCityDb>,
+    /// `None` when the GeoLite2-ASN database is not configured/loaded.
+    pub geoip_asn_db: Option<&'a GeoIpAsnDb>,
     pub tor_exit_nodes: &'a TorExitNodes,
     pub feodo_botnet_ips: Option<&'a FeodoBotnetIps>,
     pub vpn_ranges: Option<&'a VpnRanges>,
@@ -323,9 +326,44 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         Some(Tcp { port: param.remote.port() })
     };
 
+    // Internal IPs (RFC 1918, loopback, ULA, link-local): skip GeoIP and the
+    // full classification pipeline — GeoIP has no data for these addresses.
+    if !is_global_ip(param.remote.ip()) {
+        let user_agent = param.user_agent_parser.and_then(|uap| {
+            param.user_agent_header.map(|s| {
+                let mut ua = uap.parse(s);
+                ua.raw = Some(s.to_string());
+                ua
+            })
+        });
+        return Ifconfig {
+            ip,
+            tcp,
+            location: Location::unknown(),
+            network: Network {
+                asn: None,
+                org: None,
+                prefix: None,
+                provider: None,
+                service: None,
+                region: None,
+                classification: Classification {
+                    network_type: "internal".to_string(),
+                    is_datacenter: false,
+                    is_vpn: false,
+                    is_tor: false,
+                    is_proxy: false,
+                    is_bot: false,
+                    is_threat: false,
+                },
+            },
+            user_agent,
+        };
+    }
+
     let location = param
         .geoip_city_db
-        .lookup(param.remote.ip())
+        .and_then(|db| db.lookup(param.remote.ip()))
         .map(|c| {
             let subdivision = c.subdivisions.first();
             Location {
@@ -350,42 +388,13 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
 
     let (asn_number, asn_org, asn_prefix) = param
         .geoip_asn_db
-        .lookup(param.remote.ip())
+        .and_then(|db| db.lookup(param.remote.ip()))
         .map(|(isp, prefix)| (
             isp.autonomous_system_number,
             isp.autonomous_system_organization.map(|s| s.to_owned()),
             prefix,
         ))
         .unwrap_or((None, None, None));
-
-    // --- Classification ---
-    // Internal IPs (RFC 1918, loopback, ULA, link-local) get a short-circuit
-    // classification; GeoIP returns no results for them (expected).
-    if !is_global_ip(param.remote.ip()) {
-        let network = Network {
-            asn: asn_number,
-            org: asn_org,
-            prefix: asn_prefix,
-            provider: None,
-            service: None,
-            region: None,
-            classification: Classification {
-                network_type: "internal".to_string(),
-                is_datacenter: false,
-                is_vpn: false,
-                is_tor: false,
-                is_proxy: false,
-                is_bot: false,
-                is_threat: false,
-            },
-        };
-        let user_agent = param.user_agent_header.map(|s| {
-            let mut ua = param.user_agent_parser.parse(s);
-            ua.raw = Some(s.to_string());
-            ua
-        });
-        return Ifconfig { ip, tcp, location, network, user_agent };
-    }
 
     // --- Classification flags ---
     let is_tor = param
@@ -487,10 +496,12 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         }
     };
 
-    let user_agent = param.user_agent_header.map(|s| {
-        let mut ua = param.user_agent_parser.parse(s);
-        ua.raw = Some(s.to_string());
-        ua
+    let user_agent = param.user_agent_parser.and_then(|uap| {
+        param.user_agent_header.map(|s| {
+            let mut ua = uap.parse(s);
+            ua.raw = Some(s.to_string());
+            ua
+        })
     });
 
     // Emit null-field counters for enrichment quality tracking.

@@ -9,9 +9,9 @@ pub(crate) static UNKNOWN_STR: &str = "unknown";
 pub(crate) async fn make_ifconfig(
     remote: &SocketAddr,
     user_agent: &Option<&str>,
-    user_agent_parser: &UserAgentParser,
-    geoip_city_db: &GeoIpCityDb,
-    geoip_asn_db: &GeoIpAsnDb,
+    user_agent_parser: Option<&UserAgentParser>,
+    geoip_city_db: Option<&GeoIpCityDb>,
+    geoip_asn_db: Option<&GeoIpAsnDb>,
     tor_exit_nodes: &TorExitNodes,
     feodo_botnet_ips: Option<&FeodoBotnetIps>,
     vpn_ranges: Option<&VpnRanges>,
