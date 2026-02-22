@@ -14,9 +14,9 @@ Root cause: the inline script in `index.html` that applied the theme was blocked
 
 Root cause: component-level `Map` cache in `ApiExplorer.tsx` never expired and was never invalidated. Fixed by removing the map — the browser HTTP cache (`Cache-Control: private, max-age=60` + ETags) handles deduplication correctly.
 
-#### B4. API Explorer not updated on IP lookup
+#### B4. ~~API Explorer not updated on IP lookup~~ (fixed)
 
-When a `?ip=` lookup is performed (e.g. 8.8.8.8), the API Explorer still shows the caller's own IP data and the curl command still reads `curl host/json` (no `?ip=` param). Fix: `ApiExplorer` should accept a `lookupIp: string | null` prop from `App.tsx`; when set, append `?ip=<ip>` to all fetch URLs and to the displayed curl command.
+When a `?ip=` lookup was performed (e.g. 8.8.8.8), the API Explorer still showed the caller's own IP data and the curl command still read `curl host/json` (no `?ip=` param). Fixed by adding a `lookupIp: string | null` prop to `ApiExplorer`; when set, `?ip=<ip>` is appended to all fetch URLs and to the displayed curl command. The `createEffect` re-runs whenever `lookupIp` changes.
 
 ---
 

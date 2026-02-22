@@ -98,7 +98,7 @@ export default function App() {
             onReset={() => loadData()}
           />
           <RequestHeaders />
-          <ApiExplorer />
+          <ApiExplorer lookupIp={lookupIp()} />
           <Faq siteName={siteName()} />
         </Show>
 

@@ -8,11 +8,14 @@ const ENDPOINTS = [
 const FORMATS = ["plain", "json", "yaml", "toml", "csv"] as const;
 type Format = (typeof FORMATS)[number];
 
-function buildUrl(endpoint: string, format: Format): string {
+function buildUrl(endpoint: string, format: Format, ip?: string | null): string {
+  let path: string;
   if (format === "plain") {
-    return endpoint === "/" ? "/" : endpoint;
+    path = endpoint === "/" ? "/" : endpoint;
+  } else {
+    path = endpoint === "/" ? `/${format}` : `${endpoint}/${format}`;
   }
-  return endpoint === "/" ? `/${format}` : `${endpoint}/${format}`;
+  return ip ? `${path}?ip=${encodeURIComponent(ip)}` : path;
 }
 
 function prettyJson(text: string): string {
@@ -23,11 +26,11 @@ function prettyJson(text: string): string {
   }
 }
 
-function buildCurlCommand(endpoint: string, format: Format): string {
+function buildCurlCommand(endpoint: string, format: Format, ip?: string | null): string {
   const host = location.hostname === "localhost"
     ? `localhost:${location.port || "8080"}`
     : location.host;
-  const path = buildUrl(endpoint, format);
+  const path = buildUrl(endpoint, format, ip);
   return `curl ${host}${path}`;
 }
 
@@ -40,7 +43,11 @@ function CopySmallIcon() {
   );
 }
 
-export default function ApiExplorer() {
+interface Props {
+  lookupIp: string | null;
+}
+
+export default function ApiExplorer(props: Props) {
   const [open, setOpen] = createSignal(false);
   const [activeEndpoint, setActiveEndpoint] = createSignal("/");
   const [activeFormat, setActiveFormat] = createSignal<Format>("json");
@@ -52,7 +59,7 @@ export default function ApiExplorer() {
 
   const copyCurl = async () => {
     try {
-      await navigator.clipboard.writeText(buildCurlCommand(activeEndpoint(), activeFormat()));
+      await navigator.clipboard.writeText(buildCurlCommand(activeEndpoint(), activeFormat(), props.lookupIp));
       showToast("Copied!");
     } catch {
       // Clipboard API not available
@@ -60,14 +67,14 @@ export default function ApiExplorer() {
   };
 
   createEffect(
-    on([activeEndpoint, activeFormat, open], ([ep, fmt, isOpen]) => {
+    on([activeEndpoint, activeFormat, open, () => props.lookupIp], ([ep, fmt, isOpen, ip]) => {
       if (!isOpen) return;
       const reqId = ++currentReqId;
       setLoading(true);
       setError(null);
       setResponse("");
 
-      const url = buildUrl(ep, fmt);
+      const url = buildUrl(ep, fmt, ip as string | null);
       const headers: HeadersInit = fmt === "plain"
         ? { Accept: "text/plain" }
         : {};
@@ -150,7 +157,7 @@ export default function ApiExplorer() {
               onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") copyCurl(); }}
             >
               <span class="prompt">$ </span>
-              {buildCurlCommand(activeEndpoint(), activeFormat())}
+              {buildCurlCommand(activeEndpoint(), activeFormat(), props.lookupIp)}
             </span>
             <button
               class="curl-copy"
