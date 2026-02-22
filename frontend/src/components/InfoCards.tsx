@@ -207,7 +207,7 @@ export default function InfoCards(props: Props) {
                   props.data.user_agent!.device.family,
                 ]
                   .filter(Boolean)
-                  .join(" ")}
+                  .join(" · ")}
               </span>
             </div>
           </Show>
