@@ -104,16 +104,15 @@ export default function App() {
 
         <footer>
           <div class="footer-about">
-            <em>{siteName()}</em> is a{" "}
-            <a href="https://www.google.com/search?q=what's+my+ip+address" target="_blank" rel="noopener noreferrer">"what's my IP address"</a>{" "}
-            service running{" "}
-            <a href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">ifconfig-rs</a>.
-            Written in <a href="https://www.rust-lang.org/" target="_blank" rel="noopener noreferrer">Rust</a>{" "}
+            <em>{siteName()}</em> is an IP address and network information service.
+            Returns geolocation, ASN, and user-agent details via a plain HTTP API.
+            Built in <a href="https://www.rust-lang.org/" target="_blank" rel="noopener noreferrer">Rust</a>{" "}
             with <a href="https://github.com/tokio-rs/axum" target="_blank" rel="noopener noreferrer">Axum</a>{" "}
-            and <a href="https://www.solidjs.com/" target="_blank" rel="noopener noreferrer">SolidJS</a>.
-            Includes GeoLite2 data by{" "}
-            <a href="https://www.maxmind.com" target="_blank" rel="noopener noreferrer">MaxMind</a>.
-            Feel free to use, query, clone, and fork. Rate limiting may apply.
+            and <a href="https://www.solidjs.com/" target="_blank" rel="noopener noreferrer">SolidJS</a>,{" "}
+            powered by <a href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">ifconfig-rs</a>.
+            Geolocation data by{" "}
+            <a href="https://www.maxmind.com" target="_blank" rel="noopener noreferrer">MaxMind</a> GeoLite2.
+            Open to use and self-host — rate limiting applies.
           </div>
           <div class="footer-links">
             <a href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">GitHub</a>
