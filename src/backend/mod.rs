@@ -269,6 +269,7 @@ pub struct IfconfigParam<'a> {
     pub datacenter_ranges: Option<&'a DatacenterRanges>,
     pub bot_db: Option<&'a BotDb>,
     pub spamhaus_drop: Option<&'a SpamhausDrop>,
+    pub asn_patterns: &'a asn_heuristic::AsnPatterns,
     pub dns_resolver: &'a ResolverGroup,
     pub dns_cache: &'a DnsCache,
     /// When true, skip the reverse DNS (PTR) lookup. Used for `?ip=` lookups
@@ -397,10 +398,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         .map(|db| db.lookup(param.remote.ip()))
         .unwrap_or(false);
 
-    let asn_class = asn_org
-        .as_deref()
-        .map(asn_heuristic::classify_asn)
-        .unwrap_or(asn_heuristic::AsnClassification::None);
+    let asn_class = asn_heuristic::classify_asn(asn_number, asn_org.as_deref(), param.asn_patterns);
 
     let is_vpn = vpn_cidr
         || matches!(asn_class, asn_heuristic::AsnClassification::Vpn { .. });

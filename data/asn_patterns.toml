@@ -1,0 +1,251 @@
+# ASN organization name classification patterns for ifconfig-rs.
+# Patterns are case-insensitive regexes matched against the ASN org name
+# (input is lowercased before matching).
+# Listed in order: more specific named providers first, generic keywords last.
+# Dots in provider names must be escaped as \\. to match literally.
+
+# Hosting / datacenter providers
+
+[[hosting]]
+pattern = "google llc"
+provider = "Google"
+
+[[hosting]]
+pattern = "hetzner"
+provider = "Hetzner"
+
+[[hosting]]
+pattern = "digitalocean"
+provider = "DigitalOcean"
+
+[[hosting]]
+pattern = "ovh"
+provider = "OVH"
+
+[[hosting]]
+pattern = "online s\\.a\\.s\\."
+provider = "Scaleway"
+
+[[hosting]]
+pattern = "scaleway"
+provider = "Scaleway"
+
+[[hosting]]
+pattern = "vultr"
+provider = "Vultr"
+
+[[hosting]]
+pattern = "choopa"
+provider = "Vultr"
+
+[[hosting]]
+pattern = "linode"
+provider = "Linode"
+
+[[hosting]]
+pattern = "akamai connected cloud"
+provider = "Linode"
+
+[[hosting]]
+pattern = "akamai"
+provider = "Akamai"
+
+[[hosting]]
+pattern = "contabo"
+provider = "Contabo"
+
+[[hosting]]
+pattern = "ionos"
+provider = "IONOS"
+
+[[hosting]]
+pattern = "leaseweb"
+provider = "Leaseweb"
+
+[[hosting]]
+pattern = "hostinger"
+provider = "Hostinger"
+
+[[hosting]]
+pattern = "kamatera"
+provider = "Kamatera"
+
+[[hosting]]
+pattern = "upcloud"
+provider = "UpCloud"
+
+[[hosting]]
+pattern = "cherry servers"
+provider = "Cherry Servers"
+
+[[hosting]]
+pattern = "equinix"
+provider = "Equinix"
+
+[[hosting]]
+pattern = "rackspace"
+provider = "Rackspace"
+
+[[hosting]]
+pattern = "softlayer"
+provider = "IBM Cloud"
+
+[[hosting]]
+pattern = "ibm cloud"
+provider = "IBM Cloud"
+
+[[hosting]]
+pattern = "oracle"
+provider = "Oracle Cloud"
+
+[[hosting]]
+pattern = "alibaba"
+provider = "Alibaba Cloud"
+
+[[hosting]]
+pattern = "tencent cloud"
+provider = "Tencent Cloud"
+
+[[hosting]]
+pattern = "fastly"
+provider = "Fastly"
+
+[[hosting]]
+pattern = "cloudflare"
+provider = "Cloudflare"
+
+[[hosting]]
+pattern = "zscaler"
+provider = "Zscaler"
+
+[[hosting]]
+pattern = "godaddy"
+provider = "GoDaddy"
+
+[[hosting]]
+pattern = "dreamhost"
+provider = "DreamHost"
+
+[[hosting]]
+pattern = "colocrossing"
+provider = "ColoCrossing"
+
+[[hosting]]
+pattern = "quadranet"
+provider = "QuadraNet"
+
+[[hosting]]
+pattern = "psychz"
+provider = "Psychz Networks"
+
+[[hosting]]
+pattern = "phoenixnap"
+provider = "PhoenixNAP"
+
+[[hosting]]
+pattern = "m247"
+provider = "M247"
+
+[[hosting]]
+pattern = "zenlayer"
+provider = "Zenlayer"
+
+[[hosting]]
+pattern = "sharktech"
+provider = "Sharktech"
+
+# Generic catch-alls (checked last so named providers win)
+
+[[hosting]]
+pattern = "hosting"
+provider = "hosting provider"
+
+[[hosting]]
+pattern = "datacenter"
+provider = "datacenter"
+
+[[hosting]]
+pattern = "data center"
+provider = "datacenter"
+
+[[hosting]]
+pattern = "colocation"
+provider = "colocation"
+
+[[hosting]]
+pattern = "dedicated server"
+provider = "dedicated hosting"
+
+# VPN providers (fallback for those not covered by X4BNet CIDR lists)
+
+[[vpn]]
+pattern = "mullvad"
+provider = "Mullvad"
+
+[[vpn]]
+pattern = "31173 services"
+provider = "Mullvad"
+
+[[vpn]]
+pattern = "nordvpn"
+provider = "NordVPN"
+
+[[vpn]]
+pattern = "expressvpn"
+provider = "ExpressVPN"
+
+[[vpn]]
+pattern = "surfshark"
+provider = "Surfshark"
+
+[[vpn]]
+pattern = "cyberghost"
+provider = "CyberGhost"
+
+[[vpn]]
+pattern = "private internet access"
+provider = "PIA"
+
+[[vpn]]
+pattern = "proton ag"
+provider = "ProtonVPN"
+
+[[vpn]]
+pattern = "proton vpn"
+provider = "ProtonVPN"
+
+[[vpn]]
+pattern = "ipvanish"
+provider = "IPVanish"
+
+[[vpn]]
+pattern = "hide\\.me"
+provider = "hide.me"
+
+[[vpn]]
+pattern = "windscribe"
+provider = "Windscribe"
+
+[[vpn]]
+pattern = "astrill"
+provider = "Astrill"
+
+# --- ASN-number entries (exact match, checked before org-name patterns) ---
+# Use these for providers whose org name is ambiguous or changes frequently.
+# Both `asn` and `pattern` may coexist in one entry — ASN takes priority.
+
+[[hosting]]
+provider = "Cloudflare"
+asn = 13335
+
+[[hosting]]
+provider = "Google"
+asn = 15169
+
+[[vpn]]
+provider = "Mullvad"
+asn = 39351
+
+[[hosting]]
+asn = 48152
+provider = "Digital Realty Frankfurt GmbH"
