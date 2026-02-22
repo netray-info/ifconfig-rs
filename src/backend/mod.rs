@@ -205,10 +205,13 @@ impl Location {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Classification {
-    /// Primary classification: "cloud", "bot", "vpn", "tor", "botnet_c2", "threat", "hosting", or "residential".
+    /// Primary classification: "cloud", "bot", "vpn", "tor", "botnet_c2", "threat", "hosting", "residential", or "internal".
     #[serde(rename = "type")]
     #[schema(example = "residential")]
     pub network_type: String,
+    /// True when the IP belongs to a private or reserved range (RFC 1918, loopback, link-local, IPv6 ULA).
+    #[schema(example = false)]
+    pub is_internal: bool,
     #[schema(example = false)]
     pub is_datacenter: bool,
     #[schema(example = false)]
@@ -326,41 +329,6 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         Some(Tcp { port: param.remote.port() })
     };
 
-    // Internal IPs (RFC 1918, loopback, ULA, link-local): skip GeoIP and the
-    // full classification pipeline — GeoIP has no data for these addresses.
-    if !is_global_ip(param.remote.ip()) {
-        let user_agent = param.user_agent_parser.and_then(|uap| {
-            param.user_agent_header.map(|s| {
-                let mut ua = uap.parse(s);
-                ua.raw = Some(s.to_string());
-                ua
-            })
-        });
-        return Ifconfig {
-            ip,
-            tcp,
-            location: Location::unknown(),
-            network: Network {
-                asn: None,
-                org: None,
-                prefix: None,
-                provider: None,
-                service: None,
-                region: None,
-                classification: Classification {
-                    network_type: "internal".to_string(),
-                    is_datacenter: false,
-                    is_vpn: false,
-                    is_tor: false,
-                    is_proxy: false,
-                    is_bot: false,
-                    is_threat: false,
-                },
-            },
-            user_agent,
-        };
-    }
-
     let location = param
         .geoip_city_db
         .and_then(|db| db.lookup(param.remote.ip()))
@@ -477,15 +445,21 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             ("residential".to_string(), None)
         };
 
+        let is_internal = !is_global_ip(param.remote.ip());
+        // Internal IPs override the primary type; all other flags still reflect
+        // what the enrichment data says (likely all false for private ranges).
+        let network_type = if is_internal { "internal".to_string() } else { network_type };
+
         Network {
             asn: asn_number,
             org: asn_org,
             prefix: asn_prefix,
-            provider,
-            service: cloud.as_ref().and_then(|c| c.service.clone()),
-            region: cloud.as_ref().and_then(|c| c.region.clone()),
+            provider: if is_internal { None } else { provider },
+            service: if is_internal { None } else { cloud.as_ref().and_then(|c| c.service.clone()) },
+            region: if is_internal { None } else { cloud.as_ref().and_then(|c| c.region.clone()) },
             classification: Classification {
                 network_type,
+                is_internal,
                 is_datacenter,
                 is_vpn,
                 is_tor,

@@ -138,6 +138,7 @@ pub mod network {
         if let Some(ref region) = n.region {
             lines.push(format!("region:     {}", region));
         }
+        lines.push(format!("internal:   {}", n.classification.is_internal));
         lines.push(format!("datacenter: {}", n.classification.is_datacenter));
         lines.push(format!("vpn:        {}", n.classification.is_vpn));
         lines.push(format!("tor:        {}", n.classification.is_tor));
@@ -219,6 +220,7 @@ pub mod all {
             if let Some(ref region) = n.region {
                 lines.push(format!("region:     {}", region));
             }
+            lines.push(format!("internal:   {}", n.classification.is_internal));
             lines.push(format!("datacenter: {}", n.classification.is_datacenter));
             lines.push(format!("vpn:        {}", n.classification.is_vpn));
             lines.push(format!("tor:        {}", n.classification.is_tor));
@@ -432,6 +434,7 @@ mod tests {
             region: None,
             classification: Classification {
                 network_type: "residential".to_string(),
+                is_internal: false,
                 is_datacenter: false,
                 is_vpn: false,
                 is_tor: false,
@@ -549,6 +552,7 @@ mod tests {
             region: Some("us-east-1".to_string()),
             classification: Classification {
                 network_type: "cloud".to_string(),
+                is_internal: false,
                 is_datacenter: true,
                 is_vpn: false,
                 is_tor: false,
