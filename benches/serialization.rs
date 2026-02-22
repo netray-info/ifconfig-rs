@@ -23,19 +23,21 @@ fn representative_ifconfig() -> serde_json::Value {
             "accuracy_radius_km": 100
         },
         "network": {
-            "type": "residential",
             "asn": 64496,
             "org": "Example Telecom AG",
             "prefix": "203.0.113.0/24",
             "provider": null,
             "service": null,
             "region": null,
-            "is_datacenter": false,
-            "is_vpn": false,
-            "is_tor": false,
-            "is_proxy": false,
-            "is_bot": false,
-            "is_threat": false
+            "classification": {
+                "type": "residential",
+                "is_datacenter": false,
+                "is_vpn": false,
+                "is_tor": false,
+                "is_proxy": false,
+                "is_bot": false,
+                "is_threat": false
+            }
         },
         "user_agent": {
             "raw": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",

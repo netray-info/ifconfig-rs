@@ -473,13 +473,13 @@ async fn handle_root_json_has_network() {
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    // network object should be present with classification fields
-    assert!(json["network"]["type"].is_string());
-    assert!(json["network"]["is_tor"].is_boolean());
-    assert!(json["network"]["is_vpn"].is_boolean());
-    assert!(json["network"]["is_datacenter"].is_boolean());
-    assert!(json["network"]["is_bot"].is_boolean());
-    assert!(json["network"]["is_threat"].is_boolean());
+    // network object should be present with nested classification
+    assert!(json["network"]["classification"]["type"].is_string());
+    assert!(json["network"]["classification"]["is_tor"].is_boolean());
+    assert!(json["network"]["classification"]["is_vpn"].is_boolean());
+    assert!(json["network"]["classification"]["is_datacenter"].is_boolean());
+    assert!(json["network"]["classification"]["is_bot"].is_boolean());
+    assert!(json["network"]["classification"]["is_threat"].is_boolean());
 }
 
 #[tokio::test]
@@ -512,10 +512,10 @@ async fn handle_network_json() {
     let ct = content_type_str(&headers);
     assert!(is_json(&ct));
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert!(json["type"].is_string());
-    assert!(json["is_datacenter"].is_boolean());
-    assert!(json["is_bot"].is_boolean());
-    assert!(json["is_threat"].is_boolean());
+    assert!(json["classification"]["type"].is_string());
+    assert!(json["classification"]["is_datacenter"].is_boolean());
+    assert!(json["classification"]["is_bot"].is_boolean());
+    assert!(json["classification"]["is_threat"].is_boolean());
 }
 
 #[tokio::test]
@@ -526,7 +526,7 @@ async fn handle_network_json_suffix() {
     let ct = content_type_str(&headers);
     assert!(is_json(&ct));
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert!(json["type"].is_string());
+    assert!(json["classification"]["type"].is_string());
 }
 
 #[tokio::test]
@@ -1015,7 +1015,7 @@ async fn ip_param_network_json() {
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert!(json["type"].is_string());
+    assert!(json["classification"]["type"].is_string());
 }
 
 #[tokio::test]
@@ -1569,7 +1569,7 @@ async fn network_classification_propagates_to_json() {
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     // When classification data is loaded, 8.8.8.8 should not be "residential"
-    let network_type = json["type"].as_str().unwrap_or("unknown");
+    let network_type = json["classification"]["type"].as_str().unwrap_or("unknown");
     assert_ne!(
         network_type, "residential",
         "8.8.8.8 should be classified as hosting/cloud when data files are loaded, got: {}",

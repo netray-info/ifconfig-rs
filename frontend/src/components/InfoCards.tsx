@@ -72,7 +72,7 @@ export default function InfoCards(props: Props) {
         </Show>
         <div class="card-row">
           <span class="card-label">Type</span>
-          <span class="card-value">{net().type}</span>
+          <span class="card-value">{net().classification.type}</span>
         </div>
         <Show when={net().provider}>
           <div class="card-row">
@@ -80,7 +80,7 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{net().provider}</span>
           </div>
         </Show>
-        <Show when={net().is_tor}>
+        <Show when={net().classification.is_tor}>
           <div class="card-row">
             <span class="card-label">Tor Exit Node</span>
             <span class="card-value">
@@ -88,7 +88,7 @@ export default function InfoCards(props: Props) {
             </span>
           </div>
         </Show>
-        <Show when={net().is_vpn}>
+        <Show when={net().classification.is_vpn}>
           <div class="card-row">
             <span class="card-label">VPN</span>
             <span class="card-value">
@@ -96,7 +96,7 @@ export default function InfoCards(props: Props) {
             </span>
           </div>
         </Show>
-        <Show when={net().is_bot}>
+        <Show when={net().classification.is_bot}>
           <div class="card-row">
             <span class="card-label">Bot</span>
             <span class="card-value">
@@ -104,7 +104,7 @@ export default function InfoCards(props: Props) {
             </span>
           </div>
         </Show>
-        <Show when={net().is_threat}>
+        <Show when={net().classification.is_threat}>
           <div class="card-row">
             <span class="card-label">Threat</span>
             <span class="card-value">

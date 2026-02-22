@@ -53,7 +53,7 @@ use crate::state::AppState;
         ready_handler,
     ),
     components(schemas(
-        Ifconfig, Ip, Tcp, Location, Network,
+        Ifconfig, Ip, Tcp, Location, Network, Classification,
         UserAgent, Browser, OS, Device, ErrorResponse,
         crate::state::ProjectInfo,
     )),

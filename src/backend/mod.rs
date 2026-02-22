@@ -153,11 +153,28 @@ impl Location {
 
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
-pub struct Network {
+pub struct Classification {
     /// Primary classification: "cloud", "bot", "vpn", "tor", "botnet_c2", "threat", "hosting", or "residential".
     #[serde(rename = "type")]
     #[schema(example = "residential")]
     pub network_type: String,
+    #[schema(example = false)]
+    pub is_datacenter: bool,
+    #[schema(example = false)]
+    pub is_vpn: bool,
+    #[schema(example = false)]
+    pub is_tor: bool,
+    // TODO: No proxy detection implemented yet — always false. Remove or populate when a proxy data source is added.
+    #[schema(example = false)]
+    pub is_proxy: bool,
+    #[schema(example = false)]
+    pub is_bot: bool,
+    #[schema(example = false)]
+    pub is_threat: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+pub struct Network {
     #[schema(example = 64496)]
     pub asn: Option<u32>,
     #[schema(example = "Example Telecom AG")]
@@ -173,19 +190,7 @@ pub struct Network {
     /// Cloud region (e.g. "us-east-1").
     #[schema(example = json!(null))]
     pub region: Option<String>,
-    #[schema(example = false)]
-    pub is_datacenter: bool,
-    #[schema(example = false)]
-    pub is_vpn: bool,
-    #[schema(example = false)]
-    pub is_tor: bool,
-    // TODO: No proxy detection implemented yet — always false. Remove or populate when a proxy data source is added.
-    #[schema(example = false)]
-    pub is_proxy: bool,
-    #[schema(example = false)]
-    pub is_bot: bool,
-    #[schema(example = false)]
-    pub is_threat: bool,
+    pub classification: Classification,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
@@ -363,19 +368,21 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         };
 
         Network {
-            network_type,
             asn: asn_number,
             org: asn_org,
             prefix: asn_prefix,
             provider,
             service: cloud.as_ref().and_then(|c| c.service.clone()),
             region: cloud.as_ref().and_then(|c| c.region.clone()),
-            is_datacenter,
-            is_vpn,
-            is_tor,
-            is_proxy: false,
-            is_bot,
-            is_threat,
+            classification: Classification {
+                network_type,
+                is_datacenter,
+                is_vpn,
+                is_tor,
+                is_proxy: false,
+                is_bot,
+                is_threat,
+            },
         }
     };
 

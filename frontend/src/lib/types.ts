@@ -13,20 +13,24 @@ export interface Ifconfig {
   user_agent: UserAgent | null;
 }
 
-export interface Network {
+export interface Classification {
   type: string;
-  asn: number | null;
-  org: string | null;
-  prefix: string | null;
-  provider: string | null;
-  service: string | null;
-  region: string | null;
   is_datacenter: boolean;
   is_vpn: boolean;
   is_tor: boolean;
   is_proxy: boolean;
   is_bot: boolean;
   is_threat: boolean;
+}
+
+export interface Network {
+  asn: number | null;
+  org: string | null;
+  prefix: string | null;
+  provider: string | null;
+  service: string | null;
+  region: string | null;
+  classification: Classification;
 }
 
 export interface Ip {

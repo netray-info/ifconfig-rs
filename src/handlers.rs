@@ -126,7 +126,7 @@ pub mod network {
         if let Some(ref prefix) = n.prefix {
             lines.push(format!("prefix:     {}", prefix));
         }
-        lines.push(format!("type:       {}", n.network_type));
+        lines.push(format!("type:       {}", n.classification.network_type));
         if let Some(ref provider) = n.provider {
             lines.push(format!("provider:   {}", provider));
         }
@@ -136,12 +136,12 @@ pub mod network {
         if let Some(ref region) = n.region {
             lines.push(format!("region:     {}", region));
         }
-        lines.push(format!("datacenter: {}", n.is_datacenter));
-        lines.push(format!("vpn:        {}", n.is_vpn));
-        lines.push(format!("tor:        {}", n.is_tor));
-        lines.push(format!("proxy:      {}", n.is_proxy));
-        lines.push(format!("bot:        {}", n.is_bot));
-        lines.push(format!("threat:     {}", n.is_threat));
+        lines.push(format!("datacenter: {}", n.classification.is_datacenter));
+        lines.push(format!("vpn:        {}", n.classification.is_vpn));
+        lines.push(format!("tor:        {}", n.classification.is_tor));
+        lines.push(format!("proxy:      {}", n.classification.is_proxy));
+        lines.push(format!("bot:        {}", n.classification.is_bot));
+        lines.push(format!("threat:     {}", n.classification.is_threat));
         lines.join("\n") + "\n"
     }
 }
@@ -207,7 +207,7 @@ pub mod all {
             if let Some(ref prefix) = n.prefix {
                 lines.push(format!("prefix:     {}", prefix));
             }
-            lines.push(format!("network:    {}", n.network_type));
+            lines.push(format!("network:    {}", n.classification.network_type));
             if let Some(ref provider) = n.provider {
                 lines.push(format!("provider:   {}", provider));
             }
@@ -217,12 +217,12 @@ pub mod all {
             if let Some(ref region) = n.region {
                 lines.push(format!("region:     {}", region));
             }
-            lines.push(format!("datacenter: {}", n.is_datacenter));
-            lines.push(format!("vpn:        {}", n.is_vpn));
-            lines.push(format!("tor:        {}", n.is_tor));
-            lines.push(format!("proxy:      {}", n.is_proxy));
-            lines.push(format!("bot:        {}", n.is_bot));
-            lines.push(format!("threat:     {}", n.is_threat));
+            lines.push(format!("datacenter: {}", n.classification.is_datacenter));
+            lines.push(format!("vpn:        {}", n.classification.is_vpn));
+            lines.push(format!("tor:        {}", n.classification.is_tor));
+            lines.push(format!("proxy:      {}", n.classification.is_proxy));
+            lines.push(format!("bot:        {}", n.classification.is_bot));
+            lines.push(format!("threat:     {}", n.classification.is_threat));
         }
         if let Some(ref t) = ifconfig.tcp {
             lines.push(format!("port:       {}", t.port));
@@ -327,19 +327,21 @@ mod tests {
 
     fn residential_network() -> Network {
         Network {
-            network_type: "residential".to_string(),
             asn: Some(64496),
             org: Some("Example Telecom".to_string()),
             prefix: None,
             provider: None,
             service: None,
             region: None,
-            is_datacenter: false,
-            is_vpn: false,
-            is_tor: false,
-            is_proxy: false,
-            is_bot: false,
-            is_threat: false,
+            classification: Classification {
+                network_type: "residential".to_string(),
+                is_datacenter: false,
+                is_vpn: false,
+                is_tor: false,
+                is_proxy: false,
+                is_bot: false,
+                is_threat: false,
+            },
         }
     }
 
@@ -442,19 +444,21 @@ mod tests {
     #[test]
     fn network_to_plain_cloud_with_provider() {
         let n = Network {
-            network_type: "cloud".to_string(),
             asn: Some(16509),
             org: Some("Amazon.com".to_string()),
             prefix: Some("54.0.0.0/8".to_string()),
             provider: Some("AWS".to_string()),
             service: Some("EC2".to_string()),
             region: Some("us-east-1".to_string()),
-            is_datacenter: true,
-            is_vpn: false,
-            is_tor: false,
-            is_proxy: false,
-            is_bot: false,
-            is_threat: false,
+            classification: Classification {
+                network_type: "cloud".to_string(),
+                is_datacenter: true,
+                is_vpn: false,
+                is_tor: false,
+                is_proxy: false,
+                is_bot: false,
+                is_threat: false,
+            },
         };
         let ifc = make_ifconfig(None, None, n);
         let plain = network::to_plain(&ifc);
