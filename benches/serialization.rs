@@ -5,8 +5,7 @@ use serde_json::json;
 
 fn representative_ifconfig() -> serde_json::Value {
     json!({
-        "host": {"name": "dns.example.com"},
-        "ip": {"addr": "203.0.113.42", "version": "4"},
+        "ip": {"addr": "203.0.113.42", "version": "4", "hostname": "dns.example.com"},
         "tcp": {"port": 54321},
         "location": {
             "city": "Berlin",
@@ -23,9 +22,11 @@ fn representative_ifconfig() -> serde_json::Value {
             "continent_code": "EU",
             "accuracy_radius_km": 100
         },
-        "isp": {"name": "Example Telecom AG", "asn": 64496},
         "network": {
             "type": "residential",
+            "asn": 64496,
+            "org": "Example Telecom AG",
+            "prefix": "203.0.113.0/24",
             "provider": null,
             "service": null,
             "region": null,
@@ -37,11 +38,11 @@ fn representative_ifconfig() -> serde_json::Value {
             "is_threat": false
         },
         "user_agent": {
+            "raw": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             "device": {"family": "Other", "brand": null, "model": null},
             "os": {"family": "Mac OS X", "major": "14", "minor": "0", "patch": null, "patch_minor": null, "version": "14.0"},
             "browser": {"family": "Chrome", "major": "120", "minor": "0", "patch": null, "version": "120.0"}
-        },
-        "user_agent_header": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        }
     })
 }
 

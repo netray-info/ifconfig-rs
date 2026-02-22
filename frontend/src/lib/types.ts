@@ -6,18 +6,18 @@ export interface SiteMeta {
 }
 
 export interface Ifconfig {
-  host: Host | null;
   ip: Ip;
   tcp: Tcp | null;
   location: Location;
-  isp: Isp;
-  network: Network | null;
+  network: Network;
   user_agent: UserAgent | null;
-  user_agent_header: string | null;
 }
 
 export interface Network {
   type: string;
+  asn: number | null;
+  org: string | null;
+  prefix: string | null;
   provider: string | null;
   service: string | null;
   region: string | null;
@@ -29,13 +29,10 @@ export interface Network {
   is_threat: boolean;
 }
 
-export interface Host {
-  name: string;
-}
-
 export interface Ip {
   addr: string;
   version: string;
+  hostname: string | null;
 }
 
 export interface Tcp {
@@ -58,12 +55,9 @@ export interface Location {
   accuracy_radius_km: number | null;
 }
 
-export interface Isp {
-  name: string | null;
-  asn: number | null;
-}
 
 export interface UserAgent {
+  raw: string | null;
   device: Device;
   os: OS;
   browser: Browser;

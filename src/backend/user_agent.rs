@@ -28,6 +28,8 @@ impl UserAgentParser {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct UserAgent {
+    #[schema(example = "curl/8.7.1")]
+    pub raw: Option<String>,
     pub device: Device,
     pub os: OS,
     pub browser: Browser,
@@ -36,6 +38,7 @@ pub struct UserAgent {
 impl From<uaparser::Client<'_>> for UserAgent {
     fn from(ua: uaparser::Client<'_>) -> Self {
         Self {
+            raw: None,
             device: ua.device.into(),
             os: ua.os.into(),
             browser: ua.user_agent.into(),

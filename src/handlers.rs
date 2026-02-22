@@ -80,36 +80,7 @@ pub mod tcp {
     }
 }
 
-pub mod host {
-    use super::*;
 
-    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
-        serde_json::to_value(&ifconfig.host).ok()
-    }
-
-    pub fn to_plain(ifconfig: &Ifconfig) -> String {
-        format!(
-            "{}\n",
-            ifconfig.host.as_ref().map(|h| h.name.as_str()).unwrap_or(UNKNOWN_STR)
-        )
-    }
-}
-
-pub mod isp {
-    use super::*;
-
-    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
-        serde_json::to_value(&ifconfig.isp).ok()
-    }
-
-    pub fn to_plain(ifconfig: &Ifconfig) -> String {
-        let name = ifconfig.isp.name.as_deref().unwrap_or(UNKNOWN_STR);
-        match ifconfig.isp.asn {
-            Some(n) => format!("{} (AS{})\n", name, n),
-            None => format!("{}\n", name),
-        }
-    }
-}
 
 pub mod location {
     use super::*;
@@ -144,29 +115,34 @@ pub mod network {
     }
 
     pub fn to_plain(ifconfig: &Ifconfig) -> String {
-        match ifconfig.network {
-            Some(ref n) => {
-                let mut lines = Vec::new();
-                lines.push(format!("type:       {}", n.network_type));
-                if let Some(ref provider) = n.provider {
-                    lines.push(format!("provider:   {}", provider));
-                }
-                if let Some(ref service) = n.service {
-                    lines.push(format!("service:    {}", service));
-                }
-                if let Some(ref region) = n.region {
-                    lines.push(format!("region:     {}", region));
-                }
-                lines.push(format!("datacenter: {}", n.is_datacenter));
-                lines.push(format!("vpn:        {}", n.is_vpn));
-                lines.push(format!("tor:        {}", n.is_tor));
-                lines.push(format!("proxy:      {}", n.is_proxy));
-                lines.push(format!("bot:        {}", n.is_bot));
-                lines.push(format!("threat:     {}", n.is_threat));
-                lines.join("\n") + "\n"
-            }
-            None => format!("{}\n", UNKNOWN_STR),
+        let n = &ifconfig.network;
+        let mut lines = Vec::new();
+        if let Some(ref org) = n.org {
+            lines.push(format!("org:        {}", org));
         }
+        if let Some(asn) = n.asn {
+            lines.push(format!("asn:        AS{}", asn));
+        }
+        if let Some(ref prefix) = n.prefix {
+            lines.push(format!("prefix:     {}", prefix));
+        }
+        lines.push(format!("type:       {}", n.network_type));
+        if let Some(ref provider) = n.provider {
+            lines.push(format!("provider:   {}", provider));
+        }
+        if let Some(ref service) = n.service {
+            lines.push(format!("service:    {}", service));
+        }
+        if let Some(ref region) = n.region {
+            lines.push(format!("region:     {}", region));
+        }
+        lines.push(format!("datacenter: {}", n.is_datacenter));
+        lines.push(format!("vpn:        {}", n.is_vpn));
+        lines.push(format!("tor:        {}", n.is_tor));
+        lines.push(format!("proxy:      {}", n.is_proxy));
+        lines.push(format!("bot:        {}", n.is_bot));
+        lines.push(format!("threat:     {}", n.is_threat));
+        lines.join("\n") + "\n"
     }
 }
 
@@ -181,8 +157,8 @@ pub mod all {
         let mut lines = Vec::new();
         lines.push(format!("ip:         {}", ifconfig.ip.addr));
         lines.push(format!("version:    {}", ifconfig.ip.version));
-        if let Some(ref host) = ifconfig.host {
-            lines.push(format!("hostname:   {}", host.name));
+        if let Some(ref hostname) = ifconfig.ip.hostname {
+            lines.push(format!("hostname:   {}", hostname));
         }
         if let Some(ref city) = ifconfig.location.city {
             lines.push(format!("city:       {}", city));
@@ -220,13 +196,17 @@ pub mod all {
         if let Some(radius) = ifconfig.location.accuracy_radius_km {
             lines.push(format!("accuracy:   {}km", radius));
         }
-        if let Some(ref name) = ifconfig.isp.name {
-            lines.push(format!("isp:        {}", name));
-        }
-        if let Some(asn) = ifconfig.isp.asn {
-            lines.push(format!("asn:        AS{}", asn));
-        }
-        if let Some(ref n) = ifconfig.network {
+        {
+            let n = &ifconfig.network;
+            if let Some(ref org) = n.org {
+                lines.push(format!("org:        {}", org));
+            }
+            if let Some(asn) = n.asn {
+                lines.push(format!("asn:        AS{}", asn));
+            }
+            if let Some(ref prefix) = n.prefix {
+                lines.push(format!("prefix:     {}", prefix));
+            }
             lines.push(format!("network:    {}", n.network_type));
             if let Some(ref provider) = n.provider {
                 lines.push(format!("provider:   {}", provider));
@@ -321,10 +301,9 @@ pub mod ip_version {
 mod tests {
     use super::*;
 
-    fn make_ifconfig(host: Option<&str>, tcp_port: Option<u16>, network: Option<Network>) -> Ifconfig {
+    fn make_ifconfig(hostname: Option<&str>, tcp_port: Option<u16>, network: Network) -> Ifconfig {
         Ifconfig {
-            host: host.map(|n| Host { name: n.to_string() }),
-            ip: Ip { addr: "203.0.113.42".to_string(), version: "4".to_string() },
+            ip: Ip { addr: "203.0.113.42".to_string(), version: "4".to_string(), hostname: hostname.map(|s| s.to_string()) },
             tcp: tcp_port.map(|p| Tcp { port: p }),
             location: Location {
                 city: Some("Berlin".to_string()),
@@ -341,16 +320,17 @@ mod tests {
                 continent_code: Some("EU".to_string()),
                 accuracy_radius_km: Some(100),
             },
-            isp: Isp { name: Some("Example Telecom".to_string()), asn: Some(64496) },
             network,
             user_agent: None,
-            user_agent_header: None,
         }
     }
 
     fn residential_network() -> Network {
         Network {
             network_type: "residential".to_string(),
+            asn: Some(64496),
+            org: Some("Example Telecom".to_string()),
+            prefix: None,
             provider: None,
             service: None,
             region: None,
@@ -367,16 +347,16 @@ mod tests {
 
     #[test]
     fn root_to_plain_returns_ip() {
-        let ifc = make_ifconfig(Some("dns.example.com"), Some(12345), Some(residential_network()));
+        let ifc = make_ifconfig(Some("dns.example.com"), Some(12345), residential_network());
         assert_eq!(root::to_plain(&ifc), "203.0.113.42\n");
     }
 
     #[test]
     fn root_to_json_has_all_fields() {
-        let ifc = make_ifconfig(Some("dns.example.com"), Some(12345), Some(residential_network()));
+        let ifc = make_ifconfig(Some("dns.example.com"), Some(12345), residential_network());
         let val = root::to_json(&ifc).unwrap();
         assert!(val["ip"]["addr"].is_string());
-        assert!(val["host"]["name"].is_string());
+        assert!(val["ip"]["hostname"].is_string());
         assert!(val["location"]["city"].is_string());
     }
 
@@ -384,77 +364,34 @@ mod tests {
 
     #[test]
     fn tcp_to_plain_with_port() {
-        let ifc = make_ifconfig(None, Some(54321), None);
+        let ifc = make_ifconfig(None, Some(54321), residential_network());
         assert_eq!(tcp::to_plain(&ifc), "54321\n");
     }
 
     #[test]
     fn tcp_to_plain_none() {
-        let ifc = make_ifconfig(None, None, None);
+        let ifc = make_ifconfig(None, None, residential_network());
         assert_eq!(tcp::to_plain(&ifc), "unknown\n");
     }
 
     #[test]
     fn tcp_to_json_none() {
-        let ifc = make_ifconfig(None, None, None);
+        let ifc = make_ifconfig(None, None, residential_network());
         assert!(tcp::to_json(&ifc).is_none());
     }
 
     #[test]
     fn tcp_to_json_some() {
-        let ifc = make_ifconfig(None, Some(8080), None);
+        let ifc = make_ifconfig(None, Some(8080), residential_network());
         let val = tcp::to_json(&ifc).unwrap();
         assert_eq!(val["port"], 8080);
-    }
-
-    // --- host ---
-
-    #[test]
-    fn host_to_plain_some() {
-        let ifc = make_ifconfig(Some("dns.example.com"), None, None);
-        assert_eq!(host::to_plain(&ifc), "dns.example.com\n");
-    }
-
-    #[test]
-    fn host_to_plain_none() {
-        let ifc = make_ifconfig(None, None, None);
-        assert_eq!(host::to_plain(&ifc), "unknown\n");
-    }
-
-    #[test]
-    fn host_to_json_none() {
-        let ifc = make_ifconfig(None, None, None);
-        let val = host::to_json(&ifc).unwrap();
-        assert!(val.is_null());
-    }
-
-    // --- isp ---
-
-    #[test]
-    fn isp_to_plain_with_asn() {
-        let ifc = make_ifconfig(None, None, None);
-        assert_eq!(isp::to_plain(&ifc), "Example Telecom (AS64496)\n");
-    }
-
-    #[test]
-    fn isp_to_plain_no_asn() {
-        let mut ifc = make_ifconfig(None, None, None);
-        ifc.isp.asn = None;
-        assert_eq!(isp::to_plain(&ifc), "Example Telecom\n");
-    }
-
-    #[test]
-    fn isp_to_plain_unknown() {
-        let mut ifc = make_ifconfig(None, None, None);
-        ifc.isp = Isp::unknown();
-        assert_eq!(isp::to_plain(&ifc), "unknown\n");
     }
 
     // --- location ---
 
     #[test]
     fn location_to_plain_full() {
-        let ifc = make_ifconfig(None, None, None);
+        let ifc = make_ifconfig(None, None, residential_network());
         let plain = location::to_plain(&ifc);
         assert!(plain.contains("Berlin"));
         assert!(plain.contains("Germany"));
@@ -465,7 +402,7 @@ mod tests {
 
     #[test]
     fn location_to_plain_no_region() {
-        let mut ifc = make_ifconfig(None, None, None);
+        let mut ifc = make_ifconfig(None, None, residential_network());
         ifc.location.region = None;
         let plain = location::to_plain(&ifc);
         assert!(plain.contains("Berlin, Germany (DE)"));
@@ -473,7 +410,7 @@ mod tests {
 
     #[test]
     fn location_to_plain_no_accuracy() {
-        let mut ifc = make_ifconfig(None, None, None);
+        let mut ifc = make_ifconfig(None, None, residential_network());
         ifc.location.accuracy_radius_km = None;
         let plain = location::to_plain(&ifc);
         assert!(!plain.contains("~"));
@@ -482,7 +419,7 @@ mod tests {
 
     #[test]
     fn location_to_plain_unknown() {
-        let mut ifc = make_ifconfig(None, None, None);
+        let mut ifc = make_ifconfig(None, None, residential_network());
         ifc.location = Location::unknown();
         let plain = location::to_plain(&ifc);
         assert!(plain.contains("unknown"));
@@ -492,17 +429,23 @@ mod tests {
 
     #[test]
     fn network_to_plain_residential() {
-        let ifc = make_ifconfig(None, None, Some(residential_network()));
+        let ifc = make_ifconfig(None, None, residential_network());
         let plain = network::to_plain(&ifc);
+        assert!(plain.contains("org:        Example Telecom"));
+        assert!(plain.contains("asn:        AS64496"));
         assert!(plain.contains("type:       residential"));
         assert!(plain.contains("datacenter: false"));
         assert!(!plain.contains("provider:"));
+        assert!(!plain.contains("prefix:"));
     }
 
     #[test]
     fn network_to_plain_cloud_with_provider() {
         let n = Network {
             network_type: "cloud".to_string(),
+            asn: Some(16509),
+            org: Some("Amazon.com".to_string()),
+            prefix: Some("54.0.0.0/8".to_string()),
             provider: Some("AWS".to_string()),
             service: Some("EC2".to_string()),
             region: Some("us-east-1".to_string()),
@@ -513,8 +456,11 @@ mod tests {
             is_bot: false,
             is_threat: false,
         };
-        let ifc = make_ifconfig(None, None, Some(n));
+        let ifc = make_ifconfig(None, None, n);
         let plain = network::to_plain(&ifc);
+        assert!(plain.contains("org:        Amazon.com"));
+        assert!(plain.contains("asn:        AS16509"));
+        assert!(plain.contains("prefix:     54.0.0.0/8"));
         assert!(plain.contains("type:       cloud"));
         assert!(plain.contains("provider:   AWS"));
         assert!(plain.contains("service:    EC2"));
@@ -522,24 +468,11 @@ mod tests {
         assert!(plain.contains("datacenter: true"));
     }
 
-    #[test]
-    fn network_to_plain_none() {
-        let ifc = make_ifconfig(None, None, None);
-        assert_eq!(network::to_plain(&ifc), "unknown\n");
-    }
-
-    #[test]
-    fn network_to_json_none() {
-        let ifc = make_ifconfig(None, None, None);
-        let val = network::to_json(&ifc).unwrap();
-        assert!(val.is_null());
-    }
-
     // --- user_agent ---
 
     #[test]
     fn user_agent_to_plain_none() {
-        let ifc = make_ifconfig(None, None, None);
+        let ifc = make_ifconfig(None, None, residential_network());
         assert_eq!(user_agent::to_plain(&ifc), "unknown\n");
     }
 
@@ -547,7 +480,7 @@ mod tests {
 
     #[test]
     fn all_to_plain_minimal() {
-        let ifc = make_ifconfig(None, None, None);
+        let ifc = make_ifconfig(None, None, residential_network());
         let plain = all::to_plain(&ifc);
         assert!(plain.contains("ip:         203.0.113.42"));
         assert!(plain.contains("version:    4"));
@@ -557,10 +490,12 @@ mod tests {
 
     #[test]
     fn all_to_plain_full() {
-        let ifc = make_ifconfig(Some("dns.example.com"), Some(8080), Some(residential_network()));
+        let ifc = make_ifconfig(Some("dns.example.com"), Some(8080), residential_network());
         let plain = all::to_plain(&ifc);
-        assert!(plain.contains("hostname:   dns.example.com"));
+        assert!(plain.contains("hostname:   dns.example.com"), "hostname missing: {plain}");
         assert!(plain.contains("port:       8080"));
+        assert!(plain.contains("org:        Example Telecom"));
+        assert!(plain.contains("asn:        AS64496"));
         assert!(plain.contains("network:    residential"));
     }
 

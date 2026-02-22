@@ -40,9 +40,7 @@ use crate::state::AppState;
         ip_handler,
         ip_cidr_handler,
         tcp_handler,
-        host_handler,
         location_handler,
-        isp_handler,
         user_agent_handler,
         network_handler,
         all_handler,
@@ -55,17 +53,15 @@ use crate::state::AppState;
         ready_handler,
     ),
     components(schemas(
-        Ifconfig, Ip, Tcp, Host, Location, Isp, Network,
+        Ifconfig, Ip, Tcp, Location, Network,
         UserAgent, Browser, OS, Device, ErrorResponse,
         crate::state::ProjectInfo,
     )),
     tags(
         (name = "IP", description = "IP address lookup and version endpoints"),
         (name = "Location", description = "Geolocation data from GeoIP databases"),
-        (name = "ISP", description = "ISP name and ASN from GeoIP ASN database"),
-        (name = "Network", description = "Network classification (cloud, VPN, Tor, bot, hosting)"),
+        (name = "Network", description = "Network classification (cloud, VPN, Tor, bot, hosting) with ASN and org"),
         (name = "TCP", description = "Source TCP port of the connection"),
-        (name = "Host", description = "Reverse DNS / PTR hostname"),
         (name = "User Agent", description = "Parsed User-Agent header"),
         (name = "Headers", description = "Raw request headers as received by the server"),
         (name = "Batch", description = "Batch enrichment of multiple IPs"),
@@ -90,12 +86,8 @@ pub fn router() -> Router<AppState> {
         .route("/ip/{fmt}", get(ip_format_handler))
         .route("/tcp", get(tcp_handler))
         .route("/tcp/{fmt}", get(tcp_format_handler))
-        .route("/host", get(host_handler))
-        .route("/host/{fmt}", get(host_format_handler))
         .route("/location", get(location_handler))
         .route("/location/{fmt}", get(location_format_handler))
-        .route("/isp", get(isp_handler))
-        .route("/isp/{fmt}", get(isp_format_handler))
         .route("/user_agent", get(user_agent_handler))
         .route("/user_agent/{fmt}", get(user_agent_format_handler))
         .route("/network", get(network_handler))
@@ -435,26 +427,6 @@ standard_endpoint! {
     module = handlers::tcp,
 }
 
-standard_endpoint! {
-    #[utoipa::path(
-        get, path = "/host",
-        tag = "Host",
-        description = "Returns the reverse DNS (PTR) hostname for the caller's IP. Skipped by default for ?ip= queries unless ?dns=true.",
-        params(
-            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
-        ),
-        responses(
-            (status = 200, description = "Reverse DNS hostname", body = Host),
-            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-        )
-    )]
-    handler = host_handler,
-    format_handler = host_format_handler,
-    module = handlers::host,
-}
 
 standard_endpoint! {
     #[utoipa::path(
@@ -477,26 +449,6 @@ standard_endpoint! {
     module = handlers::location,
 }
 
-standard_endpoint! {
-    #[utoipa::path(
-        get, path = "/isp",
-        tag = "ISP",
-        description = "Returns ISP name and ASN number from the GeoIP ASN database.",
-        params(
-            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
-        ),
-        responses(
-            (status = 200, description = "ISP / ASN info", body = Isp),
-            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-        )
-    )]
-    handler = isp_handler,
-    format_handler = isp_format_handler,
-    module = handlers::isp,
-}
 
 standard_endpoint! {
     #[utoipa::path(

@@ -276,94 +276,7 @@ async fn handle_tcp_json_json() {
     assert!(json["port"].is_number());
 }
 
-#[tokio::test]
-async fn handle_host_plain_cli_curl() {
-    let req = get_with_headers("/host", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
-    let (status, headers, body) = send_request(req, remote_v4("8.8.8.8", 8000)).await;
-    assert_eq!(status, StatusCode::OK);
-    let ct = content_type_str(&headers);
-    assert!(is_plain(&ct));
-    // The host will be localhost since we're connecting locally
-    assert!(body.ends_with("\n"));
-}
 
-#[tokio::test]
-async fn handle_host_plain_cli_httpie() {
-    let req = get_with_headers("/host", &[("user-agent", "HTTPie/0.9.9"), ("accept", "*/*")]);
-    let (status, headers, _body) = send_request(req, remote_v4("8.8.8.8", 8000)).await;
-    assert_eq!(status, StatusCode::OK);
-    let ct = content_type_str(&headers);
-    assert!(is_plain(&ct));
-}
-
-#[tokio::test]
-async fn handle_host_plain_cli_wget() {
-    let req = get_with_headers(
-        "/host",
-        &[("user-agent", "Wget/1.19.5 (darwin17.5.0)"), ("accept", "*/*")],
-    );
-    let (status, headers, _body) = send_request(req, remote_v4("8.8.8.8", 8000)).await;
-    assert_eq!(status, StatusCode::OK);
-    let ct = content_type_str(&headers);
-    assert!(is_plain(&ct));
-}
-
-#[tokio::test]
-async fn handle_host_json() {
-    let req = get_with_headers(
-        "/host",
-        &[("accept", "application/json"), ("user-agent", "Some browser")],
-    );
-    let (status, headers, body) = send_request(req, remote_v4("8.8.8.8", 8000)).await;
-    assert_eq!(status, StatusCode::OK);
-    let ct = content_type_str(&headers);
-    assert!(is_json(&ct));
-    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert!(json["name"].is_string());
-}
-
-#[tokio::test]
-async fn handle_host_json_json() {
-    let req = get_with_headers("/host/json", &[("user-agent", "Some browser")]);
-    let (status, headers, body) = send_request(req, remote_v4("8.8.8.8", 8000)).await;
-    assert_eq!(status, StatusCode::OK);
-    let ct = content_type_str(&headers);
-    assert!(is_json(&ct));
-    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert!(json["name"].is_string());
-}
-
-#[tokio::test]
-async fn handle_isp_plain_cli() {
-    let req = get_with_headers("/isp", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
-    let (status, headers, _body) = send_request(req, remote_v4("8.8.8.8", 8000)).await;
-    assert_eq!(status, StatusCode::OK);
-    let ct = content_type_str(&headers);
-    assert!(is_plain(&ct));
-}
-
-#[tokio::test]
-async fn handle_isp_json() {
-    let req = get_with_headers(
-        "/isp",
-        &[("accept", "application/json"), ("user-agent", "Some browser")],
-    );
-    let (status, headers, body) = send_request(req, remote_v4("8.8.8.8", 8000)).await;
-    assert_eq!(status, StatusCode::OK);
-    let ct = content_type_str(&headers);
-    assert!(is_json(&ct));
-    let _json: serde_json::Value = serde_json::from_str(&body).unwrap();
-}
-
-#[tokio::test]
-async fn handle_isp_json_json() {
-    let req = get_with_headers("/isp/json", &[("user-agent", "Some browser")]);
-    let (status, headers, body) = send_request(req, remote_v4("8.8.8.8", 8000)).await;
-    assert_eq!(status, StatusCode::OK);
-    let ct = content_type_str(&headers);
-    assert!(is_json(&ct));
-    let _json: serde_json::Value = serde_json::from_str(&body).unwrap();
-}
 
 #[tokio::test]
 async fn handle_location_plain_cli() {
@@ -809,15 +722,6 @@ async fn handle_tcp_csv_suffix() {
     assert!(body.contains("port,"));
 }
 
-#[tokio::test]
-async fn handle_host_yaml_suffix() {
-    let req = get("/host/yaml");
-    let (status, headers, body) = send_request(req, remote_v4("8.8.8.8", 8000)).await;
-    assert_eq!(status, StatusCode::OK);
-    let ct = content_type_str(&headers);
-    assert!(is_yaml(&ct));
-    assert!(body.contains("name:"));
-}
 
 #[tokio::test]
 async fn handle_all_yaml_suffix() {
@@ -1093,8 +997,8 @@ async fn ip_param_skips_dns_by_default() {
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    // DNS skipped → host should be null
-    assert!(json["host"].is_null());
+    // DNS skipped → hostname should be null
+    assert!(json["ip"]["hostname"].is_null());
 }
 
 #[tokio::test]
@@ -1136,20 +1040,20 @@ async fn fields_param_filters_json() {
     assert!(json["ip"].is_object(), "ip field should be present");
     assert!(json["tcp"].is_object(), "tcp field should be present");
     assert!(json.get("location").is_none(), "location should be filtered out");
-    assert!(json.get("isp").is_none(), "isp should be filtered out");
+    assert!(json.get("network").is_none(), "network should be filtered out");
 }
 
 #[tokio::test]
 async fn fields_param_with_ip_param() {
     let req = get_with_headers(
-        "/all/json?ip=8.8.8.8&fields=ip,isp",
+        "/all/json?ip=8.8.8.8&fields=ip,network",
         &[("user-agent", "curl/7.54.0")],
     );
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(json["ip"]["addr"], "8.8.8.8");
-    assert!(json["isp"].is_object());
+    assert!(json["network"].is_object());
     assert!(json.get("location").is_none());
 }
 
@@ -1241,14 +1145,14 @@ async fn batch_csv_format() {
 
 #[tokio::test]
 async fn batch_with_fields() {
-    let req = post_json("/batch?fields=ip,isp", r#"["8.8.8.8"]"#);
+    let req = post_json("/batch?fields=ip,network", r#"["8.8.8.8"]"#);
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     let arr = json.as_array().unwrap();
     assert_eq!(arr.len(), 1);
     assert!(arr[0]["ip"].is_object());
-    assert!(arr[0]["isp"].is_object());
+    assert!(arr[0]["network"].is_object());
     assert!(arr[0].get("location").is_none(), "location should be filtered out");
 }
 
@@ -1305,7 +1209,7 @@ async fn batch_duplicate_ips_return_two_entries() {
 
 #[tokio::test]
 async fn batch_yaml_with_fields() {
-    let req = post_json("/batch/yaml?fields=ip,isp", r#"["8.8.8.8"]"#);
+    let req = post_json("/batch/yaml?fields=ip,network", r#"["8.8.8.8"]"#);
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
@@ -1573,11 +1477,11 @@ async fn ip_param_dns_true_returns_valid_response() {
     let (status, _, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    // host field must be present and either null or an object with a name field
+    // hostname must be null or a string
     assert!(
-        json["host"].is_null() || json["host"].is_object(),
-        "host should be null or an object, got: {}",
-        json["host"]
+        json["ip"]["hostname"].is_null() || json["ip"]["hostname"].is_string(),
+        "hostname should be null or a string, got: {}",
+        json["ip"]["hostname"]
     );
 }
 
@@ -1615,18 +1519,13 @@ async fn filtered_headers_excluded_from_response() {
 
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body_str).unwrap();
-    let header_names: Vec<&str> = json
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter_map(|e| e[0].as_str())
-        .collect();
+    let obj = json.as_object().unwrap();
     assert!(
-        !header_names.contains(&"x-test-secret"),
+        !obj.contains_key("x-test-secret"),
         "filtered header should not appear in /headers/json response"
     );
     assert!(
-        header_names.contains(&"x-allowed-header"),
+        obj.contains_key("x-allowed-header"),
         "non-filtered header should appear in /headers/json response"
     );
 }

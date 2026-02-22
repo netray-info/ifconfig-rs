@@ -18,7 +18,7 @@ function radiusToZoom(radiusKm: number): number {
 
 export default function InfoCards(props: Props) {
   const loc = () => props.data.location;
-  const isp = () => props.data.isp;
+  const net = () => props.data.network;
 
   const mapsUrl = () => {
     const { latitude, longitude, accuracy_radius_km } = loc();
@@ -46,55 +46,71 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{props.data.tcp!.port}</span>
           </div>
         </Show>
-        <Show when={props.data.host}>
+        <Show when={props.data.ip.hostname}>
           <div class="card-row card-row-stackable">
             <span class="card-label">Hostname</span>
-            <span class="card-value">{props.data.host!.name}</span>
+            <span class="card-value">{props.data.ip.hostname}</span>
           </div>
         </Show>
-        <Show when={props.data.network}>
-          <div class="card-row">
-            <span class="card-label">Type</span>
-            <span class="card-value">{props.data.network!.type}</span>
+        <Show when={net().org != null}>
+          <div class="card-row card-row-stackable">
+            <span class="card-label">Org</span>
+            <span class="card-value">{net().org}</span>
           </div>
-          <Show when={props.data.network!.provider}>
-            <div class="card-row">
-              <span class="card-label">Provider</span>
-              <span class="card-value">{props.data.network!.provider}</span>
-            </div>
-          </Show>
-          <Show when={props.data.network!.is_tor}>
-            <div class="card-row">
-              <span class="card-label">Tor Exit Node</span>
-              <span class="card-value">
-                <span class="net-badge net-badge--tor">yes</span>
-              </span>
-            </div>
-          </Show>
-          <Show when={props.data.network!.is_vpn}>
-            <div class="card-row">
-              <span class="card-label">VPN</span>
-              <span class="card-value">
-                <span class="net-badge net-badge--vpn">yes</span>
-              </span>
-            </div>
-          </Show>
-          <Show when={props.data.network!.is_bot}>
-            <div class="card-row">
-              <span class="card-label">Bot</span>
-              <span class="card-value">
-                <span class="net-badge net-badge--bot">yes</span>
-              </span>
-            </div>
-          </Show>
-          <Show when={props.data.network!.is_threat}>
-            <div class="card-row">
-              <span class="card-label">Threat</span>
-              <span class="card-value">
-                <span class="net-badge net-badge--threat">yes</span>
-              </span>
-            </div>
-          </Show>
+        </Show>
+        <Show when={net().asn != null}>
+          <div class="card-row">
+            <span class="card-label">ASN</span>
+            <span class="card-value">AS{net().asn}</span>
+          </div>
+        </Show>
+        <Show when={net().prefix != null}>
+          <div class="card-row">
+            <span class="card-label">Prefix</span>
+            <span class="card-value mono">{net().prefix}</span>
+          </div>
+        </Show>
+        <div class="card-row">
+          <span class="card-label">Type</span>
+          <span class="card-value">{net().type}</span>
+        </div>
+        <Show when={net().provider}>
+          <div class="card-row">
+            <span class="card-label">Provider</span>
+            <span class="card-value">{net().provider}</span>
+          </div>
+        </Show>
+        <Show when={net().is_tor}>
+          <div class="card-row">
+            <span class="card-label">Tor Exit Node</span>
+            <span class="card-value">
+              <span class="net-badge net-badge--tor">yes</span>
+            </span>
+          </div>
+        </Show>
+        <Show when={net().is_vpn}>
+          <div class="card-row">
+            <span class="card-label">VPN</span>
+            <span class="card-value">
+              <span class="net-badge net-badge--vpn">yes</span>
+            </span>
+          </div>
+        </Show>
+        <Show when={net().is_bot}>
+          <div class="card-row">
+            <span class="card-label">Bot</span>
+            <span class="card-value">
+              <span class="net-badge net-badge--bot">yes</span>
+            </span>
+          </div>
+        </Show>
+        <Show when={net().is_threat}>
+          <div class="card-row">
+            <span class="card-label">Threat</span>
+            <span class="card-value">
+              <span class="net-badge net-badge--threat">yes</span>
+            </span>
+          </div>
         </Show>
       </div>
 
@@ -133,10 +149,10 @@ export default function InfoCards(props: Props) {
         </div>
       </Show>
 
-      {/* Location & ISP Card */}
+      {/* Location Card */}
       <div class="card">
         <div class="card-title-row">
-          <div class="card-title">Location &amp; ISP</div>
+          <div class="card-title">Location</div>
           <Show when={loc().is_eu === true}>
             <span class="eu-badge">EU</span>
           </Show>
@@ -203,18 +219,6 @@ export default function InfoCards(props: Props) {
           <div class="card-row">
             <span class="card-label">Timezone</span>
             <span class="card-value">{loc().timezone}</span>
-          </div>
-        </Show>
-        <Show when={known(isp().name)}>
-          <div class="card-row">
-            <span class="card-label">Provider</span>
-            <span class="card-value">{isp().name}</span>
-          </div>
-        </Show>
-        <Show when={isp().asn != null}>
-          <div class="card-row">
-            <span class="card-label">ASN</span>
-            <span class="card-value">AS{isp().asn}</span>
           </div>
         </Show>
       </div>

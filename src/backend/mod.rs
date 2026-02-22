@@ -22,17 +22,13 @@ use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
-pub struct Host {
-    #[schema(example = "dns.example.com")]
-    pub name: String,
-}
-
-#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Ip {
     #[schema(example = "203.0.113.42")]
     pub addr: String,
     #[schema(example = "4")]
     pub version: String,
+    #[schema(example = "dns.example.com")]
+    pub hostname: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
@@ -66,8 +62,11 @@ impl GeoIpAsnDb {
         maxminddb::Reader::from_source(bytes).ok().map(GeoIpAsnDb)
     }
 
-    pub fn lookup(&self, ip: IpAddr) -> Option<geoip2::Isp<'_>> {
-        self.0.lookup(ip).ok().and_then(|r| r.decode().ok().flatten())
+    pub fn lookup(&self, ip: IpAddr) -> Option<(geoip2::Isp<'_>, Option<String>)> {
+        let result = self.0.lookup(ip).ok()?;
+        let prefix = result.network().ok().map(|n| n.to_string());
+        let isp = result.decode().ok().flatten()?;
+        Some((isp, prefix))
     }
 }
 
@@ -152,22 +151,6 @@ impl Location {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
-pub struct Isp {
-    #[schema(example = "Example Telecom AG")]
-    pub name: Option<String>,
-    #[schema(example = 64496)]
-    pub asn: Option<u32>,
-}
-
-impl Isp {
-    pub fn unknown() -> Self {
-        Isp {
-            name: None,
-            asn: None,
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Network {
@@ -175,6 +158,12 @@ pub struct Network {
     #[serde(rename = "type")]
     #[schema(example = "residential")]
     pub network_type: String,
+    #[schema(example = 64496)]
+    pub asn: Option<u32>,
+    #[schema(example = "Example Telecom AG")]
+    pub org: Option<String>,
+    #[schema(example = json!(null))]
+    pub prefix: Option<String>,
     /// Cloud / VPN / hosting / bot provider name, if identified.
     #[schema(example = json!(null))]
     pub provider: Option<String>,
@@ -201,14 +190,11 @@ pub struct Network {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Ifconfig {
-    pub host: Option<Host>,
     pub ip: Ip,
     pub tcp: Option<Tcp>,
     pub location: Location,
-    pub isp: Isp,
-    pub network: Option<Network>,
+    pub network: Network,
     pub user_agent: Option<UserAgent>,
-    pub user_agent_header: Option<String>,
 }
 
 pub struct IfconfigParam<'a> {
@@ -231,7 +217,7 @@ pub struct IfconfigParam<'a> {
 }
 
 pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
-    let host = if param.skip_dns {
+    let hostname = if param.skip_dns {
         None
     } else {
         tokio::time::timeout(std::time::Duration::from_secs(2), async {
@@ -240,9 +226,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             let lookups = resolver.lookup(query).await.ok()?;
             lookups.ptr().into_iter().next().map(|name| {
                 let s = name.to_string();
-                Host {
-                    name: s.strip_suffix('.').unwrap_or(&s).to_string(),
-                }
+                s.strip_suffix('.').unwrap_or(&s).to_string()
             })
         })
         .await
@@ -255,6 +239,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
     let ip = Ip {
         addr: ip_addr,
         version: ip_version.to_string(),
+        hostname,
     };
 
     let tcp = if param.remote.port() == 0 {
@@ -286,14 +271,15 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         })
         .unwrap_or(Location::unknown());
 
-    let isp = param
+    let (asn_number, asn_org, asn_prefix) = param
         .geoip_asn_db
         .lookup(param.remote.ip())
-        .map(|isp| Isp {
-            name: isp.autonomous_system_organization.map(|s| s.to_owned()),
-            asn: isp.autonomous_system_number,
-        })
-        .unwrap_or(Isp::unknown());
+        .map(|(isp, prefix)| (
+            isp.autonomous_system_number,
+            isp.autonomous_system_organization.map(|s| s.to_owned()),
+            prefix,
+        ))
+        .unwrap_or((None, None, None));
 
     // --- Classification flags ---
     let is_tor = param
@@ -329,8 +315,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         .map(|db| db.lookup(param.remote.ip()))
         .unwrap_or(false);
 
-    let asn_class = isp
-        .name
+    let asn_class = asn_org
         .as_deref()
         .map(asn_heuristic::classify_asn)
         .unwrap_or(asn_heuristic::AsnClassification::None);
@@ -379,6 +364,9 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
 
         Network {
             network_type,
+            asn: asn_number,
+            org: asn_org,
+            prefix: asn_prefix,
             provider,
             service: cloud.as_ref().and_then(|c| c.service.clone()),
             region: cloud.as_ref().and_then(|c| c.region.clone()),
@@ -391,17 +379,18 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         }
     };
 
-    let user_agent = param.user_agent_header.map(|s| param.user_agent_parser.parse(s));
+    let user_agent = param.user_agent_header.map(|s| {
+        let mut ua = param.user_agent_parser.parse(s);
+        ua.raw = Some(s.to_string());
+        ua
+    });
 
     Ifconfig {
-        host,
         ip,
         tcp,
         location,
-        isp,
-        network: Some(network),
+        network,
         user_agent,
-        user_agent_header: param.user_agent_header.map(|s| s.to_string()),
     }
 }
 
