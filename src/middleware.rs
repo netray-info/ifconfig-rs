@@ -194,3 +194,50 @@ pub async fn geoip_date_headers(State(state): State<AppState>, req: Request<axum
     response
 }
 
+pub async fn etag_last_modified(State(state): State<AppState>, req: Request<axum::body::Body>, next: Next) -> Response {
+    use axum::http::StatusCode;
+    use std::time::{Duration, UNIX_EPOCH};
+
+    let ctx = state.enrichment.load();
+    let epoch = match ctx.geoip_city_build_epoch {
+        Some(e) => e,
+        None => return next.run(req).await,
+    };
+
+    let build_time = UNIX_EPOCH + Duration::from_secs(epoch);
+    let last_modified_str = httpdate::fmt_http_date(build_time);
+    let etag_str = format!("\"{}\"", epoch);
+
+    // Check If-None-Match — if client's ETag matches, short-circuit with 304
+    let inm_matches = req
+        .headers()
+        .get("if-none-match")
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v == etag_str || v == "*")
+        .unwrap_or(false);
+
+    // Check If-Modified-Since — if not modified since that date, short-circuit with 304
+    let ims_not_modified = req
+        .headers()
+        .get("if-modified-since")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| httpdate::parse_http_date(s).ok())
+        .map(|ims| ims >= build_time)
+        .unwrap_or(false);
+
+    if inm_matches || ims_not_modified {
+        return StatusCode::NOT_MODIFIED.into_response();
+    }
+
+    let mut response = next.run(req).await;
+    if response.status().is_success() {
+        if let Ok(val) = HeaderValue::from_str(&last_modified_str) {
+            response.headers_mut().insert("last-modified", val);
+        }
+        if let Ok(val) = HeaderValue::from_str(&etag_str) {
+            response.headers_mut().insert("etag", val);
+        }
+    }
+    response
+}
+
