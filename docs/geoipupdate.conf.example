@@ -1,0 +1,15 @@
+# GeoIP.conf — example configuration for geoipupdate
+# Copy to ~/.config/GeoIP.conf (Linux/macOS) or C:\ProgramData\MaxMind\GeoIP\GeoIP.conf (Windows).
+# See: https://github.com/maxmind/geoipupdate
+
+# Your MaxMind account ID (found in My Account → Account Information).
+AccountID YOUR_ACCOUNT_ID
+
+# Your license key (My Account → Services → Manage License Keys).
+LicenseKey YOUR_LICENSE_KEY
+
+# Databases to download. GeoLite2-City and GeoLite2-ASN are required by ifconfig-rs.
+EditionIDs GeoLite2-City GeoLite2-ASN
+
+# Directory where .mmdb files are written. Adjust to match your data/ path.
+DatabaseDirectory /path/to/ifconfig-rs/data

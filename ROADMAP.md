@@ -38,21 +38,21 @@ Toast notifications instead of button state changes on copy. Make the full curl 
 
 ## Sprint 4 — Infrastructure & Quality
 
-#### 37. Add E2E tests to CI
+#### 37. ~~Add E2E tests to CI~~ (done)
 
-Playwright tests exist but are not in the GitHub Actions pipeline. Add a CI job that runs them against the Docker image.
+New `e2e-test` job in CI: builds the production Docker image (which includes data from `ifconfig-rs-data`), starts the server on port 8000, installs Playwright, and runs the full acceptance suite. Playwright report uploaded as an artifact on failure.
 
-#### 38. Dependency vulnerability scanning
+#### 38. ~~Dependency vulnerability scanning~~ (done)
 
-Add `cargo-audit` (Rust) and `npm audit` (frontend) to the CI pipeline.
+New `audit` job in CI: installs `cargo-audit` and runs `cargo audit`, then runs `npm audit --audit-level=high` for both `frontend/` and `tests/e2e/`.
 
-#### 49. Enrichment quality Prometheus gauges
+#### 49. ~~Enrichment quality Prometheus counters~~ (done)
 
-Track null-rate per field as a gauge. Useful for detecting GeoIP database staleness or missing data sources in production without inspecting individual responses.
+`ifconfig_null_field_total{field}` counter incremented in `get_ifconfig()` whenever `hostname`, `city`, `country`, `asn`, `org`, or `user_agent` is null. Use `rate(ifconfig_null_field_total[5m]) / rate(http_requests_total[5m])` to compute null rates per field in dashboards.
 
-#### 52. Data file acquisition docs
+#### 52. ~~Data file acquisition docs~~ (done)
 
-Document where to obtain required data files: GeoLite2-City/ASN (MaxMind account + `geoipupdate`), Tor exit nodes, cloud/VPN/bot/datacenter ranges, Feodo, Spamhaus DROP. Include example `geoipupdate.conf` and a `make update-data` target.
+`docs/data-sources.md` documents all data sources with download instructions. `docs/geoipupdate.conf.example` provides a ready-to-fill MaxMind config. `make update-data` refreshes all files with public URLs (GeoIP via `geoipupdate`, plus Tor exit nodes, Feodo, Spamhaus DROP, datacenter ranges, and UA regexes).
 
 ---
 
