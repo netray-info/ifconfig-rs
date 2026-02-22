@@ -66,6 +66,12 @@ base_url = "ip.pdt.sh"
 # If omitted, compiled-in defaults are used. Reloadable via SIGHUP or filesystem watch.
 # asn_patterns = "data/asn_patterns.toml"
 
+# Path to ipverse/as-metadata JSONL file for ASN category and network role enrichment.
+# Each line: {"asn":N,"category":"hosting|isp|business|education_research|government_admin","network_role":"..."}
+# Improves is_datacenter coverage and adds network_role to network responses.
+# If omitted, ASN category/role lookup is disabled.
+# asn_info = "data/as_metadata.jsonl"
+
 # Regex patterns matched against header names. Any header whose name matches
 # a pattern is excluded from /headers responses. Useful for hiding infrastructure
 # headers injected by hosting providers.

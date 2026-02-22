@@ -18,6 +18,7 @@ datacenter_ranges = "data/datacenter_ranges.txt"
 bot_ranges = "data/bot_ranges.jsonl"
 spamhaus_drop = "data/spamhaus_drop.txt"
 asn_patterns = "data/asn_patterns.toml"
+asn_info = "data/as_metadata.jsonl"
 
 # Regex patterns to exclude from /headers responses (matched against header names).
 filtered_headers = ["^x-koyeb-", "^cf-"]

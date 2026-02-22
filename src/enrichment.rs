@@ -1,6 +1,6 @@
 use crate::backend::asn_heuristic::AsnPatterns;
 use crate::backend::user_agent::UserAgentParser;
-use crate::backend::{BotDb, CloudProviderDb, DatacenterRanges, FeodoBotnetIps, GeoIpAsnDb, GeoIpCityDb, SpamhausDrop, TorExitNodes, VpnRanges};
+use crate::backend::{AsnInfo, BotDb, CloudProviderDb, DatacenterRanges, FeodoBotnetIps, GeoIpAsnDb, GeoIpCityDb, SpamhausDrop, TorExitNodes, VpnRanges};
 use crate::config::Config;
 use mhost::resolver::{ResolverGroup, ResolverGroupBuilder};
 use std::sync::Arc;
@@ -25,6 +25,7 @@ pub struct EnrichmentContext {
     pub bot_db: Option<Arc<BotDb>>,
     pub spamhaus_drop: Option<Arc<SpamhausDrop>>,
     pub asn_patterns: Arc<AsnPatterns>,
+    pub asn_info: Option<Arc<AsnInfo>>,
     pub dns_resolver: Arc<ResolverGroup>,
     pub geoip_city_build_epoch: Option<u64>,
     /// Optional sources that were configured (path provided) but failed to load.
@@ -206,6 +207,22 @@ impl EnrichmentContext {
             AsnPatterns::builtin()
         });
 
+        let asn_info = if let Some(path) = config.asn_info.as_deref() {
+            match AsnInfo::from_file(path).await {
+                Ok(db) => {
+                    info!("Loaded ASN info from {}", path);
+                    Some(Arc::new(db))
+                }
+                Err(e) => {
+                    warn!("Failed to load ASN info from {path}: {e}; ASN category/role lookup disabled");
+                    None
+                }
+            }
+        } else {
+            warn!("asn_info not configured; ASN category/role lookup disabled");
+            None
+        };
+
         let dns_resolver = ResolverGroupBuilder::new()
             .system()
             .build()
@@ -225,6 +242,7 @@ impl EnrichmentContext {
             (config.datacenter_ranges.is_some()     && datacenter_ranges.is_none(),      "datacenter_ranges"),
             (config.bot_ranges.is_some()            && bot_db.is_none(),                 "bot_ranges"),
             (config.spamhaus_drop.is_some()         && spamhaus_drop.is_none(),          "spamhaus_drop"),
+            (config.asn_info.is_some()              && asn_info.is_none(),               "asn_info"),
         ]
         .into_iter()
         .filter_map(|(failed, name)| if failed { Some(name) } else { None })
@@ -246,6 +264,7 @@ impl EnrichmentContext {
             bot_db,
             spamhaus_drop,
             asn_patterns,
+            asn_info,
             dns_resolver: Arc::new(dns_resolver),
             geoip_city_build_epoch,
             missing_optional,
@@ -274,6 +293,8 @@ impl EnrichmentContext {
             .set(f64::from(ctx.spamhaus_drop.is_some() as u8));
         metrics::gauge!("enrichment_sources_loaded", "source" => "asn_patterns")
             .set(f64::from(config.asn_patterns.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "asn_info")
+            .set(f64::from(ctx.asn_info.is_some() as u8));
 
         Ok(ctx)
     }

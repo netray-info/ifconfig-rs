@@ -1,4 +1,5 @@
 pub mod asn_heuristic;
+pub mod asn_info;
 pub mod bot;
 pub mod cloud_provider;
 pub mod datacenter;
@@ -6,6 +7,7 @@ pub mod feodo;
 pub mod spamhaus;
 pub mod user_agent;
 pub mod vpn;
+pub use asn_info::AsnInfo;
 pub use bot::{BotDb, BotInfo};
 pub use cloud_provider::{CloudProvider, CloudProviderDb};
 pub use datacenter::DatacenterRanges;
@@ -241,6 +243,9 @@ pub struct Network {
     /// Cloud region (e.g. "us-east-1").
     #[schema(example = json!(null))]
     pub region: Option<String>,
+    /// Network role from ipverse/as-metadata (e.g. "stub", "tier1_transit").
+    #[schema(example = json!(null))]
+    pub network_role: Option<String>,
     pub classification: Classification,
 }
 
@@ -270,6 +275,7 @@ pub struct IfconfigParam<'a> {
     pub bot_db: Option<&'a BotDb>,
     pub spamhaus_drop: Option<&'a SpamhausDrop>,
     pub asn_patterns: &'a asn_heuristic::AsnPatterns,
+    pub asn_info: Option<&'a asn_info::AsnInfo>,
     pub dns_resolver: &'a ResolverGroup,
     pub dns_cache: &'a DnsCache,
     /// When true, skip the reverse DNS (PTR) lookup. Used for `?ip=` lookups
@@ -400,6 +406,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
 
     let asn_class = asn_heuristic::classify_asn(asn_number, asn_org.as_deref(), param.asn_patterns);
 
+    let asn_meta = asn_number.and_then(|n| param.asn_info.and_then(|db| db.lookup(n)));
+
     let is_vpn = vpn_cidr
         || matches!(asn_class, asn_heuristic::AsnClassification::Vpn { .. });
 
@@ -407,7 +415,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
 
     let is_datacenter = cloud.is_some()
         || dc_range_match
-        || matches!(asn_class, asn_heuristic::AsnClassification::Hosting { .. });
+        || matches!(asn_class, asn_heuristic::AsnClassification::Hosting { .. })
+        || asn_meta.map(|m| m.category == asn_info::AsnCategory::Hosting).unwrap_or(false);
 
     // Build network object — primary type uses priority order:
     // cloud > bot > VPN > Tor > botnet_c2 > threat > hosting > residential
@@ -447,6 +456,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         // what the enrichment data says (likely all false for private ranges).
         let network_type = if is_internal { "internal".to_string() } else { network_type };
 
+        let network_role = asn_meta.and_then(|m| m.network_role.clone());
+
         Network {
             asn: asn_number,
             org: asn_org,
@@ -454,6 +465,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             provider: if is_internal { None } else { provider },
             service: if is_internal { None } else { cloud.as_ref().and_then(|c| c.service.clone()) },
             region: if is_internal { None } else { cloud.as_ref().and_then(|c| c.region.clone()) },
+            network_role: if is_internal { None } else { network_role },
             classification: Classification {
                 network_type,
                 is_internal,

@@ -1,7 +1,7 @@
 all:
 
 get_all: geoip_mmdbs regexes.yaml tor_exit_nodes.txt feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl \
-	datacenter_ranges.txt bot_ranges.jsonl spamhaus_drop.txt
+	datacenter_ranges.txt bot_ranges.jsonl spamhaus_drop.txt as_metadata.jsonl
 
 geoip_mmdbs: .geoip.conf
 	geoipupdate -f .geoip.conf -d .
@@ -97,9 +97,16 @@ spamhaus_drop.txt:
 	  curl -s https://www.spamhaus.org/drop/dropv6.txt; } \
 	| sed -e 's/ ;.*//' -e '/^;/d' -e '/^$$/d' > $@
 
+as_metadata.jsonl: .as_metadata.json
+	jq -c 'to_entries[] | select(.value.asn != null) | {asn: .value.asn, category: (.value.category // ""), network_role: (.value.networkRole // "")}' .as_metadata.json > $@
+	rm -f .as_metadata.json
+
+.as_metadata.json:
+	curl -s https://raw.githubusercontent.com/ipverse/as-metadata/master/as.json -o $@
+
 DATA_FILES = GeoLite2-ASN.mmdb GeoLite2-City.mmdb regexes.yaml tor_exit_nodes.txt \
 	feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl \
-	datacenter_ranges.txt bot_ranges.jsonl spamhaus_drop.txt
+	datacenter_ranges.txt bot_ranges.jsonl spamhaus_drop.txt as_metadata.jsonl
 
 build: $(DATA_FILES)
 	docker buildx build --platform linux/amd64,linux/arm64 \
@@ -113,7 +120,7 @@ push: $(DATA_FILES)
 		--push \
 		.
 
-clean: clean_regexes clean_tor clean_feodo clean_vpn clean_cloud clean_datacenter clean_bot clean_spamhaus
+clean: clean_regexes clean_tor clean_feodo clean_vpn clean_cloud clean_datacenter clean_bot clean_spamhaus clean_asn_info
 	rm -f *.mmdb
 
 clean_regexes:
@@ -141,5 +148,8 @@ clean_bot:
 clean_spamhaus:
 	rm -f spamhaus_drop.txt
 
+clean_asn_info:
+	rm -f as_metadata.jsonl .as_metadata.json
+
 .PHONY: all get_all build push clean clean_regexes clean_tor clean_feodo clean_vpn clean_cloud \
-	clean_datacenter clean_bot clean_spamhaus
+	clean_datacenter clean_bot clean_spamhaus clean_asn_info

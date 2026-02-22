@@ -1,4 +1,5 @@
 use crate::backend::asn_heuristic::AsnPatterns;
+use crate::backend::asn_info::AsnInfo;
 use crate::backend::user_agent::UserAgentParser;
 use crate::backend::*;
 use mhost::resolver::ResolverGroup;
@@ -24,6 +25,7 @@ pub(crate) async fn make_ifconfig(
     dns_cache: &DnsCache,
     skip_dns: bool,
     asn_patterns: &AsnPatterns,
+    asn_info: Option<&AsnInfo>,
 ) -> Ifconfig {
     let param = IfconfigParam {
         remote,
@@ -39,6 +41,7 @@ pub(crate) async fn make_ifconfig(
         bot_db,
         spamhaus_drop,
         asn_patterns,
+        asn_info,
         dns_resolver,
         dns_cache,
         skip_dns,
@@ -141,6 +144,9 @@ pub mod network {
         if let Some(ref region) = n.region {
             lines.push(format!("region:     {}", region));
         }
+        if let Some(ref role) = n.network_role {
+            lines.push(format!("role:       {}", role));
+        }
         lines.push(format!("internal:   {}", n.classification.is_internal));
         lines.push(format!("datacenter: {}", n.classification.is_datacenter));
         lines.push(format!("vpn:        {}", n.classification.is_vpn));
@@ -223,11 +229,14 @@ pub mod all {
             if let Some(ref region) = n.region {
                 lines.push(format!("region:     {}", region));
             }
+            if let Some(ref role) = n.network_role {
+                lines.push(format!("role:       {}", role));
+            }
             lines.push(format!("internal:   {}", n.classification.is_internal));
             lines.push(format!("datacenter: {}", n.classification.is_datacenter));
             lines.push(format!("vpn:        {}", n.classification.is_vpn));
             lines.push(format!("tor:        {}", n.classification.is_tor));
-    
+
             lines.push(format!("bot:        {}", n.classification.is_bot));
             lines.push(format!("threat:     {}", n.classification.is_threat));
         }
@@ -435,6 +444,7 @@ mod tests {
             provider: None,
             service: None,
             region: None,
+            network_role: None,
             classification: Classification {
                 network_type: "residential".to_string(),
                 is_internal: false,
@@ -552,6 +562,7 @@ mod tests {
             provider: Some("AWS".to_string()),
             service: Some("EC2".to_string()),
             region: Some("us-east-1".to_string()),
+            network_role: None,
             classification: Classification {
                 network_type: "cloud".to_string(),
                 is_internal: false,

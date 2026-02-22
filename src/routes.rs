@@ -233,7 +233,7 @@ async fn dispatch_standard(
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, ctx.asn_patterns.as_ref()).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, ctx.asn_patterns.as_ref(), ctx.asn_info.as_deref()).await;
 
     let fields = format::parse_fields_param(&req_info.uri);
 
@@ -550,7 +550,7 @@ async fn dispatch_all(
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, ctx.asn_patterns.as_ref()).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, ctx.asn_patterns.as_ref(), ctx.asn_info.as_deref()).await;
 
     let fields = format::parse_fields_param(&req_info.uri);
 
@@ -919,6 +919,7 @@ async fn batch_dispatch(
                 ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(),
                 ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(),
                 &ctx.dns_resolver, &*dns_cache, skip_dns, ctx.asn_patterns.as_ref(),
+                ctx.asn_info.as_deref(),
             );
             let ifconfig = match tokio::time::timeout(std::time::Duration::from_secs(5), lookup).await {
                 Ok(result) => result,
@@ -1074,7 +1075,7 @@ async fn ip_version_dispatch(
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, ctx.asn_patterns.as_ref()).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, ctx.asn_patterns.as_ref(), ctx.asn_info.as_deref()).await;
 
     if ifconfig.ip.version != version {
         return error_response(StatusCode::NOT_FOUND, "not implemented");

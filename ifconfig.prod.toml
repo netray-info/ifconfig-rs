@@ -58,6 +58,7 @@ spamhaus_drop = "data/spamhaus_drop.txt"
 # Path to TOML file of ASN org-name classification patterns (hosting/VPN).
 # If omitted, built-in defaults are used. Reloadable via SIGHUP.
 asn_patterns = "data/asn_patterns.toml"
+asn_info = "data/as_metadata.jsonl"
 
 # Regex patterns matched against header names. Any header whose name matches
 # a pattern is excluded from /headers responses. Useful for hiding infrastructure
