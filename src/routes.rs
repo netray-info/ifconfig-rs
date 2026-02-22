@@ -980,10 +980,12 @@ async fn health_handler() -> Response {
 #[utoipa::path(
     get, path = "/ready",
     tag = "Probes",
-    description = "Readiness probe. Returns 200 when GeoIP databases and UA parser are loaded, 503 otherwise. Exempt from rate limiting.",
+    description = "Readiness probe. Returns 200 when GeoIP databases and UA parser are loaded, 503 otherwise. \
+        A 200 response may include a `warnings` array listing optional data sources that were configured but \
+        failed to load (e.g. datacenter ranges, bot ranges, Spamhaus DROP). Exempt from rate limiting.",
     responses(
-        (status = 200, description = "All backends loaded"),
-        (status = 503, description = "One or more backends not ready"),
+        (status = 200, description = "Core backends loaded; optional `warnings` array lists any missing optional sources"),
+        (status = 503, description = "One or more core backends not ready"),
     )
 )]
 async fn ready_handler(State(state): State<AppState>) -> Response {
@@ -993,7 +995,12 @@ async fn ready_handler(State(state): State<AppState>) -> Response {
     let has_ua_parser = ctx.user_agent_parser.is_some();
 
     if has_city_db && has_asn_db && has_ua_parser {
-        (StatusCode::OK, axum::Json(json!({ "status": "ready" }))).into_response()
+        let warnings: Vec<&str> = ctx.missing_optional.iter().copied().collect();
+        if warnings.is_empty() {
+            (StatusCode::OK, axum::Json(json!({ "status": "ready" }))).into_response()
+        } else {
+            (StatusCode::OK, axum::Json(json!({ "status": "ready", "warnings": warnings }))).into_response()
+        }
     } else {
         let mut missing = Vec::new();
         if !has_city_db {

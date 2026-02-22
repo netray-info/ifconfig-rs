@@ -25,6 +25,9 @@ pub struct EnrichmentContext {
     pub spamhaus_drop: Option<Arc<SpamhausDrop>>,
     pub dns_resolver: Arc<ResolverGroup>,
     pub geoip_city_build_epoch: Option<u64>,
+    /// Optional sources that were configured (path provided) but failed to load.
+    /// Surfaced in `/ready` warnings and emitted as a single startup log line.
+    pub missing_optional: Vec<&'static str>,
 }
 
 impl EnrichmentContext {
@@ -176,6 +179,22 @@ impl EnrichmentContext {
 
         let geoip_city_build_epoch = geoip_city_db.as_ref().map(|db| db.build_epoch());
 
+        // Collect optional sources that were configured but failed to load.
+        let missing_optional: Vec<&'static str> = [
+            (config.cloud_provider_ranges.is_some() && cloud_provider_db.is_none(), "cloud_provider_ranges"),
+            (config.vpn_ranges.is_some()            && vpn_ranges.is_none(),        "vpn_ranges"),
+            (config.datacenter_ranges.is_some()     && datacenter_ranges.is_none(), "datacenter_ranges"),
+            (config.bot_ranges.is_some()            && bot_db.is_none(),            "bot_ranges"),
+            (config.spamhaus_drop.is_some()         && spamhaus_drop.is_none(),     "spamhaus_drop"),
+        ]
+        .into_iter()
+        .filter_map(|(failed, name)| if failed { Some(name) } else { None })
+        .collect();
+
+        if !missing_optional.is_empty() {
+            warn!("Optional data sources not loaded: {}", missing_optional.join(", "));
+        }
+
         let ctx = EnrichmentContext {
             user_agent_parser,
             geoip_city_db,
@@ -189,6 +208,7 @@ impl EnrichmentContext {
             spamhaus_drop,
             dns_resolver: Arc::new(dns_resolver),
             geoip_city_build_epoch,
+            missing_optional,
         };
 
         // Report which enrichment sources are loaded (updates on reload too).
