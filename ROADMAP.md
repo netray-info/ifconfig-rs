@@ -1,54 +1,56 @@
 # Roadmap — ifconfig-rs
 
-Items yet to be decided or implemented.
-
 ---
 
-## Bugs
+## Immediate
 
 #### B5. Network classification not visible in network card
 
 The `network.classification` sub-object fields (`type`, `is_vpn`, `is_tor`, `is_datacenter`, `is_bot`, `is_threat`, `is_proxy`) are not displayed in the Network card in the SPA.
 
+#### Remove `is_proxy` from the API
+
+`is_proxy` is always `false` and there is no viable data source to populate it. Remove the field from `network.classification` in the Rust struct, the OpenAPI schema, and all serialization/test fixtures.
+
 ---
 
-## Pending
+## Future Work
 
 #### 22. Port reachability check
 
-New endpoint `/port/{number}` that attempts a TCP connect back to the requester's IP. Returns open/closed/filtered. Needs a timeout and connection limits to avoid abuse.
-
-#### 46. Batch lookup UI
-
-Frontend interface for `POST /batch`. Paste a list of IPs, view results in a table. The batch endpoint already exists.
-
-#### 47. CSV export / download button
-
-The backend already serves `/all/csv`. Add a download button in the SPA to export the current result.
-
-#### 33. WebRTC leak detection
-
-Frontend-only: detect IPs leaked via WebRTC when using a VPN. Strong differentiator for privacy-conscious users.
-
-#### 53. Populate `network.classification.is_proxy`
-
-`is_proxy` is currently always `false` — no proxy detection data source is wired up. Options: integrate a proxy IP list (similar to `vpn_ranges.txt`), use a third-party API, or derive from existing heuristics (e.g. known open-proxy ASNs). Needs a data source decision before implementation.
-
-#### 21. IP decimal representation
-
-Add `ip_decimal` to the `Ip` struct — the integer representation (e.g., `1.2.3.4` = `16909060`).
-
-#### 25. Whois lookup
-
-Return WHOIS registration data for the IP's network block. Requires calling WHOIS servers or integrating a library. `mhost` has this functionality but it's a heavy dependency.
-
-#### 39. Code coverage reporting
-
-Add tarpaulin (Rust) and c8 (JS) with reporting to Codecov or similar.
+New endpoint `/port/{number}` that attempts a TCP connect back to the requester's IP. Returns open/closed/filtered. Needs a short timeout, a port allowlist/denylist to avoid abuse, and outbound TCP from the host. Only meaningful for the caller's own IP — incompatible with `?ip=`.
 
 ---
 
 ## Won't Do
+
+### 46. Batch lookup UI
+
+The primary consumer of `POST /batch` is scripts and API clients, not browser users. The overlap with the SPA audience is too small to justify the UI surface area.
+
+### 47. CSV export / download button
+
+The backend already serves `/all/csv` directly. A download button adds negligible value over linking or curling the endpoint.
+
+### 33. WebRTC leak detection
+
+Browsers are progressively restricting WebRTC IP exposure (Firefox blocks by default). Detection reliability will only decline.
+
+### 53. Populate `network.classification.is_proxy`
+
+No free, maintained proxy IP list exists comparable to the VPN/datacenter sources. ASN heuristics would have high false-positive risk. VPN and datacenter flags already cover most of the signal. Remove `is_proxy` instead (see Immediate above).
+
+### 21. IP decimal representation
+
+IPv4 is trivial; IPv6 exceeds `Number.MAX_SAFE_INTEGER` and would require string serialization, creating an inconsistency. `/ip/cidr` covers the main use case.
+
+### 25. Whois lookup
+
+Most useful WHOIS signal (org, ASN, prefix) is already in `network` from MaxMind. Querying WHOIS servers at request time is slow and rate-limited; a library adds significant dependency weight.
+
+### 39. Code coverage reporting
+
+The test suite (~300 tests across unit, integration, E2E) is already comprehensive. tarpaulin is flaky in CI; Codecov adds a third-party service dependency for marginal gain.
 
 ### 29. Map visualization
 
