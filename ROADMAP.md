@@ -58,13 +58,13 @@ New `audit` job in CI: installs `cargo-audit` and runs `cargo audit`, then runs 
 
 ## Sprint 5 — Advanced Backend
 
-#### 43. Internal mode
+#### 43. ~~Internal mode~~ (done)
 
-A config flag (`internal_mode = true`) that allows the service to respond to requests from private and reserved IP ranges. Affected subnets: RFC 1918 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1/128`), link-local (`169.254.0.0/16`, `fe80::/10`), ULA (`fc00::/7`). GeoIP lookups return no results (expected); `network.classification.type` reflects `"internal"`. The `extractors.rs` global-IP guard and `get_ifconfig()` validation must be conditioned on this flag via `AppState`.
+A config flag (`internal_mode = true`) that allows the service to respond to requests from private and reserved IP ranges. Affected subnets: RFC 1918 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1/128`), link-local (`169.254.0.0/16`, `fe80::/10`), ULA (`fc00::/7`). GeoIP lookups return no results (expected); `network.classification.type` reflects `"internal"`. `is_global_ip()` moved from `routes.rs` to `backend/mod.rs` (`pub fn`); `get_ifconfig()` short-circuits for non-global IPs returning the `"internal"` type without running classification.
 
-#### 23. DNS reverse lookup caching
+#### 23. ~~DNS reverse lookup caching~~ (done)
 
-Reverse DNS lookup has no caching. Add an in-memory LRU cache with a short TTL (e.g., 60s).
+Reverse DNS lookup has no caching. Add an in-memory LRU cache with a short TTL (e.g., 60s). Implemented: `DnsCache` type alias (`Mutex<LruCache<IpAddr, (Option<String>, Instant)>>`) in `backend/mod.rs`, shared via `Arc<DnsCache>` on `AppState`. Capacity 1024, TTL 60s. Both successful and failed lookups are cached. Mutex not held across any await point.
 
 #### 22. Port reachability check — pending discussion
 
