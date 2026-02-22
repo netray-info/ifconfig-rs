@@ -59,7 +59,7 @@ Add `ETag` and `Last-Modified` response headers to enable `304 Not Modified`. Th
 
 #### 45. IP lookup form in SPA
 
-Frontend form for `?ip=` queries — look up any public IP without leaving the page. No backend changes needed. Client-side validation is critical: invalid IPs silently fall back to the caller's IP on the backend. See Implementation Notes.
+Frontend form for `?ip=` queries — look up any public IP without leaving the page. No backend changes needed. Client-side validation is critical: invalid IPs silently fall back to the caller's IP on the backend. See Implementation Notes and discuss first.
 
 #### 30. Skeleton loading screens
 
@@ -99,7 +99,7 @@ A config flag (`internal_mode = true`) that allows the service to respond to req
 
 #### 22. Port reachability check
 
-New endpoint `/port/{number}` that attempts a TCP connect back to the requester's IP. Returns open/closed/filtered. Needs a timeout and connection limits to avoid abuse.
+New endpoint `/port/{number}` that attempts a TCP connect back to the requester's IP. Returns open/closed/filtered. Needs a timeout and connection limits to avoid abuse. This has to be discussed first, before it gets implemented, because I dont know if I want it.
 
 #### 23. DNS reverse lookup caching
 
@@ -107,7 +107,7 @@ Reverse DNS lookup has no caching. Add an in-memory LRU cache with a short TTL (
 
 #### 44. Nested `?fields=` dot-notation
 
-Extend `?fields=` to support dot-notation for sub-fields (e.g., `?fields=location.city,network.asn`). Currently `filter_fields()` in `format.rs` only handles top-level JSON keys.
+Extend `?fields=` to support dot-notation for sub-fields (e.g., `?fields=location.city,network.asn`). Currently `filter_fields()` in `format.rs` only handles top-level JSON keys. This has to be discussed first, before it gets implemented, because I dont know if I want it.
 
 ---
 
@@ -115,19 +115,19 @@ Extend `?fields=` to support dot-notation for sub-fields (e.g., `?fields=locatio
 
 #### 29. Map visualization
 
-Lat/long are returned and already linked to Google Maps. Replace the external link with an embedded lightweight map (e.g., Leaflet + OpenStreetMap tiles).
+Wont do: Lat/long are returned and already linked to Google Maps. Replace the external link with an embedded lightweight map (e.g., Leaflet + OpenStreetMap tiles).
 
 #### 46. Batch lookup UI
 
-Frontend interface for `POST /batch`. Paste a list of IPs, view results in a table. The batch endpoint already exists.
+Frontend interface for `POST /batch`. Paste a list of IPs, view results in a table. The batch endpoint already exists. This has to be discussed first, before it gets implemented, because I dont know if I want it.
 
 #### 47. CSV export / download button
 
-The backend already serves `/all/csv`. Add a download button in the SPA to export the current result.
+The backend already serves `/all/csv`. Add a download button in the SPA to export the current result. This has to be discussed first, before it gets implemented, because I dont know if I want it.
 
 #### 33. WebRTC leak detection
 
-Frontend-only: detect IPs leaked via WebRTC when using a VPN. Strong differentiator for privacy-conscious users.
+Frontend-only: detect IPs leaked via WebRTC when using a VPN. Strong differentiator for privacy-conscious users. This has to be discussed first, before it gets implemented, because I dont know if I want it.
 
 ---
 
@@ -137,15 +137,15 @@ Frontend-only: detect IPs leaked via WebRTC when using a VPN. Strong differentia
 
 #### 21. IP decimal representation
 
-Add `ip_decimal` to the `Ip` struct — the integer representation (e.g., `1.2.3.4` = `16909060`).
+Add `ip_decimal` to the `Ip` struct — the integer representation (e.g., `1.2.3.4` = `16909060`). This has to be discussed first, before it gets implemented, because I dont know if I want it.
 
 #### 24. Multi-language location names
 
-MaxMind already contains localized names in ~8 languages. A `?lang=de` query parameter — no new data sources needed.
+MaxMind already contains localized names in ~8 languages. A `?lang=de` query parameter — no new data sources needed. I like this.
 
 #### 25. Whois lookup
 
-Return WHOIS registration data for the IP's network block. Requires calling WHOIS servers or integrating a library.
+Return WHOIS registration data for the IP's network block. Requires calling WHOIS servers or integrating a library. mhost has this functionality but it's a heavy dependency. This has to be discussed first, before it gets implemented, because I dont know if I want it.
 
 #### 39. Code coverage reporting
 
