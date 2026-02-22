@@ -1,3 +1,4 @@
+use crate::backend::{new_dns_cache, DnsCache};
 use crate::config::Config;
 use crate::enrichment::EnrichmentContext;
 use arc_swap::ArcSwap;
@@ -24,6 +25,7 @@ pub struct AppState {
     pub rate_limiter: Arc<KeyedRateLimiter>,
     pub header_filters: Arc<RegexSet>,
     pub trusted_proxies: Arc<Vec<IpNetwork>>,
+    pub dns_cache: Arc<DnsCache>,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -113,6 +115,7 @@ impl AppState {
             rate_limiter,
             header_filters: Arc::new(header_filters),
             trusted_proxies: Arc::new(trusted_proxies),
+            dns_cache: Arc::new(new_dns_cache()),
         }
     }
 }

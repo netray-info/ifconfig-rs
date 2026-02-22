@@ -14,12 +14,24 @@ pub use spamhaus::SpamhausDrop;
 pub use user_agent::*;
 pub use vpn::VpnRanges;
 
+use lru::LruCache;
 use maxminddb::{self, geoip2};
 use mhost::resolver::{MultiQuery, ResolverGroup};
 use mhost::RecordType;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
+
+/// In-memory LRU cache for reverse DNS (PTR) lookups.
+/// Stores `Option<String>` so a failed lookup is also cached (avoiding repeated timeouts).
+pub type DnsCache = std::sync::Mutex<LruCache<IpAddr, (Option<String>, std::time::Instant)>>;
+const DNS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(60);
+const DNS_CACHE_CAPACITY: usize = 1024;
+
+pub fn new_dns_cache() -> DnsCache {
+    let capacity = std::num::NonZeroUsize::new(DNS_CACHE_CAPACITY).expect("DNS_CACHE_CAPACITY > 0");
+    std::sync::Mutex::new(LruCache::new(capacity))
+}
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Ip {
@@ -223,6 +235,7 @@ pub struct IfconfigParam<'a> {
     pub bot_db: Option<&'a BotDb>,
     pub spamhaus_drop: Option<&'a SpamhausDrop>,
     pub dns_resolver: &'a ResolverGroup,
+    pub dns_cache: &'a DnsCache,
     /// When true, skip the reverse DNS (PTR) lookup. Used for `?ip=` lookups
     /// where PTR is slow and usually unwanted.
     pub skip_dns: bool,
@@ -232,18 +245,36 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
     let hostname = if param.skip_dns {
         None
     } else {
-        tokio::time::timeout(std::time::Duration::from_secs(2), async {
-            let resolver = param.dns_resolver.resolvers().first()?;
-            let query = MultiQuery::single(param.remote.ip(), RecordType::PTR).ok()?;
-            let lookups = resolver.lookup(query).await.ok()?;
-            lookups.ptr().into_iter().next().map(|name| {
-                let s = name.to_string();
-                s.strip_suffix('.').unwrap_or(&s).to_string()
+        let ip = param.remote.ip();
+        // Check cache — lock is released before any await point.
+        let cached: Option<Option<String>> = {
+            let mut cache = param.dns_cache.lock().unwrap();
+            cache.get(&ip).and_then(|entry| {
+                if entry.1.elapsed() < DNS_CACHE_TTL {
+                    Some(entry.0.clone())
+                } else {
+                    None // expired — treat as miss
+                }
             })
-        })
-        .await
-        .ok()
-        .flatten()
+        };
+        if let Some(hostname) = cached {
+            hostname
+        } else {
+            let result = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+                let resolver = param.dns_resolver.resolvers().first()?;
+                let query = MultiQuery::single(ip, RecordType::PTR).ok()?;
+                let lookups = resolver.lookup(query).await.ok()?;
+                lookups.ptr().into_iter().next().map(|name| {
+                    let s = name.to_string();
+                    s.strip_suffix('.').unwrap_or(&s).to_string()
+                })
+            })
+            .await
+            .ok()
+            .flatten();
+            param.dns_cache.lock().unwrap().put(ip, (result.clone(), std::time::Instant::now()));
+            result
+        }
     };
 
     let ip_addr = param.remote.ip().to_string();

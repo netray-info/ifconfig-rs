@@ -265,7 +265,7 @@ async fn dispatch_standard(
     };
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, skip_dns).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns).await;
 
     let fields = format::parse_fields_param(&req_info.uri);
 
@@ -585,7 +585,7 @@ async fn dispatch_all(
     };
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, skip_dns).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns).await;
 
     let fields = format::parse_fields_param(&req_info.uri);
 
@@ -918,6 +918,7 @@ async fn batch_dispatch(
     let fields = format::parse_fields_param(&req_info.uri);
     let skip_dns = !dns_opt_in;
     let ua_owned: Option<String> = req_info.user_agent.clone();
+    let dns_cache = state.dns_cache.clone();
 
     // Pre-validate IPs and spawn concurrent lookups
     let mut results: Vec<serde_json::Value> = vec![json!(null); ips.len()];
@@ -942,6 +943,7 @@ async fn batch_dispatch(
         let ctx = std::sync::Arc::clone(&ctx);
         let ua = ua_owned.clone();
         let fields = fields.clone();
+        let dns_cache = dns_cache.clone();
         let permit = std::sync::Arc::clone(&sem).acquire_owned().await.unwrap();
         set.spawn(async move {
             let _permit = permit;
@@ -957,7 +959,7 @@ async fn batch_dispatch(
                 ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(),
                 ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(),
                 ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(),
-                &ctx.dns_resolver, skip_dns,
+                &ctx.dns_resolver, &*dns_cache, skip_dns,
             );
             let ifconfig = match tokio::time::timeout(std::time::Duration::from_secs(5), lookup).await {
                 Ok(result) => result,
@@ -1116,7 +1118,7 @@ async fn ip_version_dispatch(
     };
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, skip_dns).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns).await;
 
     if ifconfig.ip.version != version {
         return error_response(StatusCode::NOT_FOUND, "not implemented");
