@@ -206,7 +206,9 @@ pub async fn etag_last_modified(State(state): State<AppState>, req: Request<axum
 
     let build_time = UNIX_EPOCH + Duration::from_secs(epoch);
     let last_modified_str = httpdate::fmt_http_date(build_time);
-    let etag_str = format!("\"{}\"", epoch);
+    // Include the app version so that code deployments invalidate browser caches
+    // even when the GeoIP database epoch hasn't changed.
+    let etag_str = format!("\"{}-{}\"", epoch, env!("CARGO_PKG_VERSION"));
 
     // Check If-None-Match — if client's ETag matches, short-circuit with 304
     let inm_matches = req
