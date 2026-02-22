@@ -1,60 +1,5 @@
 # Roadmap — ifconfig-rs
 
-## Sprint 1 — API v2: Data Model Cleanup
-
-> Breaking changes. Must ship as a single version bump with migration notes. All three items touch the same serialization boundary — doing them separately would require multiple breaking releases.
-
-#### 40. Merge `isp` into `network`
-
-`isp.name` and `isp.asn` are AS-level network attributes. `network.provider` (used for cloud/VPN/bot) and `isp.name` are the same concept for different network types — unify them. Rename `isp.name` → `network.org`, `isp.asn` → `network.asn`. Remove the `Isp` struct and top-level `isp` key. Fold `/isp` into `/network` or keep as alias. Update `InfoCards`: move ASN and org rows into the Network card.
-
-#### 41. Move `host` into `ip`
-
-The PTR/reverse-DNS hostname is a property of the IP address. Flatten `host.name` → `ip.hostname` (nullable string). Remove the `Host` struct and top-level `host` key. Update `InfoCards` accordingly.
-
-#### 42. Move `user_agent_header` into `user_agent.raw`
-
-`user_agent_header` is the raw source for the parsed `user_agent` — it should live as `user_agent.raw`. When no UA is present the entire `user_agent` object (including `raw`) remains null. No UI change needed.
-
-Target shape:
-
-```json
-{
-  "ip":       { "addr": "5.63.60.1", "version": "4", "hostname": "5-63-60-1.example.net" },
-  "tcp":      { "port": 4810 },
-  "location": { "..." },
-  "network":  { "type": "residential", "asn": 62336, "org": "PURtel.com GmbH",
-                "provider": null, "service": null, "region": null,
-                "is_datacenter": false, "is_vpn": false, "is_tor": false,
-                "is_proxy": false, "is_bot": false, "is_threat": false },
-  "user_agent": { "raw": "curl/8.7.1", "browser": {}, "os": {}, "device": {} }
-}
-```
-
----
-
-## Sprint 2 — Low-Effort Backend Wins
-
-> All items use data already loaded or computed — no new dependencies or data sources required.
-
-#### 50. ASN routing prefix
-
-The BGP prefix is already computed during MaxMind lookup but discarded. Add `prefix: Option<String>` to `Isp` (e.g. `"203.0.113.0/24"`) — `ipnetwork` is already a transitive dep. See Implementation Notes.
-
-#### 51. Surface additional GeoIP fields
-
-`registered_country` (free, strong VPN-detection signal — differs from `location.country` for VPN exit nodes) and `geoname_id` on country/city (enables external links to GeoNames/OpenStreetMap). See Implementation Notes for full field inventory.
-
-#### 19. Individual sub-field endpoints
-
-Expose each field as a standalone plain-text endpoint: `/country`, `/city`, `/asn`, `/timezone`, `/latitude`, `/longitude`, `/region`. Data already computed — thin route+handler wrappers. Enables `curl ip.pdt.sh/country` → `Germany`.
-
-#### 48. `ETag` / `Last-Modified` headers
-
-Add `ETag` and `Last-Modified` response headers to enable `304 Not Modified`. The GeoIP database build epoch is a natural `Last-Modified` value.
-
----
-
 ## Sprint 3 — Frontend: Core UX
 
 #### 45. IP lookup form in SPA
@@ -95,7 +40,7 @@ Document where to obtain required data files: GeoLite2-City/ASN (MaxMind account
 
 #### 43. Internal mode
 
-A config flag (`internal_mode = true`) that allows the service to respond to requests from private and reserved IP ranges. Affected subnets: RFC 1918 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1/128`), link-local (`169.254.0.0/16`, `fe80::/10`), ULA (`fc00::/7`). GeoIP lookups return no results (expected); `network.type` reflects `"internal"`. The `extractors.rs` global-IP guard and `get_ifconfig()` validation must be conditioned on this flag via `AppState`.
+A config flag (`internal_mode = true`) that allows the service to respond to requests from private and reserved IP ranges. Affected subnets: RFC 1918 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1/128`), link-local (`169.254.0.0/16`, `fe80::/10`), ULA (`fc00::/7`). GeoIP lookups return no results (expected); `network.classification.type` reflects `"internal"`. The `extractors.rs` global-IP guard and `get_ifconfig()` validation must be conditioned on this flag via `AppState`.
 
 #### 22. Port reachability check
 
@@ -191,31 +136,12 @@ Add tarpaulin (Rust) and c8 (JS) with reporting to Codecov or similar.
 
 ---
 
-### ASN Routing Prefix in ISP Data
-
-**The prefix is already computed — it's just discarded.** `maxminddb`'s `LookupResult::network()` returns the BGP routing prefix as `ipnetwork::IpNetwork` (a transitive dep). No new direct dependency needed.
-
-**Changes required:**
-
-| File | Change |
-|---|---|
-| `src/backend/mod.rs:63–72` | Change `lookup` to return `Option<(geoip2::Isp<'_>, Option<String>)>` — keep `LookupResult`, call `.network().map(\|n\| n.to_string())` |
-| `src/backend/mod.rs:155–170` | Add `prefix: Option<String>` to `Isp` struct; update `Isp::unknown()` |
-| `src/backend/mod.rs:289–296` | Populate `isp.prefix` in `get_ifconfig()` |
-| `src/handlers.rs:104–111` | `isp::to_plain` — new format: `"Example Telecom (AS64496, 203.0.113.0/24)\n"` |
-| `src/handlers.rs:223–228` | `all::to_plain` — add `"prefix:     {}\n"` line after ASN |
-| `frontend/src/lib/types.ts` | Add `prefix: string \| null` to `Isp` interface |
-| `frontend/src/components/InfoCards.tsx` | Add `<Show when={isp().prefix != null}>` row |
-
----
-
 ### Unused GeoIP Fields
 
-**GeoLite2-City (free, high value):**
+**GeoLite2-City (free, remaining value):**
 
 | Field | Practical use |
 |---|---|
-| `registered_country` | Country where IP block was registered — differs from location for VPNs; strong proxy/VPN signal |
 | `geoname_id` on country/city | External links to GeoNames, Wikipedia, OpenStreetMap |
 | `represented_country` + `type` | Embassy/military detection (`"military"`, `"diplomatic"`) |
 | `subdivisions[1..]` | County/district below state |
@@ -236,3 +162,72 @@ JSONP is obsoleted by CORS. Maintaining a JSONP code path adds complexity for a 
 ### 13. Prometheus metrics on the main port
 
 The admin port (`server.admin_bind`) already exposes `/metrics` for those who need it.
+
+---
+
+## Done
+
+### Sprint 1 — API v2: Data Model Cleanup (v0.9.0)
+
+> Breaking changes shipped as a single version bump.
+
+#### 42. Move `user_agent_header` into `user_agent.raw`
+
+`user_agent_header` moved to `user_agent.raw` (nullable string on the UA object). When no UA is present the entire `user_agent` object remains null.
+
+#### 41. Move `host` into `ip`
+
+`host.name` flattened to `ip.hostname`. `Host` struct and top-level `host` key removed. `/host` endpoint removed.
+
+#### 40. Merge `isp` into `network`, add `prefix`
+
+`Isp` struct removed. `network` gains `asn`, `org`, `prefix`. `/isp` endpoint removed. `network` is now always present (non-optional).
+
+#### Classification sub-object
+
+`type` and all `is_*` flags moved from `Network` into a nested `network.classification` object.
+
+Current API shape (v0.9.0):
+
+```json
+{
+  "ip": { "addr": "5.63.60.1", "version": "4", "hostname": "5-63-60-1.example.net" },
+  "tcp": { "port": 4810 },
+  "location": {
+    "city": "Berlin", "region": "Berlin", "region_code": "BE",
+    "country": "Germany", "country_iso": "DE", "postal_code": "10115",
+    "is_eu": true, "latitude": 52.52, "longitude": 13.405,
+    "timezone": "Europe/Berlin", "continent": "Europe", "continent_code": "EU",
+    "accuracy_radius_km": 50,
+    "registered_country": "Germany", "registered_country_iso": "DE"
+  },
+  "network": {
+    "asn": 62336, "org": "PURtel.com GmbH", "prefix": "5.63.60.0/22",
+    "provider": null, "service": null, "region": null,
+    "classification": {
+      "type": "residential",
+      "is_datacenter": false, "is_vpn": false, "is_tor": false,
+      "is_proxy": false, "is_bot": false, "is_threat": false
+    }
+  },
+  "user_agent": { "raw": "curl/8.7.1", "browser": {}, "os": {}, "device": {} }
+}
+```
+
+### Sprint 2 — Low-Effort Backend Wins (v0.9.0)
+
+#### 50. ASN routing prefix
+
+`network.prefix` (e.g. `"203.0.113.0/24"`) populated from MaxMind's `LookupResult::network()`.
+
+#### 51. Surface additional GeoIP fields
+
+`location.registered_country` and `location.registered_country_iso` added. Differs from `location.country` for VPN exit nodes — useful as a VPN-detection signal.
+
+#### 19. Individual sub-field endpoints
+
+`/country`, `/city`, `/asn`, `/timezone`, `/latitude`, `/longitude`, `/region` — all support format suffixes and `?ip=`. `/asn` returns `AS64496` in plain text, the raw number in JSON.
+
+#### 48. `ETag` / `Last-Modified` headers
+
+`ETag: "<geoip-build-epoch>"` and `Last-Modified: <http-date>` on all success responses. `304 Not Modified` returned when `If-None-Match` or `If-Modified-Since` matches.
