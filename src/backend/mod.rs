@@ -218,9 +218,6 @@ pub struct Classification {
     pub is_vpn: bool,
     #[schema(example = false)]
     pub is_tor: bool,
-    // TODO: No proxy detection implemented yet — always false. Remove or populate when a proxy data source is added.
-    #[schema(example = false)]
-    pub is_proxy: bool,
     #[schema(example = false)]
     pub is_bot: bool,
     #[schema(example = false)]
@@ -465,7 +462,6 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
                 is_datacenter,
                 is_vpn,
                 is_tor,
-                is_proxy: false,
                 is_bot,
                 is_threat,
             },

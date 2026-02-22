@@ -2,18 +2,6 @@
 
 ---
 
-## Immediate
-
-#### B5. Network classification not visible in network card
-
-The `network.classification` sub-object fields (`type`, `is_vpn`, `is_tor`, `is_datacenter`, `is_bot`, `is_threat`, `is_proxy`) are not displayed in the Network card in the SPA.
-
-#### Remove `is_proxy` from the API
-
-`is_proxy` is always `false` and there is no viable data source to populate it. Remove the field from `network.classification` in the Rust struct, the OpenAPI schema, and all serialization/test fixtures.
-
----
-
 ## Future Work
 
 #### 22. Port reachability check
@@ -38,7 +26,7 @@ Browsers are progressively restricting WebRTC IP exposure (Firefox blocks by def
 
 ### 53. Populate `network.classification.is_proxy`
 
-No free, maintained proxy IP list exists comparable to the VPN/datacenter sources. ASN heuristics would have high false-positive risk. VPN and datacenter flags already cover most of the signal. Remove `is_proxy` instead (see Immediate above).
+No free, maintained proxy IP list exists comparable to the VPN/datacenter sources. ASN heuristics would have high false-positive risk. VPN and datacenter flags already cover most of the signal. `is_proxy` has been removed from the API.
 
 ### 21. IP decimal representation
 

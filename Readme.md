@@ -277,7 +277,6 @@ curl -H "Accept: text/csv"         ip.pdt.sh/all
     "is_datacenter": false,
     "is_vpn": false,
     "is_tor": false,
-    "is_proxy": false,
     "is_bot": false,
     "is_threat": false
   },

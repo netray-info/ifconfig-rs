@@ -36,7 +36,6 @@ fn representative_ifconfig() -> serde_json::Value {
                 "is_datacenter": false,
                 "is_vpn": false,
                 "is_tor": false,
-                "is_proxy": false,
                 "is_bot": false,
                 "is_threat": false
             }

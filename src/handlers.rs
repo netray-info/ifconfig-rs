@@ -142,7 +142,7 @@ pub mod network {
         lines.push(format!("datacenter: {}", n.classification.is_datacenter));
         lines.push(format!("vpn:        {}", n.classification.is_vpn));
         lines.push(format!("tor:        {}", n.classification.is_tor));
-        lines.push(format!("proxy:      {}", n.classification.is_proxy));
+
         lines.push(format!("bot:        {}", n.classification.is_bot));
         lines.push(format!("threat:     {}", n.classification.is_threat));
         lines.join("\n") + "\n"
@@ -224,7 +224,7 @@ pub mod all {
             lines.push(format!("datacenter: {}", n.classification.is_datacenter));
             lines.push(format!("vpn:        {}", n.classification.is_vpn));
             lines.push(format!("tor:        {}", n.classification.is_tor));
-            lines.push(format!("proxy:      {}", n.classification.is_proxy));
+    
             lines.push(format!("bot:        {}", n.classification.is_bot));
             lines.push(format!("threat:     {}", n.classification.is_threat));
         }
@@ -438,7 +438,6 @@ mod tests {
                 is_datacenter: false,
                 is_vpn: false,
                 is_tor: false,
-                is_proxy: false,
                 is_bot: false,
                 is_threat: false,
             },
@@ -556,7 +555,6 @@ mod tests {
                 is_datacenter: true,
                 is_vpn: false,
                 is_tor: false,
-                is_proxy: false,
                 is_bot: false,
                 is_threat: false,
             },

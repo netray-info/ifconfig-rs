@@ -18,7 +18,6 @@ export interface Classification {
   is_datacenter: boolean;
   is_vpn: boolean;
   is_tor: boolean;
-  is_proxy: boolean;
   is_bot: boolean;
   is_threat: boolean;
 }
