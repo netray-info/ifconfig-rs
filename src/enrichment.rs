@@ -1,3 +1,4 @@
+use crate::backend::asn_heuristic::AsnPatterns;
 use crate::backend::user_agent::UserAgentParser;
 use crate::backend::{BotDb, CloudProviderDb, DatacenterRanges, FeodoBotnetIps, GeoIpAsnDb, GeoIpCityDb, SpamhausDrop, TorExitNodes, VpnRanges};
 use crate::config::Config;
@@ -23,6 +24,7 @@ pub struct EnrichmentContext {
     pub datacenter_ranges: Option<Arc<DatacenterRanges>>,
     pub bot_db: Option<Arc<BotDb>>,
     pub spamhaus_drop: Option<Arc<SpamhausDrop>>,
+    pub asn_patterns: Arc<AsnPatterns>,
     pub dns_resolver: Arc<ResolverGroup>,
     pub geoip_city_build_epoch: Option<u64>,
     /// Optional sources that were configured (path provided) but failed to load.
@@ -189,6 +191,21 @@ impl EnrichmentContext {
             None
         };
 
+        let asn_patterns = Arc::new(if let Some(path) = config.asn_patterns.as_deref() {
+            match AsnPatterns::from_file(path).await {
+                Ok(p) => {
+                    info!("Loaded ASN patterns from {}", path);
+                    p
+                }
+                Err(e) => {
+                    warn!("Failed to load ASN patterns from {path}: {e}; using built-in defaults");
+                    AsnPatterns::builtin()
+                }
+            }
+        } else {
+            AsnPatterns::builtin()
+        });
+
         let dns_resolver = ResolverGroupBuilder::new()
             .system()
             .build()
@@ -228,6 +245,7 @@ impl EnrichmentContext {
             datacenter_ranges,
             bot_db,
             spamhaus_drop,
+            asn_patterns,
             dns_resolver: Arc::new(dns_resolver),
             geoip_city_build_epoch,
             missing_optional,
@@ -254,6 +272,8 @@ impl EnrichmentContext {
             .set(f64::from(ctx.feodo_botnet_ips.is_some() as u8));
         metrics::gauge!("enrichment_sources_loaded", "source" => "spamhaus_drop")
             .set(f64::from(ctx.spamhaus_drop.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "asn_patterns")
+            .set(f64::from(config.asn_patterns.is_some() as u8));
 
         Ok(ctx)
     }

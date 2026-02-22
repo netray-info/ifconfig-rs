@@ -1,3 +1,4 @@
+use crate::backend::asn_heuristic::AsnPatterns;
 use crate::backend::user_agent::UserAgentParser;
 use crate::backend::*;
 use mhost::resolver::ResolverGroup;
@@ -22,6 +23,7 @@ pub(crate) async fn make_ifconfig(
     dns_resolver: &ResolverGroup,
     dns_cache: &DnsCache,
     skip_dns: bool,
+    asn_patterns: &AsnPatterns,
 ) -> Ifconfig {
     let param = IfconfigParam {
         remote,
@@ -36,6 +38,7 @@ pub(crate) async fn make_ifconfig(
         datacenter_ranges,
         bot_db,
         spamhaus_drop,
+        asn_patterns,
         dns_resolver,
         dns_cache,
         skip_dns,

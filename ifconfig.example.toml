@@ -62,6 +62,10 @@ base_url = "ip.pdt.sh"
 # If omitted, threat/hijacked-netblock detection is disabled.
 # spamhaus_drop = "data/spamhaus_drop.txt"
 
+# Path to TOML file of ASN org-name classification patterns (hosting/VPN).
+# If omitted, compiled-in defaults are used. Reloadable via SIGHUP or filesystem watch.
+# asn_patterns = "data/asn_patterns.toml"
+
 # Regex patterns matched against header names. Any header whose name matches
 # a pattern is excluded from /headers responses. Useful for hiding infrastructure
 # headers injected by hosting providers.

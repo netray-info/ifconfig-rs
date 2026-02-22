@@ -55,6 +55,10 @@ bot_ranges = "data/bot_ranges.jsonl"
 # Path to Spamhaus DROP+EDROP+DROPv6 combined CIDR list.
 spamhaus_drop = "data/spamhaus_drop.txt"
 
+# Path to TOML file of ASN org-name classification patterns (hosting/VPN).
+# If omitted, built-in defaults are used. Reloadable via SIGHUP.
+asn_patterns = "data/asn_patterns.toml"
+
 # Regex patterns matched against header names. Any header whose name matches
 # a pattern is excluded from /headers responses. Useful for hiding infrastructure
 # headers injected by hosting providers.

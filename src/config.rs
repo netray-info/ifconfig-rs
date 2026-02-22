@@ -22,6 +22,7 @@ pub struct Config {
     pub datacenter_ranges: Option<String>,
     pub bot_ranges: Option<String>,
     pub spamhaus_drop: Option<String>,
+    pub asn_patterns: Option<String>,
     /// Regex patterns matched against header names. Matching headers are
     /// excluded from `/headers` responses. Case-insensitive match.
     #[serde(default)]
