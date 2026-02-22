@@ -52,12 +52,6 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{props.data.ip.hostname}</span>
           </div>
         </Show>
-        <Show when={net().org != null}>
-          <div class="card-row card-row-stackable">
-            <span class="card-label">Org</span>
-            <span class="card-value">{net().org}</span>
-          </div>
-        </Show>
         <Show when={net().asn != null}>
           <div class="card-row">
             <span class="card-label">ASN</span>
@@ -68,6 +62,12 @@ export default function InfoCards(props: Props) {
           <div class="card-row">
             <span class="card-label">Prefix</span>
             <span class="card-value mono">{net().prefix}</span>
+          </div>
+        </Show>
+        <Show when={net().org != null}>
+          <div class="card-row card-row-stackable">
+            <span class="card-label">Org</span>
+            <span class="card-value">{net().org}</span>
           </div>
         </Show>
         <div class="card-row">
