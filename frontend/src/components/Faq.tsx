@@ -16,8 +16,10 @@ function buildFaqItems(siteName: string): FaqItem[] {
       suffix: " and let's try to enhance the heuristic together.",
     },
     {
-      q: `Does ${siteName} support IPv6?`,
-      a: "Yes, the code is agnostic regarding the IP version.",
+      q: "The classification looks wrong!",
+      a: "IP classification (VPN, datacenter, Tor, cloud provider, etc.) is based on public CIDR lists and ASN name heuristics that are updated periodically but are never exhaustive. If your IP is misclassified, the relevant data source may be outdated or may not yet cover your provider. Please open an issue on",
+      link: { text: "GitHub", url: "https://github.com/lukaspustina/ifconfig-rs/issues" },
+      suffix: " with your ASN number and the classification you expected.",
     },
     {
       q: "Can I run my own instance?",
