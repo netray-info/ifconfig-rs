@@ -152,7 +152,7 @@ export default function InfoCards(props: Props) {
             <span class="card-label">Cloud</span>
             <span class="card-value">
               {[
-                net().cloud!.provider,
+                cloudDisplay(net().cloud!.provider),
                 net().cloud!.service,
                 net().cloud!.region,
               ].filter(Boolean).join(" · ")}
