@@ -1,26 +1,31 @@
 import { createSignal, onMount, Show } from "solid-js";
 import type { Ifconfig, SiteMeta } from "./lib/types";
-import { fetchIfconfig, fetchMeta } from "./lib/api";
+import { fetchIfconfig, fetchIfconfigForIp, fetchMeta } from "./lib/api";
+import { toastMessage } from "./lib/toast";
 import IpDisplay from "./components/IpDisplay";
 import InfoCards from "./components/InfoCards";
 import RequestHeaders from "./components/RequestHeaders";
 import ApiExplorer from "./components/ApiExplorer";
 import Faq from "./components/Faq";
 import ThemeToggle from "./components/ThemeToggle";
+import IpLookupForm from "./components/IpLookupForm";
 
 export default function App() {
   const [data, setData] = createSignal<Ifconfig | null>(null);
   const [meta, setMeta] = createSignal<SiteMeta | null>(null);
   const [error, setError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(true);
+  const [lookupIp, setLookupIp] = createSignal<string | null>(null);
 
   const siteName = () => meta()?.site_name ?? location.hostname;
 
-  const loadData = async () => {
+  const loadData = async (ip?: string) => {
     setLoading(true);
     setError(null);
     try {
-      setData(await fetchIfconfig());
+      const result = ip ? await fetchIfconfigForIp(ip) : await fetchIfconfig();
+      setData(result);
+      setLookupIp(ip ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -48,10 +53,37 @@ export default function App() {
           <h1 class="site-title">{siteName()}</h1>
         </header>
 
-        <Show when={loading()}>
-          <div class="loading" role="status" aria-label="Loading your IP information">
-            <div class="loading-spinner" />
-            <div>Loading...</div>
+        <IpLookupForm
+          onLookup={(ip) => loadData(ip)}
+          loading={loading()}
+          isLookup={lookupIp() !== null}
+          onReset={() => loadData()}
+        />
+
+        <Show when={loading() && !data()}>
+          <div role="status" aria-label="Loading your IP information">
+            <div class="skeleton-hero skeleton-block" />
+            <div class="skeleton-subtitle skeleton-block" />
+            <div class="skeleton-cards">
+              <div class="skeleton-card">
+                <div class="skeleton-card-title skeleton-block" />
+                <div class="skeleton-card-row skeleton-block" />
+                <div class="skeleton-card-row skeleton-block" />
+                <div class="skeleton-card-row-short skeleton-block" />
+              </div>
+              <div class="skeleton-card">
+                <div class="skeleton-card-title skeleton-block" />
+                <div class="skeleton-card-row skeleton-block" />
+                <div class="skeleton-card-row skeleton-block" />
+                <div class="skeleton-card-row-short skeleton-block" />
+              </div>
+              <div class="skeleton-card">
+                <div class="skeleton-card-title skeleton-block" />
+                <div class="skeleton-card-row skeleton-block" />
+                <div class="skeleton-card-row skeleton-block" />
+                <div class="skeleton-card-row-short skeleton-block" />
+              </div>
+            </div>
           </div>
         </Show>
 
@@ -59,7 +91,7 @@ export default function App() {
           <div class="error-msg">
             {error()}
             {" "}
-            <button class="retry-btn" onClick={loadData}>Try again</button>
+            <button class="retry-btn" onClick={() => loadData(lookupIp() ?? undefined)}>Try again</button>
           </div>
         </Show>
 
@@ -97,6 +129,12 @@ export default function App() {
           </div>
         </footer>
       </div>
+
+      <Show when={toastMessage()}>
+        <div class="toast" role="status" aria-live="polite">
+          {toastMessage()}
+        </div>
+      </Show>
     </>
   );
 }

@@ -45,7 +45,7 @@ export default function IpDisplay(props: Props) {
 
   const copyHost = async () => {
     try {
-      await navigator.clipboard.writeText(props.data.host!.name);
+      await navigator.clipboard.writeText(props.data.ip.hostname!);
       setCopiedHost(true);
       hostTimer = setTimeout(() => setCopiedHost(false), 2000);
     } catch {
@@ -67,9 +67,9 @@ export default function IpDisplay(props: Props) {
           {copied() ? <CheckIcon /> : <ClipboardIcon />}
         </button>
       </div>
-      <Show when={props.data.host}>
+      <Show when={props.data.ip.hostname}>
         <div class="hostname-row">
-          <span class="hostname">{props.data.host!.name}</span>
+          <span class="hostname">{props.data.ip.hostname}</span>
           <button
             class={`copy-icon ${copiedHost() ? "copied" : ""}`}
             onClick={copyHost}

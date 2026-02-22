@@ -1,5 +1,13 @@
 # Roadmap — ifconfig-rs
 
+## Bugs
+
+#### B1. ~~Hostname missing under IP display~~ (fixed Sprint 3)
+
+`IpDisplay.tsx` still referenced the removed `host.name` field (pre-Sprint 1 struct) instead of `ip.hostname`. The hostname row was never shown and copy was broken.
+
+---
+
 ## Sprint 3 — Frontend: Core UX
 
 #### 45. IP lookup form in SPA

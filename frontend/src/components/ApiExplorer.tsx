@@ -1,4 +1,5 @@
-import { createSignal, createEffect, on, onCleanup, For, Show } from "solid-js";
+import { createSignal, createEffect, on, For, Show } from "solid-js";
+import { showToast } from "../lib/toast";
 
 const ENDPOINTS = [
   "/", "/ip", "/tcp", "/location", "/network", "/user_agent", "/headers", "/all", "/ipv4", "/ipv6",
@@ -39,14 +40,6 @@ function CopySmallIcon() {
   );
 }
 
-function CheckSmallIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 8.5L6.5 12L13 4" />
-    </svg>
-  );
-}
-
 export default function ApiExplorer() {
   const [open, setOpen] = createSignal(false);
   const [activeEndpoint, setActiveEndpoint] = createSignal("/");
@@ -54,18 +47,14 @@ export default function ApiExplorer() {
   const [response, setResponse] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
-  const [curlCopied, setCurlCopied] = createSignal(false);
 
   const cache = new Map<string, string>();
   let currentReqId = 0;
-  let curlTimer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(curlTimer));
 
   const copyCurl = async () => {
     try {
       await navigator.clipboard.writeText(buildCurlCommand(activeEndpoint(), activeFormat()));
-      setCurlCopied(true);
-      curlTimer = setTimeout(() => setCurlCopied(false), 2000);
+      showToast("Copied!");
     } catch {
       // Clipboard API not available
     }
@@ -160,17 +149,24 @@ export default function ApiExplorer() {
           </div>
 
           <div class="curl-hint">
-            <span class="curl-text">
+            <span
+              class="curl-text curl-text-clickable"
+              onClick={copyCurl}
+              title="Click to copy"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") copyCurl(); }}
+            >
               <span class="prompt">$ </span>
               {buildCurlCommand(activeEndpoint(), activeFormat())}
             </span>
             <button
-              class={`curl-copy ${curlCopied() ? "copied" : ""}`}
+              class="curl-copy"
               onClick={copyCurl}
-              title={curlCopied() ? "Copied!" : "Copy command"}
-              aria-label={curlCopied() ? "Copied!" : "Copy curl command"}
+              title="Copy command"
+              aria-label="Copy curl command"
             >
-              {curlCopied() ? <CheckSmallIcon /> : <CopySmallIcon />}
+              <CopySmallIcon />
             </button>
           </div>
 
