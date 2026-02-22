@@ -135,7 +135,12 @@ export default function InfoCards(props: Props) {
 
       {/* Location & ISP Card */}
       <div class="card">
-        <div class="card-title">Location &amp; ISP</div>
+        <div class="card-title-row">
+          <div class="card-title">Location &amp; ISP</div>
+          <Show when={loc().is_eu === true}>
+            <span class="eu-badge">EU</span>
+          </Show>
+        </div>
         <Show when={known(loc().city)}>
           <div class="card-row">
             <span class="card-label">City</span>
@@ -187,9 +192,6 @@ export default function InfoCards(props: Props) {
               {loc().country}
               <Show when={known(loc().country_iso)}>
                 {" "}({loc().country_iso})
-              </Show>
-              <Show when={loc().is_eu === true}>
-                {" "}<span class="eu-badge">EU</span>
               </Show>
               <Show when={known(loc().continent)}>
                 {" · "}{loc().continent}
