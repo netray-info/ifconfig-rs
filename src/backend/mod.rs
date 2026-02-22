@@ -33,6 +33,38 @@ pub fn new_dns_cache() -> DnsCache {
     std::sync::Mutex::new(LruCache::new(capacity))
 }
 
+/// Returns `true` if `ip` is a publicly routable address.
+/// Returns `false` for loopback, unspecified, RFC 1918 private, link-local,
+/// IPv6 ULA (fc00::/7), multicast, and IPv4-mapped private addresses.
+pub fn is_global_ip(ip: IpAddr) -> bool {
+    if ip.is_loopback() || ip.is_unspecified() {
+        return false;
+    }
+    match ip {
+        IpAddr::V4(v4) => !v4.is_private() && !v4.is_link_local(),
+        IpAddr::V6(v6) => {
+            let segs = v6.segments();
+            // ULA fc00::/7
+            if segs[0] & 0xfe00 == 0xfc00 {
+                return false;
+            }
+            // Link-local fe80::/10
+            if segs[0] & 0xffc0 == 0xfe80 {
+                return false;
+            }
+            // Multicast ff00::/8
+            if segs[0] & 0xff00 == 0xff00 {
+                return false;
+            }
+            // IPv4-mapped ::ffff:x.x.x.x — check the embedded v4 address
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return !v4.is_private() && !v4.is_link_local() && !v4.is_loopback();
+            }
+            true
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct Ip {
     #[schema(example = "203.0.113.42")]
@@ -326,6 +358,35 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         ))
         .unwrap_or((None, None, None));
 
+    // --- Classification ---
+    // Internal IPs (RFC 1918, loopback, ULA, link-local) get a short-circuit
+    // classification; GeoIP returns no results for them (expected).
+    if !is_global_ip(param.remote.ip()) {
+        let network = Network {
+            asn: asn_number,
+            org: asn_org,
+            prefix: asn_prefix,
+            provider: None,
+            service: None,
+            region: None,
+            classification: Classification {
+                network_type: "internal".to_string(),
+                is_datacenter: false,
+                is_vpn: false,
+                is_tor: false,
+                is_proxy: false,
+                is_bot: false,
+                is_threat: false,
+            },
+        };
+        let user_agent = param.user_agent_header.map(|s| {
+            let mut ua = param.user_agent_parser.parse(s);
+            ua.raw = Some(s.to_string());
+            ua
+        });
+        return Ifconfig { ip, tcp, location, network, user_agent };
+    }
+
     // --- Classification flags ---
     let is_tor = param
         .tor_exit_nodes
@@ -466,6 +527,35 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn is_global_ip_public_v4() {
+        assert!(is_global_ip("203.0.113.1".parse().unwrap()));
+        assert!(is_global_ip("8.8.8.8".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_global_ip_rejects_private_v4() {
+        assert!(!is_global_ip("10.0.0.1".parse().unwrap()));
+        assert!(!is_global_ip("172.16.0.1".parse().unwrap()));
+        assert!(!is_global_ip("192.168.1.1".parse().unwrap()));
+        assert!(!is_global_ip("127.0.0.1".parse().unwrap()));
+        assert!(!is_global_ip("169.254.0.1".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_global_ip_public_v6() {
+        assert!(is_global_ip("2001:db8::1".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_global_ip_rejects_private_v6() {
+        assert!(!is_global_ip("::1".parse::<IpAddr>().unwrap())); // loopback
+        assert!(!is_global_ip("fc00::1".parse::<IpAddr>().unwrap())); // ULA
+        assert!(!is_global_ip("fd00::1".parse::<IpAddr>().unwrap())); // ULA
+        assert!(!is_global_ip("fe80::1".parse::<IpAddr>().unwrap())); // link-local
+        assert!(!is_global_ip("ff02::1".parse::<IpAddr>().unwrap())); // multicast
+    }
 
     #[test]
     fn tor_exit_nodes_empty_returns_none() {

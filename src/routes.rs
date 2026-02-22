@@ -191,35 +191,6 @@ fn parse_dns_param(uri: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn is_global_ip(ip: IpAddr) -> bool {
-    if ip.is_loopback() || ip.is_unspecified() {
-        return false;
-    }
-    match ip {
-        IpAddr::V4(v4) => !v4.is_private() && !v4.is_link_local(),
-        IpAddr::V6(v6) => {
-            let segs = v6.segments();
-            // ULA fc00::/7
-            if segs[0] & 0xfe00 == 0xfc00 {
-                return false;
-            }
-            // Link-local fe80::/10
-            if segs[0] & 0xffc0 == 0xfe80 {
-                return false;
-            }
-            // Multicast ff00::/8
-            if segs[0] & 0xff00 == 0xff00 {
-                return false;
-            }
-            // IPv4-mapped ::ffff:x.x.x.x — check the embedded v4 address
-            if let Some(v4) = v6.to_ipv4_mapped() {
-                return !v4.is_private() && !v4.is_link_local() && !v4.is_loopback();
-            }
-            true
-        }
-    }
-}
-
 // ---- Compute-once dispatch ----
 
 fn resolve_core_backends(ctx: &EnrichmentContext) -> Option<(&UserAgentParser, &GeoIpCityDb, &GeoIpAsnDb, &TorExitNodes)> {
@@ -248,7 +219,7 @@ async fn dispatch_standard(
     // Parse ?ip= to override target IP
     let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
         Some(ip) => {
-            if !is_global_ip(ip) {
+            if !state.config.internal_mode && !is_global_ip(ip) {
                 return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
             }
             let dns_opt_in = parse_dns_param(&req_info.uri);
@@ -569,7 +540,7 @@ async fn dispatch_all(
 
     let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
         Some(ip) => {
-            if !is_global_ip(ip) {
+            if !state.config.internal_mode && !is_global_ip(ip) {
                 return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
             }
             let dns_opt_in = parse_dns_param(&req_info.uri);
@@ -935,7 +906,7 @@ async fn batch_dispatch(
             }
         };
 
-        if !is_global_ip(ip) {
+        if !state.config.internal_mode && !is_global_ip(ip) {
             results[i] = json!({"error": "private/loopback IP not allowed", "index": i});
             continue;
         }
@@ -1101,7 +1072,7 @@ async fn ip_version_dispatch(
     // Parse ?ip= to override target IP
     let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
         Some(ip) => {
-            if !is_global_ip(ip) {
+            if !state.config.internal_mode && !is_global_ip(ip) {
                 return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
             }
             let dns_opt_in = parse_dns_param(&req_info.uri);

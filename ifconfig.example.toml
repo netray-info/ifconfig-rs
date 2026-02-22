@@ -69,6 +69,14 @@ base_url = "ip.pdt.sh"
 # Env: IFCONFIG_FILTERED_HEADERS='["^x-koyeb-", "^cf-"]'
 # filtered_headers = ["^x-koyeb-", "^cf-"]
 
+# Allow ?ip= queries for private and reserved IP ranges (RFC 1918, loopback,
+# link-local, IPv6 ULA). Intended for intranet / home-lab deployments where
+# the service is not reachable from the public internet.
+# GeoIP returns no data for these IPs; classification type will be "internal".
+# Default: false (private IPs are rejected with 400)
+# Env: IFCONFIG_INTERNAL_MODE=true
+# internal_mode = true
+
 # Watch data file directories for changes and auto-reload enrichment data.
 # When enabled, a filesystem watcher monitors the parent directories of all
 # configured data files. On file create/modify/remove events (debounced 500ms),

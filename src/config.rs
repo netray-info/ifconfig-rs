@@ -26,6 +26,12 @@ pub struct Config {
     /// excluded from `/headers` responses. Case-insensitive match.
     #[serde(default)]
     pub filtered_headers: Vec<String>,
+    /// When true, accept `?ip=` queries for private and reserved IP ranges
+    /// (RFC 1918, loopback, link-local, ULA). GeoIP returns no results for
+    /// these IPs; `network.classification.type` will be `"internal"`.
+    /// Off by default — enabling is appropriate only for intranet deployments.
+    #[serde(default)]
+    pub internal_mode: bool,
     /// When true, watch data file directories for changes and auto-reload
     /// enrichment data (like SIGHUP but filesystem-triggered). Useful for
     /// Kubernetes/Docker deployments with geoipupdate.
