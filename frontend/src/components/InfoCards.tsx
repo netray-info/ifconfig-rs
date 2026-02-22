@@ -52,16 +52,12 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{props.data.ip.hostname}</span>
           </div>
         </Show>
-        <Show when={net().asn != null}>
+        <Show when={net().asn != null || net().prefix != null}>
           <div class="card-row">
             <span class="card-label">ASN</span>
-            <span class="card-value">AS{net().asn}</span>
-          </div>
-        </Show>
-        <Show when={net().prefix != null}>
-          <div class="card-row">
-            <span class="card-label">Prefix</span>
-            <span class="card-value mono">{net().prefix}</span>
+            <span class="card-value mono">
+              {[net().asn != null ? `AS${net().asn}` : null, net().prefix].filter(Boolean).join(" · ")}
+            </span>
           </div>
         </Show>
         <Show when={net().org != null}>

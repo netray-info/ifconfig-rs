@@ -348,13 +348,22 @@ button:focus-visible {
   color: var(--text-muted); /* gray — private/RFC1918 */
 }
 
+.net-badge--cloud {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8; /* sky blue — cloud provider */
+}
+
+.net-badge--botnet_c2 {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444; /* bright red — active C2 node */
+}
+
 .net-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  padding: 0.6rem var(--card-pad) 0.25rem;
-  border-top: 1px solid var(--border);
-  margin-top: 0.25rem;
+  padding: 0 var(--card-pad) 0.5rem;
+  margin-top: 0.75rem;
 }
 
 .eu-badge {
