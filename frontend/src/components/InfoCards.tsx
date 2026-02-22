@@ -171,6 +171,12 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{titleCase(net().bot!.provider)}</span>
           </div>
         </Show>
+        <Show when={net().network_role != null}>
+          <div class="card-row">
+            <span class="card-label">Role</span>
+            <span class="card-value">{titleCase(net().network_role!)}</span>
+          </div>
+        </Show>
       </div>
 
       {/* User Agent Card */}
@@ -273,6 +279,20 @@ export default function InfoCards(props: Props) {
           <div class="card-row">
             <span class="card-label">Timezone</span>
             <span class="card-value">{loc().timezone}</span>
+          </div>
+        </Show>
+        <Show when={
+          known(loc().registered_country) != null &&
+          loc().registered_country_iso !== loc().country_iso
+        }>
+          <div class="card-row">
+            <span class="card-label">Registered</span>
+            <span class="card-value">
+              {loc().registered_country}
+              <Show when={known(loc().registered_country_iso)}>
+                {" "}({loc().registered_country_iso})
+              </Show>
+            </span>
           </div>
         </Show>
       </div>
