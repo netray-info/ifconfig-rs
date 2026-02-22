@@ -296,14 +296,19 @@ curl -H "Accept: text/csv"         ip.pdt.sh/all
 
 ### Prerequisites
 
-You need [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) databases in `data/`:
+Enrichment data files must be present in `data/` before starting the server.
+See [`data/README.md`](data/README.md) for full acquisition instructions.
 
-```
-data/GeoLite2-City.mmdb
-data/GeoLite2-ASN.mmdb
+**Quick start:**
+
+```sh
+cp data/geoipupdate.conf.example data/.geoip.conf
+$EDITOR data/.geoip.conf          # add your MaxMind AccountID + LicenseKey
+make -C data get_all              # download all data files
 ```
 
-Register for a free MaxMind account to download them. Without the databases, geolocation and ISP endpoints return empty results (the service still starts and `/ip` still works).
+Without data files the service still starts and `/ip` works — geolocation,
+ISP, and classification fields will return `null`.
 
 ### Docker (fastest)
 
@@ -395,7 +400,7 @@ data/
 └── spamhaus_drop.txt               # Spamhaus DROP+EDROP+DROPv6
 ```
 
-Use `data/Makefile` to fetch and normalize all enrichment data files. GeoLite2 databases require a free [MaxMind account](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data).
+See [`data/README.md`](data/README.md) for download instructions, sources, and how to keep files current.
 
 ### Server
 

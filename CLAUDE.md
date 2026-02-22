@@ -161,7 +161,7 @@ Print effective config and exit: `--print-config` flag.
 
 Config is validated at load time (`Config::validate()`) — zero rate-limit values are rejected with a descriptive error before the server starts.
 
-GeoIP data in `data/`: `GeoLite2-City.mmdb`, `GeoLite2-ASN.mmdb`.
+Data files live in `data/`. See `data/README.md` for sources and acquisition instructions (`make -C data get_all`).
 
 ## CI/CD
 

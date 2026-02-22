@@ -52,7 +52,7 @@ New `audit` job in CI: installs `cargo-audit` and runs `cargo audit`, then runs 
 
 #### 52. ~~Data file acquisition docs~~ (done)
 
-`docs/data-sources.md` documents all data sources with download instructions. `docs/geoipupdate.conf.example` provides a ready-to-fill MaxMind config. `make update-data` refreshes all files with public URLs (GeoIP via `geoipupdate`, plus Tor exit nodes, Feodo, Spamhaus DROP, datacenter ranges, and UA regexes).
+`data/README.md` documents all data sources with download instructions. `data/geoipupdate.conf.example` is the MaxMind config template (copy to `data/.geoip.conf` and fill in credentials). `make -C data get_all` (also `make update-data` from root) fetches everything. `Readme.md` and `CLAUDE.md` point here.
 
 ---
 

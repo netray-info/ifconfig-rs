@@ -22,3 +22,5 @@ spamhaus_drop.txt
 .bingbot.json
 .applebot.json
 .gptbot.txt
+.geoip.conf
+.geoipupdate.lock

@@ -114,27 +114,8 @@ bench: ## Run Criterion benchmarks
 #  Data
 # ══════════════════════════════════════════════════════════════════
 
-update-data: ## Refresh data files (requires geoipupdate and curl; see docs/data-sources.md)
-	@echo "==> Refreshing GeoIP databases (requires geoipupdate + GeoIP.conf)"
-	geoipupdate
-	@echo "==> Downloading User-Agent regexes"
-	curl -fsSL https://raw.githubusercontent.com/ua-parser/uap-core/master/regexes.yaml \
-	     -o data/regexes.yaml
-	@echo "==> Downloading Tor exit nodes"
-	curl -fsSL https://check.torproject.org/torbulkexitlist \
-	     -o data/tor_exit_nodes.txt
-	@echo "==> Downloading Feodo C2 blocklist"
-	curl -fsSL https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt \
-	     -o data/feodo_botnet_ips.txt
-	@echo "==> Downloading Spamhaus DROP+EDROP+DROPv6"
-	{ curl -fsSL https://www.spamhaus.org/drop/drop.txt; \
-	  curl -fsSL https://www.spamhaus.org/drop/edrop.txt; \
-	  curl -fsSL https://www.spamhaus.org/drop/dropv6.txt; \
-	} > data/spamhaus_drop.txt
-	@echo "==> Downloading datacenter CIDR ranges (X4BNet)"
-	curl -fsSL https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/datacenter/ipv4.txt \
-	     -o data/datacenter_ranges.txt
-	@echo "==> Done. Cloud/VPN/bot ranges must be updated from the ifconfig-rs-data image — see docs/data-sources.md"
+update-data: ## Refresh all enrichment data files (see data/README.md for setup)
+	$(MAKE) -C data get_all
 
 # ══════════════════════════════════════════════════════════════════
 #  Docker

@@ -1,7 +1,10 @@
 all:
 
-get_all: regexes.yaml tor_exit_nodes.txt feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl \
+get_all: geoip_mmdbs regexes.yaml tor_exit_nodes.txt feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl \
 	datacenter_ranges.txt bot_ranges.jsonl spamhaus_drop.txt
+
+geoip_mmdbs: .geoip.conf
+	geoipupdate -f .geoip.conf -d .
 
 regexes.yaml:
 	curl -s https://raw.githubusercontent.com/ua-parser/uap-core/master/regexes.yaml -o $@
