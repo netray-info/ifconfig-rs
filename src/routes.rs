@@ -185,10 +185,8 @@ fn parse_ip_param(uri: &str) -> Option<IpAddr> {
     parse_query_param(uri, "ip").and_then(|s| s.parse().ok())
 }
 
-fn parse_dns_param(uri: &str) -> bool {
-    parse_query_param(uri, "dns")
-        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
-        .unwrap_or(false)
+fn parse_dns_param(uri: &str) -> Option<bool> {
+    parse_query_param(uri, "dns").map(|v| v.eq_ignore_ascii_case("true") || v == "1")
 }
 
 // ---- Compute-once dispatch ----
@@ -223,8 +221,8 @@ async fn dispatch_standard(
             if !state.config.internal_mode && !is_global_ip(ip) {
                 return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
             }
-            let dns_opt_in = parse_dns_param(&req_info.uri);
-            (SocketAddr::new(ip, 0), !dns_opt_in)
+            let skip_dns = parse_dns_param(&req_info.uri).map(|v| !v).unwrap_or(false);
+            (SocketAddr::new(ip, 0), skip_dns)
         }
         None => (req_info.remote, false),
     };
@@ -541,8 +539,8 @@ async fn dispatch_all(
             if !state.config.internal_mode && !is_global_ip(ip) {
                 return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
             }
-            let dns_opt_in = parse_dns_param(&req_info.uri);
-            (SocketAddr::new(ip, 0), !dns_opt_in)
+            let skip_dns = parse_dns_param(&req_info.uri).map(|v| !v).unwrap_or(false);
+            (SocketAddr::new(ip, 0), skip_dns)
         }
         None => (req_info.remote, false),
     };
@@ -875,9 +873,8 @@ async fn batch_dispatch(
 
     let ctx: std::sync::Arc<EnrichmentContext> = std::sync::Arc::clone(&*state.enrichment.load());
 
-    let dns_opt_in = parse_dns_param(&req_info.uri);
     let fields = format::parse_fields_param(&req_info.uri);
-    let skip_dns = !dns_opt_in;
+    let skip_dns = !parse_dns_param(&req_info.uri).unwrap_or(false);
     let ua_owned: Option<String> = req_info.user_agent.clone();
     let dns_cache = state.dns_cache.clone();
 
@@ -1065,8 +1062,8 @@ async fn ip_version_dispatch(
             if !state.config.internal_mode && !is_global_ip(ip) {
                 return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
             }
-            let dns_opt_in = parse_dns_param(&req_info.uri);
-            (SocketAddr::new(ip, 0), !dns_opt_in)
+            let skip_dns = parse_dns_param(&req_info.uri).map(|v| !v).unwrap_or(false);
+            (SocketAddr::new(ip, 0), skip_dns)
         }
         None => (req_info.remote, false),
     };
@@ -1282,10 +1279,10 @@ mod tests {
 
     #[test]
     fn parse_dns_param_values() {
-        assert!(parse_dns_param("/all/json?ip=8.8.8.8&dns=true"));
-        assert!(parse_dns_param("/all/json?dns=1&ip=8.8.8.8"));
-        assert!(!parse_dns_param("/all/json?ip=8.8.8.8"));
-        assert!(!parse_dns_param("/all/json?ip=8.8.8.8&dns=false"));
+        assert_eq!(parse_dns_param("/all/json?ip=8.8.8.8&dns=true"), Some(true));
+        assert_eq!(parse_dns_param("/all/json?dns=1&ip=8.8.8.8"), Some(true));
+        assert_eq!(parse_dns_param("/all/json?ip=8.8.8.8"), None);
+        assert_eq!(parse_dns_param("/all/json?ip=8.8.8.8&dns=false"), Some(false));
     }
 
     #[test]
