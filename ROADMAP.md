@@ -135,6 +135,10 @@ Frontend-only: detect IPs leaked via WebRTC when using a VPN. Strong differentia
 
 > Lower priority or higher effort. No current sprint assignment.
 
+#### 53. Populate `network.classification.is_proxy`
+
+`is_proxy` is currently always `false` — no proxy detection data source is wired up. Options: integrate a proxy IP list (similar to `vpn_ranges.txt`), use a third-party API, or derive from existing heuristics (e.g. known open-proxy ASNs). Needs a data source decision before implementation.
+
 #### 21. IP decimal representation
 
 Add `ip_decimal` to the `Ip` struct — the integer representation (e.g., `1.2.3.4` = `16909060`). This has to be discussed first, before it gets implemented, because I dont know if I want it.
