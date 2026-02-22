@@ -9,3 +9,4 @@ frontend/dist/
 /blob-report/
 /playwright/.cache/
 .claude/settings.local.json
+ifconfig.private.toml

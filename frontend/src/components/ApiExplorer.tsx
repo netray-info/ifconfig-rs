@@ -148,14 +148,7 @@ export default function ApiExplorer(props: Props) {
           </div>
 
           <div class="curl-hint">
-            <span
-              class="curl-text curl-text-clickable"
-              onClick={copyCurl}
-              title="Click to copy"
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") copyCurl(); }}
-            >
+            <span class="curl-text">
               <span class="prompt">$ </span>
               {buildCurlCommand(activeEndpoint(), activeFormat(), props.lookupIp)}
             </span>
