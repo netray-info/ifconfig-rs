@@ -297,6 +297,99 @@ pub mod ip_version {
     }
 }
 
+pub mod country {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(&ifconfig.location.country).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        format!("{}\n", ifconfig.location.country.as_deref().unwrap_or(UNKNOWN_STR))
+    }
+}
+
+pub mod city {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(&ifconfig.location.city).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        format!("{}\n", ifconfig.location.city.as_deref().unwrap_or(UNKNOWN_STR))
+    }
+}
+
+pub mod asn {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(ifconfig.network.asn).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        match ifconfig.network.asn {
+            Some(n) => format!("AS{}\n", n),
+            None => format!("{}\n", UNKNOWN_STR),
+        }
+    }
+}
+
+pub mod timezone {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(&ifconfig.location.timezone).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        format!("{}\n", ifconfig.location.timezone.as_deref().unwrap_or(UNKNOWN_STR))
+    }
+}
+
+pub mod latitude {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(ifconfig.location.latitude).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        match ifconfig.location.latitude {
+            Some(lat) => format!("{:.4}\n", lat),
+            None => format!("{}\n", UNKNOWN_STR),
+        }
+    }
+}
+
+pub mod longitude {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(ifconfig.location.longitude).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        match ifconfig.location.longitude {
+            Some(lon) => format!("{:.4}\n", lon),
+            None => format!("{}\n", UNKNOWN_STR),
+        }
+    }
+}
+
+pub mod region {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(&ifconfig.location.region).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        format!("{}\n", ifconfig.location.region.as_deref().unwrap_or(UNKNOWN_STR))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

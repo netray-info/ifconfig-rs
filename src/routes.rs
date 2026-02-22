@@ -47,6 +47,13 @@ use crate::state::AppState;
         headers_handler,
         ipv4_handler,
         ipv6_handler,
+        country_handler,
+        city_handler,
+        asn_handler,
+        timezone_handler,
+        latitude_handler,
+        longitude_handler,
+        region_handler,
         batch_handler,
         meta_handler,
         health_handler,
@@ -94,6 +101,21 @@ pub fn router() -> Router<AppState> {
         .route("/network/{fmt}", get(network_format_handler))
         .route("/all", get(all_handler))
         .route("/all/{fmt}", get(all_format_handler))
+        // Sub-field endpoints
+        .route("/country", get(country_handler))
+        .route("/country/{fmt}", get(country_format_handler))
+        .route("/city", get(city_handler))
+        .route("/city/{fmt}", get(city_format_handler))
+        .route("/asn", get(asn_handler))
+        .route("/asn/{fmt}", get(asn_format_handler))
+        .route("/timezone", get(timezone_handler))
+        .route("/timezone/{fmt}", get(timezone_format_handler))
+        .route("/latitude", get(latitude_handler))
+        .route("/latitude/{fmt}", get(latitude_format_handler))
+        .route("/longitude", get(longitude_handler))
+        .route("/longitude/{fmt}", get(longitude_format_handler))
+        .route("/region", get(region_handler))
+        .route("/region/{fmt}", get(region_format_handler))
         .route("/headers", get(headers_handler))
         .route("/headers/{fmt}", get(headers_format_handler))
         .route("/ipv4", get(ipv4_handler))
@@ -511,6 +533,127 @@ standard_endpoint! {
     handler = all_handler,
     format_handler = all_format_handler,
     module = handlers::all,
+}
+
+// ---- Sub-field endpoints ----
+
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/country",
+        tag = "Location",
+        description = "Returns the caller's country name as plain text.",
+        params(("ip" = Option<String>, Query, description = "Look up this IP instead of caller's")),
+        responses(
+            (status = 200, description = "Country name", content_type = "text/plain"),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = country_handler,
+    format_handler = country_format_handler,
+    module = handlers::country,
+}
+
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/city",
+        tag = "Location",
+        description = "Returns the caller's city name as plain text.",
+        params(("ip" = Option<String>, Query, description = "Look up this IP instead of caller's")),
+        responses(
+            (status = 200, description = "City name", content_type = "text/plain"),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = city_handler,
+    format_handler = city_format_handler,
+    module = handlers::city,
+}
+
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/asn",
+        tag = "Network",
+        description = "Returns the ASN of the caller's IP as plain text (e.g. AS64496).",
+        params(("ip" = Option<String>, Query, description = "Look up this IP instead of caller's")),
+        responses(
+            (status = 200, description = "ASN", content_type = "text/plain"),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = asn_handler,
+    format_handler = asn_format_handler,
+    module = handlers::asn,
+}
+
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/timezone",
+        tag = "Location",
+        description = "Returns the caller's timezone as plain text (e.g. Europe/Berlin).",
+        params(("ip" = Option<String>, Query, description = "Look up this IP instead of caller's")),
+        responses(
+            (status = 200, description = "Timezone", content_type = "text/plain"),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = timezone_handler,
+    format_handler = timezone_format_handler,
+    module = handlers::timezone,
+}
+
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/latitude",
+        tag = "Location",
+        description = "Returns the caller's latitude as plain text.",
+        params(("ip" = Option<String>, Query, description = "Look up this IP instead of caller's")),
+        responses(
+            (status = 200, description = "Latitude", content_type = "text/plain"),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = latitude_handler,
+    format_handler = latitude_format_handler,
+    module = handlers::latitude,
+}
+
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/longitude",
+        tag = "Location",
+        description = "Returns the caller's longitude as plain text.",
+        params(("ip" = Option<String>, Query, description = "Look up this IP instead of caller's")),
+        responses(
+            (status = 200, description = "Longitude", content_type = "text/plain"),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = longitude_handler,
+    format_handler = longitude_format_handler,
+    module = handlers::longitude,
+}
+
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/region",
+        tag = "Location",
+        description = "Returns the caller's region/state name as plain text.",
+        params(("ip" = Option<String>, Query, description = "Look up this IP instead of caller's")),
+        responses(
+            (status = 200, description = "Region name", content_type = "text/plain"),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = region_handler,
+    format_handler = region_format_handler,
+    module = handlers::region,
 }
 
 // ---- Headers handler ----
