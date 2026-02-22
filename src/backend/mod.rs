@@ -298,18 +298,20 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         if let Some(hostname) = cached {
             hostname
         } else {
-            let result = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            let result = tokio::time::timeout(std::time::Duration::from_secs(5), async {
                 let resolver = param.dns_resolver.resolvers().first()?;
                 let query = MultiQuery::single(ip, RecordType::PTR).ok()?;
-                let lookups = resolver.lookup(query).await.ok()?;
+                let lookups = match resolver.lookup(query).await {
+                    Ok(r) => r,
+                    Err(e) => { tracing::debug!("PTR lookup error for {ip}: {e}"); return None; }
+                };
                 lookups.ptr().into_iter().next().map(|name| {
                     let s = name.to_string();
                     s.strip_suffix('.').unwrap_or(&s).to_string()
                 })
             })
-            .await
-            .ok()
-            .flatten();
+            .await;
+            let result = result.ok().flatten();
             param.dns_cache.lock().unwrap().put(ip, (result.clone(), std::time::Instant::now()));
             result
         }
