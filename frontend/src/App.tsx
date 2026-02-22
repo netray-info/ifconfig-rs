@@ -53,13 +53,6 @@ export default function App() {
           <h1 class="site-title">{siteName()}</h1>
         </header>
 
-        <IpLookupForm
-          onLookup={(ip) => loadData(ip)}
-          loading={loading()}
-          isLookup={lookupIp() !== null}
-          onReset={() => loadData()}
-        />
-
         <Show when={loading() && !data()}>
           <div role="status" aria-label="Loading your IP information">
             <div class="skeleton-hero skeleton-block" />
@@ -98,6 +91,12 @@ export default function App() {
         <Show when={data()}>
           <IpDisplay data={data()!} />
           <InfoCards data={data()!} />
+          <IpLookupForm
+            onLookup={(ip) => loadData(ip)}
+            loading={loading()}
+            isLookup={lookupIp() !== null}
+            onReset={() => loadData()}
+          />
           <RequestHeaders />
           <ApiExplorer />
           <Faq siteName={siteName()} />
