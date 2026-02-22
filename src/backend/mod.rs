@@ -401,6 +401,28 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         ua
     });
 
+    // Emit null-field counters for enrichment quality tracking.
+    // Null rate per field = rate(ifconfig_null_field_total{field="..."}[5m])
+    //                     / rate(http_requests_total[5m])
+    if ip.hostname.is_none() {
+        metrics::counter!("ifconfig_null_field_total", "field" => "hostname").increment(1);
+    }
+    if location.city.is_none() {
+        metrics::counter!("ifconfig_null_field_total", "field" => "city").increment(1);
+    }
+    if location.country.is_none() {
+        metrics::counter!("ifconfig_null_field_total", "field" => "country").increment(1);
+    }
+    if network.asn.is_none() {
+        metrics::counter!("ifconfig_null_field_total", "field" => "asn").increment(1);
+    }
+    if network.org.is_none() {
+        metrics::counter!("ifconfig_null_field_total", "field" => "org").increment(1);
+    }
+    if user_agent.is_none() {
+        metrics::counter!("ifconfig_null_field_total", "field" => "user_agent").increment(1);
+    }
+
     Ifconfig {
         ip,
         tcp,
