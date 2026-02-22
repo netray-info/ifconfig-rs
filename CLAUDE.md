@@ -104,6 +104,27 @@ Key modules:
 
 **OpenAPI**: Spec served at `GET /api-docs/openapi.json` via utoipa. All public endpoints are annotated with `#[utoipa::path]` with descriptions, `?ip=`/`?fields=`/`?dns=` params, and error responses (`body = ErrorResponse`). Response types derive `ToSchema` with `#[schema(example = ...)]` on all fields. The spec version is patched at runtime from `CARGO_PKG_VERSION` (no manual sync needed). Interactive docs via Scalar UI at `GET /docs`.
 
+## Enrichment Pipeline
+
+See `docs/enrichment.md` for the full reference. Key points:
+
+**Four-layer confidence model:**
+- Layer 0 — Deterministic IP math: RFC 1918, loopback, link-local, ULA → `is_internal = true` without any file lookup.
+- Layer 1 — Authoritative vendor/threat intel CIDRs: cloud provider ranges (vendor-published JSON feeds), bot ranges (publisher IP lists), Feodo Tracker (active C2 nodes), Spamhaus DROP/EDROP (hijacked netblocks).
+- Layer 2 — Community CIDR lists: VPN ranges and datacenter ranges (X4BNet), Tor exit nodes (Tor Project bulk list).
+- Layer 3 — ASN-keyed data: `asn_heuristic` (org-name pattern matching for providers without CIDR lists), `asn_info` (ipverse/as-metadata: category + network role from RPKI/IRR).
+- Layer 4 — Async/derived: MaxMind GeoIP City (geolocation), MaxMind GeoIP ASN (org/prefix), PTR reverse DNS.
+
+**Two-dimension output model:**
+- `type` — Priority-ordered single most notable signal: `internal > c2 > bot > cloud > vpn > tor > spamhaus > datacenter > residential`.
+- `infra_type` — Orthogonal infrastructure dimension: `internal > cloud > datacenter > government > education > business > residential`. An AWS C2 node has `type="c2"` and `infra_type="cloud"` — both are preserved.
+
+**Typed identity objects:** `cloud: { provider, service?, region? }`, `vpn: { provider? }`, `bot: { provider }` carry identity alongside boolean flags. `vpn.provider` is `null` when only a community CIDR matched; it is set when the ASN heuristic also matched a named VPN service.
+
+**Key distinctions:**
+- `is_c2` (Feodo Tracker): the IP is an active botnet C2 node — block immediately.
+- `is_spamhaus` (Spamhaus DROP/EDROP): the entire netblock is hijacked — whole-prefix ingress filtering.
+
 ## Frontend
 
 SolidJS 1.9 SPA in `frontend/`:
@@ -170,7 +191,7 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 ## Common Patterns
 
 - Routes use explicit handler functions with `dispatch_standard()` for compute-once dispatch. Each handler module in `handlers.rs` exposes `to_json(&Ifconfig) -> Option<Value>` and `to_plain(&Ifconfig) -> String` fn pointers.
-- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `tcp` is `Option<Tcp>` (null for `?ip=` queries where the port is synthetic). `Location` includes `region`, `region_code`, `postal_code`, `is_eu`, and `accuracy_radius_km` from GeoIP. `Network` struct holds IP classification (type, provider, flags).
+- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `tcp` is `Option<Tcp>` (null for `?ip=` queries where the port is synthetic). `Location` includes `region`, `region_code`, `postal_code`, `is_eu`, and `accuracy_radius_km` from GeoIP. `Network` struct holds IP classification: flat boolean flags (`is_vpn`, `is_tor`, `is_bot`, `is_c2`, `is_spamhaus`, `is_datacenter`, `is_internal`), two-dimension output (`type` = priority summary, `infra_type` = infrastructure), typed identity objects (`cloud: CloudInfo`, `vpn: VpnInfo`, `bot: NetworkBot`), and ASN metadata (`asn_category`, `network_role` from ipverse/as-metadata).
 - CLI client detection in `negotiate.rs` checks User-Agent patterns and `Accept: */*` header.
 - Config values are loaded from a TOML file (`ifconfig.dev.toml` for local dev) via the `config` crate with env var overrides.
 - `AppState` is shared via Axum's `State` extractor; all backends are `Arc`-wrapped.

@@ -12,7 +12,8 @@
     <a href="#api-reference">API Reference</a> |
     <a href="#output-formats">Formats</a> |
     <a href="#self-hosting">Self-Hosting</a> |
-    <a href="#configuration">Configuration</a>
+    <a href="#configuration">Configuration</a> |
+    <a href="docs/enrichment.md">Enrichment Pipeline</a>
   </p>
 </div>
 
@@ -270,15 +271,23 @@ curl -H "Accept: text/csv"         ip.pdt.sh/all
   },
   "isp": { "name": "Example ISP GmbH", "asn": 1234 },
   "network": {
+    "asn": 1234,
+    "org": "Example ISP GmbH",
+    "prefix": "203.0.113.0/24",
+    "asn_category": "isp",
+    "network_role": null,
     "type": "residential",
-    "provider": null,
-    "service": null,
-    "region": null,
+    "infra_type": "residential",
+    "is_internal": false,
     "is_datacenter": false,
     "is_vpn": false,
     "is_tor": false,
     "is_bot": false,
-    "is_threat": false
+    "is_c2": false,
+    "is_spamhaus": false,
+    "cloud": null,
+    "vpn": null,
+    "bot": null
   },
   "user_agent": {
     "device": { "family": "Other", "brand": null, "model": null },
@@ -400,6 +409,7 @@ data/
 ```
 
 See [`data/README.md`](data/README.md) for download instructions, sources, and how to keep files current.
+See [`docs/enrichment.md`](docs/enrichment.md) for the full enrichment pipeline reference: confidence layers, output model, flag semantics, and per-source details.
 
 ### Server
 

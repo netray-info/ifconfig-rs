@@ -24,3 +24,4 @@ spamhaus_drop.txt
 .gptbot.txt
 .geoip.conf
 .geoipupdate.lock
+as_metadata.jsonl
