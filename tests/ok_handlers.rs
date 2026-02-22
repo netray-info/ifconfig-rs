@@ -465,6 +465,7 @@ async fn handle_all_json_json() {
     assert!(is_json(&ct));
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert!(json["ip"]["addr"].is_string());
+    assert!(json["headers"].is_object(), "headers should be present in /all/json");
 }
 
 #[tokio::test]
