@@ -3,6 +3,8 @@ import type { Ifconfig } from "../lib/types";
 
 interface Props {
   data: Ifconfig;
+  lang: string;
+  onLangChange: (lang: string) => void;
 }
 
 /** Treat null, undefined, and "unknown" as missing. */
@@ -153,9 +155,26 @@ export default function InfoCards(props: Props) {
       <div class="card">
         <div class="card-title-row">
           <div class="card-title">Location</div>
-          <Show when={loc().is_eu === true}>
-            <span class="eu-badge">EU</span>
-          </Show>
+          <div class="card-title-actions">
+            <Show when={loc().is_eu === true}>
+              <span class="eu-badge">EU</span>
+            </Show>
+            <select
+              class="lang-select"
+              value={props.lang}
+              onChange={(e) => props.onLangChange(e.currentTarget.value)}
+              aria-label="Location language"
+            >
+              <option value="en">EN</option>
+              <option value="de">DE</option>
+              <option value="es">ES</option>
+              <option value="fr">FR</option>
+              <option value="ja">JA</option>
+              <option value="pt-BR">PT</option>
+              <option value="ru">RU</option>
+              <option value="zh-CN">ZH</option>
+            </select>
+          </div>
         </div>
         <Show when={known(loc().city)}>
           <div class="card-row">

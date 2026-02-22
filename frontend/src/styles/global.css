@@ -248,6 +248,29 @@ button:focus-visible {
   margin-bottom: 0;
 }
 
+.card-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.lang-select {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.15rem 0.3rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.lang-select:hover {
+  border-color: var(--accent-dim);
+  color: var(--text-primary);
+}
+
 .card-row {
   display: flex;
   justify-content: space-between;

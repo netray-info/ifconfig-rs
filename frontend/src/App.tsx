@@ -16,6 +16,7 @@ export default function App() {
   const [error, setError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [lookupIp, setLookupIp] = createSignal<string | null>(null);
+  const [lang, setLang] = createSignal("en");
 
   const siteName = () => meta()?.site_name ?? location.hostname;
 
@@ -23,7 +24,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const result = ip ? await fetchIfconfigForIp(ip) : await fetchIfconfig();
+      const result = ip ? await fetchIfconfigForIp(ip, lang()) : await fetchIfconfig(lang());
       setData(result);
       setLookupIp(ip ?? null);
     } catch (e) {
@@ -90,7 +91,7 @@ export default function App() {
 
         <Show when={data()}>
           <IpDisplay data={data()!} />
-          <InfoCards data={data()!} />
+          <InfoCards data={data()!} lang={lang()} onLangChange={(l) => { setLang(l); loadData(lookupIp() ?? undefined); }} />
           <IpLookupForm
             onLookup={(ip) => loadData(ip)}
             loading={loading()}

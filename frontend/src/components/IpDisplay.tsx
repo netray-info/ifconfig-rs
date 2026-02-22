@@ -1,5 +1,6 @@
-import { createSignal, onCleanup, Show } from "solid-js";
+import { Show } from "solid-js";
 import type { Ifconfig } from "../lib/types";
+import { showToast } from "../lib/toast";
 
 interface Props {
   data: Ifconfig;
@@ -14,30 +15,11 @@ function ClipboardIcon() {
   );
 }
 
-function CheckIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 8.5L6.5 12L13 4" />
-    </svg>
-  );
-}
-
 export default function IpDisplay(props: Props) {
-  const [copied, setCopied] = createSignal(false);
-  const [copiedHost, setCopiedHost] = createSignal(false);
-
-  let ipTimer: ReturnType<typeof setTimeout> | undefined;
-  let hostTimer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => {
-    clearTimeout(ipTimer);
-    clearTimeout(hostTimer);
-  });
-
   const copyIp = async () => {
     try {
       await navigator.clipboard.writeText(props.data.ip.addr);
-      setCopied(true);
-      ipTimer = setTimeout(() => setCopied(false), 2000);
+      showToast("Copied!");
     } catch {
       // Clipboard API not available
     }
@@ -46,8 +28,7 @@ export default function IpDisplay(props: Props) {
   const copyHost = async () => {
     try {
       await navigator.clipboard.writeText(props.data.ip.hostname!);
-      setCopiedHost(true);
-      hostTimer = setTimeout(() => setCopiedHost(false), 2000);
+      showToast("Copied!");
     } catch {
       // Clipboard API not available
     }
@@ -59,24 +40,24 @@ export default function IpDisplay(props: Props) {
         <span class="version-badge">IPv{props.data.ip.version}</span>
         <span class="ip-display">{props.data.ip.addr}</span>
         <button
-          class={`copy-icon ${copied() ? "copied" : ""}`}
+          class="copy-icon"
           onClick={copyIp}
-          title={copied() ? "Copied!" : "Copy IP to clipboard"}
-          aria-label={copied() ? "Copied!" : "Copy IP to clipboard"}
+          title="Copy IP to clipboard"
+          aria-label="Copy IP to clipboard"
         >
-          {copied() ? <CheckIcon /> : <ClipboardIcon />}
+          <ClipboardIcon />
         </button>
       </div>
       <Show when={props.data.ip.hostname}>
         <div class="hostname-row">
           <span class="hostname">{props.data.ip.hostname}</span>
           <button
-            class={`copy-icon ${copiedHost() ? "copied" : ""}`}
+            class="copy-icon"
             onClick={copyHost}
-            title={copiedHost() ? "Copied!" : "Copy hostname to clipboard"}
-            aria-label={copiedHost() ? "Copied!" : "Copy hostname to clipboard"}
+            title="Copy hostname to clipboard"
+            aria-label="Copy hostname to clipboard"
           >
-            {copiedHost() ? <CheckIcon /> : <ClipboardIcon />}
+            <ClipboardIcon />
           </button>
         </div>
       </Show>

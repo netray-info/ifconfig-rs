@@ -22,17 +22,17 @@ When a `?ip=` lookup was performed (e.g. 8.8.8.8), the API Explorer still showed
 
 ## Sprint 3 — Frontend: Core UX
 
-#### 45. IP lookup form in SPA
+#### 45. ~~IP lookup form in SPA~~ (done)
 
-Frontend form for `?ip=` queries — look up any public IP without leaving the page. No backend changes needed. Client-side validation is critical: invalid IPs silently fall back to the caller's IP on the backend. See Implementation Notes and discuss first.
+Frontend form for `?ip=` queries — look up any public IP without leaving the page. `IpLookupForm.tsx` component with client-side validation. `lookupIp` signal in `App.tsx` drives `?ip=` parameter on all API calls and API Explorer curl commands.
 
-#### 30. Skeleton loading screens
+#### 30. ~~Skeleton loading screens~~ (done)
 
-Replace the "Loading..." spinner with animated placeholder shapes matching the card layout.
+Animated shimmer placeholders (`skeleton-hero`, `skeleton-subtitle`, `skeleton-cards`) shown while initial data loads. CSS `@keyframes skeleton-shimmer` provides the gradient sweep. Hidden once `data()` is set.
 
-#### 34. Copy UX improvements
+#### 34. ~~Copy UX improvements~~ (done)
 
-Toast notifications instead of button state changes on copy. Make the full curl command in the API Explorer selectable and copyable as one action.
+`IpDisplay` copy buttons now use `showToast("Copied!")` instead of icon-state changes — consistent with the API Explorer. Curl command text in the API Explorer is now selectable; the dedicated copy button is the sole copy action.
 
 ---
 
@@ -104,9 +104,9 @@ Frontend-only: detect IPs leaked via WebRTC when using a VPN. Strong differentia
 
 Add `ip_decimal` to the `Ip` struct — the integer representation (e.g., `1.2.3.4` = `16909060`). This has to be discussed first, before it gets implemented, because I dont know if I want it.
 
-#### 24. Multi-language location names
+#### 24. ~~Multi-language location names~~ (done)
 
-MaxMind already contains localized names in ~8 languages. A `?lang=de` query parameter — no new data sources needed. I like this.
+`?lang=` query parameter (de, es, fr, ja, pt-BR, ru, zh-CN; default en) on all endpoints. `pick_name()` helper in `backend/mod.rs` selects the language field from MaxMind `Names` with English fallback. Language selector dropdown in the Location card header triggers a re-fetch.
 
 #### 25. Whois lookup
 
