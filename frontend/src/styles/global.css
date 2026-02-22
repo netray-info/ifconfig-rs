@@ -248,29 +248,6 @@ button:focus-visible {
   margin-bottom: 0;
 }
 
-.card-title-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.lang-select {
-  font-size: 0.7rem;
-  font-family: var(--font-mono);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.15rem 0.3rem;
-  cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease;
-}
-
-.lang-select:hover {
-  border-color: var(--accent-dim);
-  color: var(--text-primary);
-}
-
 .card-row {
   display: flex;
   justify-content: space-between;
@@ -695,20 +672,12 @@ footer a {
   font-size: 0.75rem;
 }
 
-/* ---- Corner controls (theme toggle + lang select) ---- */
+/* ---- Theme Toggle ---- */
 
-.corner-controls {
+.theme-toggle {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.4rem;
-  z-index: 10;
-}
-
-.theme-toggle {
   padding: 0.5rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -718,6 +687,7 @@ footer a {
   font-size: 1.1rem;
   line-height: 1;
   transition: all 0.15s ease;
+  z-index: 10;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -952,11 +922,9 @@ footer a {
   .skeleton-cards {
     grid-template-columns: 1fr;
   }
-  .corner-controls {
+  .theme-toggle {
     top: 0.5rem;
     right: 0.5rem;
-  }
-  .theme-toggle {
     padding: 0.4rem;
     font-size: 1rem;
   }

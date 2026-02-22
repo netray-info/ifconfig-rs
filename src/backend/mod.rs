@@ -83,21 +83,6 @@ pub struct Tcp {
 
 pub struct GeoIpCityDb(maxminddb::Reader<Vec<u8>>);
 
-/// Pick a localised name from a MaxMind `Names` value, falling back to English.
-/// Supported language codes: de, es, fr, ja, pt-BR, ru, zh-CN (and en / default).
-fn pick_name<'a>(names: &geoip2::Names<'a>, lang: &str) -> Option<&'a str> {
-    match lang {
-        "de"    => names.german.or(names.english),
-        "es"    => names.spanish.or(names.english),
-        "fr"    => names.french.or(names.english),
-        "ja"    => names.japanese.or(names.english),
-        "pt-BR" => names.brazilian_portuguese.or(names.english),
-        "ru"    => names.russian.or(names.english),
-        "zh-CN" => names.simplified_chinese.or(names.english),
-        _       => names.english,
-    }
-}
-
 impl GeoIpCityDb {
     pub async fn new(db_path: &str) -> Option<Self> {
         let bytes = tokio::fs::read(db_path).await.ok()?;
@@ -292,9 +277,6 @@ pub struct IfconfigParam<'a> {
     /// When true, skip the reverse DNS (PTR) lookup. Used for `?ip=` lookups
     /// where PTR is slow and usually unwanted.
     pub skip_dns: bool,
-    /// BCP 47 language code for localised GeoIP names (e.g. "de", "fr").
-    /// Supported values: en (default), de, es, fr, ja, pt-BR, ru, zh-CN.
-    pub lang: &'a str,
 }
 
 pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
@@ -352,22 +334,21 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         .and_then(|db| db.lookup(param.remote.ip()))
         .map(|c| {
             let subdivision = c.subdivisions.first();
-            let lang = param.lang;
             Location {
-                city: pick_name(&c.city.names, lang).map(|s| s.to_owned()),
-                region: subdivision.and_then(|s| pick_name(&s.names, lang).map(|s| s.to_owned())),
+                city: c.city.names.english.map(|s| s.to_owned()),
+                region: subdivision.and_then(|s| s.names.english.map(|s| s.to_owned())),
                 region_code: subdivision.and_then(|s| s.iso_code.map(|s| s.to_owned())),
-                country: pick_name(&c.country.names, lang).map(|s| s.to_owned()),
+                country: c.country.names.english.map(|s| s.to_owned()),
                 country_iso: c.country.iso_code.map(|s| s.to_owned()),
                 postal_code: c.postal.code.map(|s| s.to_owned()),
                 is_eu: c.country.is_in_european_union,
                 latitude: c.location.latitude,
                 longitude: c.location.longitude,
                 timezone: c.location.time_zone.map(|s| s.to_owned()),
-                continent: pick_name(&c.continent.names, lang).map(|s| s.to_owned()),
+                continent: c.continent.names.english.map(|s| s.to_owned()),
                 continent_code: c.continent.code.map(|s| s.to_owned()),
                 accuracy_radius_km: c.location.accuracy_radius,
-                registered_country: pick_name(&c.registered_country.names, lang).map(|s| s.to_owned()),
+                registered_country: c.registered_country.names.english.map(|s| s.to_owned()),
                 registered_country_iso: c.registered_country.iso_code.map(|s| s.to_owned()),
             }
         })

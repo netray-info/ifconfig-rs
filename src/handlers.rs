@@ -22,7 +22,6 @@ pub(crate) async fn make_ifconfig(
     dns_resolver: &ResolverGroup,
     dns_cache: &DnsCache,
     skip_dns: bool,
-    lang: &str,
 ) -> Ifconfig {
     let param = IfconfigParam {
         remote,
@@ -40,7 +39,6 @@ pub(crate) async fn make_ifconfig(
         dns_resolver,
         dns_cache,
         skip_dns,
-        lang,
     };
     get_ifconfig(&param).await
 }

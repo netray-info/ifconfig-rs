@@ -6,16 +6,14 @@ function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 5000)
   return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
-export async function fetchIfconfig(lang = "en"): Promise<Ifconfig> {
-  const url = lang !== "en" ? `/json?lang=${encodeURIComponent(lang)}` : "/json";
-  const res = await fetchWithTimeout(url, { headers: { Accept: "application/json" } });
+export async function fetchIfconfig(): Promise<Ifconfig> {
+  const res = await fetchWithTimeout("/json", { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-export async function fetchIfconfigForIp(ip: string, lang = "en"): Promise<Ifconfig> {
-  let url = `/json?ip=${encodeURIComponent(ip)}`;
-  if (lang !== "en") url += `&lang=${encodeURIComponent(lang)}`;
+export async function fetchIfconfigForIp(ip: string): Promise<Ifconfig> {
+  const url = `/json?ip=${encodeURIComponent(ip)}`;
   const res = await fetchWithTimeout(url, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();

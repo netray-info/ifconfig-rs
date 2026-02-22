@@ -16,7 +16,6 @@ export default function App() {
   const [error, setError] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [lookupIp, setLookupIp] = createSignal<string | null>(null);
-  const [lang, setLang] = createSignal("en");
 
   const siteName = () => meta()?.site_name ?? location.hostname;
 
@@ -24,7 +23,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const result = ip ? await fetchIfconfigForIp(ip, lang()) : await fetchIfconfig(lang());
+      const result = ip ? await fetchIfconfigForIp(ip) : await fetchIfconfig();
       setData(result);
       setLookupIp(ip ?? null);
     } catch (e) {
@@ -48,24 +47,7 @@ export default function App() {
 
   return (
     <>
-      <div class="corner-controls">
-        <ThemeToggle />
-        <select
-          class="lang-select"
-          value={lang()}
-          onChange={(e) => { setLang(e.currentTarget.value); loadData(lookupIp() ?? undefined); }}
-          aria-label="Location language"
-        >
-          <option value="en">EN</option>
-          <option value="de">DE</option>
-          <option value="es">ES</option>
-          <option value="fr">FR</option>
-          <option value="ja">JA</option>
-          <option value="pt-BR">PT</option>
-          <option value="ru">RU</option>
-          <option value="zh-CN">ZH</option>
-        </select>
-      </div>
+      <ThemeToggle />
       <div class="container">
         <header class="site-header">
           <h1 class="site-title">{siteName()}</h1>

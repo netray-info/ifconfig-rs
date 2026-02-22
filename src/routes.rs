@@ -189,20 +189,6 @@ fn parse_dns_param(uri: &str) -> Option<bool> {
     parse_query_param(uri, "dns").map(|v| v.eq_ignore_ascii_case("true") || v == "1")
 }
 
-/// Returns the validated BCP 47 language code from `?lang=`, defaulting to `"en"`.
-/// Only the languages present in GeoLite2-City are accepted; anything else maps to English.
-fn parse_lang_param(uri: &str) -> &'static str {
-    match parse_query_param(uri, "lang") {
-        Some("de")    => "de",
-        Some("es")    => "es",
-        Some("fr")    => "fr",
-        Some("ja")    => "ja",
-        Some("pt-BR") => "pt-BR",
-        Some("ru")    => "ru",
-        Some("zh-CN") => "zh-CN",
-        _             => "en",
-    }
-}
 
 // ---- Compute-once dispatch ----
 
@@ -247,8 +233,7 @@ async fn dispatch_standard(
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let lang = parse_lang_param(&req_info.uri);
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, lang).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns).await;
 
     let fields = format::parse_fields_param(&req_info.uri);
 
@@ -565,8 +550,7 @@ async fn dispatch_all(
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let lang = parse_lang_param(&req_info.uri);
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, lang).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns).await;
 
     let fields = format::parse_fields_param(&req_info.uri);
 
@@ -892,7 +876,6 @@ async fn batch_dispatch(
 
     let fields = format::parse_fields_param(&req_info.uri);
     let skip_dns = !parse_dns_param(&req_info.uri).unwrap_or(false);
-    let lang = parse_lang_param(&req_info.uri);
     let ua_owned: Option<String> = req_info.user_agent.clone();
     let dns_cache = state.dns_cache.clone();
 
@@ -935,7 +918,7 @@ async fn batch_dispatch(
                 ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(),
                 ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(),
                 ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(),
-                &ctx.dns_resolver, &*dns_cache, skip_dns, lang,
+                &ctx.dns_resolver, &*dns_cache, skip_dns,
             );
             let ifconfig = match tokio::time::timeout(std::time::Duration::from_secs(5), lookup).await {
                 Ok(result) => result,
@@ -1091,8 +1074,7 @@ async fn ip_version_dispatch(
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let lang = parse_lang_param(&req_info.uri);
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, lang).await;
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns).await;
 
     if ifconfig.ip.version != version {
         return error_response(StatusCode::NOT_FOUND, "not implemented");
