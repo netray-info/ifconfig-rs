@@ -328,6 +328,35 @@ button:focus-visible {
   color: #f87171; /* red — known malicious */
 }
 
+.net-badge--residential {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted); /* gray — normal residential */
+}
+
+.net-badge--hosting {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa; /* violet — commercial hosting */
+}
+
+.net-badge--datacenter {
+  background: rgba(20, 184, 166, 0.15);
+  color: #2dd4bf; /* teal — datacenter infrastructure */
+}
+
+.net-badge--internal {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted); /* gray — private/RFC1918 */
+}
+
+.net-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.6rem var(--card-pad) 0.25rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.25rem;
+}
+
 .eu-badge {
   display: inline-block;
   padding: 0.1rem 0.4rem;

@@ -70,48 +70,32 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{net().org}</span>
           </div>
         </Show>
-        <div class="card-row">
-          <span class="card-label">Type</span>
-          <span class="card-value">{net().classification.type}</span>
-        </div>
         <Show when={net().provider}>
           <div class="card-row">
             <span class="card-label">Provider</span>
             <span class="card-value">{net().provider}</span>
           </div>
         </Show>
-        <Show when={net().classification.is_tor}>
-          <div class="card-row">
-            <span class="card-label">Tor Exit Node</span>
-            <span class="card-value">
-              <span class="net-badge net-badge--tor">yes</span>
-            </span>
-          </div>
-        </Show>
-        <Show when={net().classification.is_vpn}>
-          <div class="card-row">
-            <span class="card-label">VPN</span>
-            <span class="card-value">
-              <span class="net-badge net-badge--vpn">yes</span>
-            </span>
-          </div>
-        </Show>
-        <Show when={net().classification.is_bot}>
-          <div class="card-row">
-            <span class="card-label">Bot</span>
-            <span class="card-value">
-              <span class="net-badge net-badge--bot">yes</span>
-            </span>
-          </div>
-        </Show>
-        <Show when={net().classification.is_threat}>
-          <div class="card-row">
-            <span class="card-label">Threat</span>
-            <span class="card-value">
-              <span class="net-badge net-badge--threat">yes</span>
-            </span>
-          </div>
-        </Show>
+        <div class="net-badges">
+          <span class={`net-badge net-badge--${net().classification.type}`}>
+            {net().classification.type}
+          </span>
+          <Show when={net().classification.is_datacenter}>
+            <span class="net-badge net-badge--datacenter">datacenter</span>
+          </Show>
+          <Show when={net().classification.is_vpn}>
+            <span class="net-badge net-badge--vpn">vpn</span>
+          </Show>
+          <Show when={net().classification.is_tor}>
+            <span class="net-badge net-badge--tor">tor</span>
+          </Show>
+          <Show when={net().classification.is_bot}>
+            <span class="net-badge net-badge--bot">bot</span>
+          </Show>
+          <Show when={net().classification.is_threat}>
+            <span class="net-badge net-badge--threat">threat</span>
+          </Show>
+        </div>
       </div>
 
       {/* User Agent Card */}
