@@ -20,7 +20,9 @@ fn representative_ifconfig() -> serde_json::Value {
             "timezone": "Europe/Berlin",
             "continent": "Europe",
             "continent_code": "EU",
-            "accuracy_radius_km": 100
+            "accuracy_radius_km": 100,
+            "registered_country": null,
+            "registered_country_iso": null
         },
         "network": {
             "asn": 64496,

@@ -319,6 +319,8 @@ mod tests {
                 continent: Some("Europe".to_string()),
                 continent_code: Some("EU".to_string()),
                 accuracy_radius_km: Some(100),
+                registered_country: None,
+                registered_country_iso: None,
             },
             network,
             user_agent: None,

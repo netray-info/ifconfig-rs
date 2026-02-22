@@ -57,6 +57,8 @@ export interface Location {
   continent: string | null;
   continent_code: string | null;
   accuracy_radius_km: number | null;
+  registered_country: string | null;
+  registered_country_iso: string | null;
 }
 
 

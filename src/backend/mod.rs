@@ -129,6 +129,11 @@ pub struct Location {
     pub continent_code: Option<String>,
     #[schema(example = 100)]
     pub accuracy_radius_km: Option<u16>,
+    /// Country where the IP block is registered (differs from `country` for VPN exit nodes).
+    #[schema(example = "United States")]
+    pub registered_country: Option<String>,
+    #[schema(example = "US")]
+    pub registered_country_iso: Option<String>,
 }
 
 impl Location {
@@ -147,6 +152,8 @@ impl Location {
             continent: None,
             continent_code: None,
             accuracy_radius_km: None,
+            registered_country: None,
+            registered_country_iso: None,
         }
     }
 }
@@ -272,6 +279,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
                 continent: c.continent.names.english.map(|s| s.to_owned()),
                 continent_code: c.continent.code.map(|s| s.to_owned()),
                 accuracy_radius_km: c.location.accuracy_radius,
+                registered_country: c.registered_country.names.english.map(|s| s.to_owned()),
+                registered_country_iso: c.registered_country.iso_code.map(|s| s.to_owned()),
             }
         })
         .unwrap_or(Location::unknown());
