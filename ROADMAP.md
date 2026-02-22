@@ -6,13 +6,13 @@
 
 `IpDisplay.tsx` still referenced the removed `host.name` field (pre-Sprint 1 struct) instead of `ip.hostname`. The hostname row was never shown and copy was broken.
 
-#### B2. Auto dark/light mode no longer follows system preference
+#### B2. ~~Auto dark/light mode no longer follows system preference~~ (fixed)
 
-`ThemeToggle` likely hardcodes an initial theme or reads `localStorage` without falling back to `prefers-color-scheme`. The `[data-theme]` attribute is probably set unconditionally on mount, overriding the OS preference. Needs investigation: check `ThemeToggle.tsx` initial state logic.
+Root cause: the inline script in `index.html` that applied the theme was blocked by CSP (`script-src 'self'` forbids inline scripts), so `data-theme` was never set and the page always rendered dark. Fixed by removing the inline script and using `@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { ... } }` in CSS — system mode now requires zero JS. `ThemeToggle` now calls `removeAttribute("data-theme")` for system mode.
 
-#### B3. API Explorer responses go stale after a lookup
+#### B3. ~~API Explorer responses go stale after a lookup~~ (fixed)
 
-The API Explorer caches responses in a `Map` keyed by `endpoint|format`. When the user does an IP lookup (or when ETag/304 short-circuits a revalidation), the cached result remains the previous caller's data. The cache needs to be invalidated on each new IP lookup, or the ETag middleware must be excluded from API Explorer fetches. Needs investigation: also check whether the backend's `Cache-Control: private, max-age=60` interacts with ETag 304s in a way that serves stale content.
+Root cause: component-level `Map` cache in `ApiExplorer.tsx` never expired and was never invalidated. Fixed by removing the map — the browser HTTP cache (`Cache-Control: private, max-age=60` + ETags) handles deduplication correctly.
 
 ---
 

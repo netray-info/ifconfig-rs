@@ -514,25 +514,125 @@ standard_endpoint! {
     module = handlers::network,
 }
 
-standard_endpoint! {
-    #[utoipa::path(
-        get, path = "/all",
-        tag = "IP",
-        description = "Returns all enrichment data. Equivalent to / but always returns structured data (never HTML).",
-        params(
-            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
-            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
-            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
-        ),
-        responses(
-            (status = 200, description = "All enrichment data", body = Ifconfig),
-            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
-            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
-        )
-    )]
-    handler = all_handler,
-    format_handler = all_format_handler,
-    module = handlers::all,
+// ---- /all handler (custom: includes request headers in response) ----
+
+#[utoipa::path(
+    get, path = "/all",
+    tag = "IP",
+    description = "Returns all enrichment data including request headers. Equivalent to / but always returns structured data (never HTML). The JSON response includes a top-level `headers` object with the filtered request headers.",
+    params(
+        ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+        ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+        ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
+    ),
+    responses(
+        (status = 200, description = "All enrichment data plus request headers", body = Ifconfig),
+        (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
+async fn all_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(None, &headers);
+    let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
+    dispatch_all(format, &req_info, &state, &req_headers).await
+}
+
+async fn all_format_handler(
+    State(state): State<AppState>,
+    Path(fmt): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    let req_info = get_requester_info(&headers, &extensions);
+    let format = negotiate(Some(&fmt), &headers);
+    let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
+    dispatch_all(format, &req_info, &state, &req_headers).await
+}
+
+async fn dispatch_all(
+    format: NegotiatedFormat,
+    req_info: &RequesterInfo,
+    state: &AppState,
+    req_headers: &[(String, String)],
+) -> Response {
+    if format == NegotiatedFormat::Html {
+        return serve_spa();
+    }
+    if format == NegotiatedFormat::Unknown {
+        return error_response(StatusCode::NOT_FOUND, "unknown format suffix");
+    }
+
+    let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
+        Some(ip) => {
+            if !is_global_ip(ip) {
+                return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
+            }
+            let dns_opt_in = parse_dns_param(&req_info.uri);
+            (SocketAddr::new(ip, 0), !dns_opt_in)
+        }
+        None => (req_info.remote, false),
+    };
+
+    let ctx = state.enrichment.load();
+    let (uap, city, asn, tor) = match resolve_core_backends(&ctx) {
+        Some(backends) => backends,
+        None => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "backends not available"),
+    };
+
+    let ua_opt = req_info.user_agent.as_deref();
+    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, skip_dns).await;
+
+    let fields = format::parse_fields_param(&req_info.uri);
+
+    let build_json = |ifconfig: &Ifconfig| -> Option<serde_json::Value> {
+        let mut val = handlers::all::to_json(ifconfig)?;
+        if let serde_json::Value::Object(ref mut map) = val {
+            map.insert("headers".to_string(), handlers::headers::to_json_value(req_headers));
+        }
+        Some(val)
+    };
+
+    match format {
+        NegotiatedFormat::Html => unreachable!(),
+        NegotiatedFormat::Plain => {
+            let mut text = handlers::all::to_plain(&ifconfig);
+            text.push_str(&handlers::headers::to_plain(req_headers));
+            respond_plain(text)
+        }
+        NegotiatedFormat::Json => match build_json(&ifconfig) {
+            Some(val) => {
+                let val = match &fields {
+                    Some(f) => format::filter_fields(val, f),
+                    None => val,
+                };
+                respond_json_value(val)
+            }
+            None => error_response(StatusCode::NOT_FOUND, "not implemented"),
+        },
+        fmt => {
+            let output_fmt = match fmt {
+                NegotiatedFormat::Yaml => OutputFormat::Yaml,
+                NegotiatedFormat::Toml => OutputFormat::Toml,
+                NegotiatedFormat::Csv => OutputFormat::Csv,
+                _ => unreachable!(),
+            };
+            match build_json(&ifconfig)
+                .map(|v| match &fields {
+                    Some(f) => format::filter_fields(v, f),
+                    None => v,
+                })
+                .and_then(|v| output_fmt.serialize_body(&v))
+            {
+                Some(body) => respond_formatted(output_fmt.content_type(), body),
+                None => error_response(StatusCode::NOT_FOUND, "not implemented"),
+            }
+        }
+    }
 }
 
 // ---- Sub-field endpoints ----
