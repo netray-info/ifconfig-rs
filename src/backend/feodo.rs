@@ -23,6 +23,10 @@ impl FeodoBotnetIps {
         FeodoBotnetIps(None)
     }
 
+    pub fn is_loaded(&self) -> bool {
+        self.0.is_some()
+    }
+
     pub fn lookup(&self, addr: &IpAddr) -> Option<bool> {
         self.0.as_ref().map(|set| set.contains(addr))
     }
