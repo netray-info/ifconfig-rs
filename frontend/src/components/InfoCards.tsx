@@ -16,16 +16,33 @@ function radiusToZoom(radiusKm: number): number {
   return Math.round(Math.min(Math.max(zoom, 3), 15));
 }
 
+/** Title-case a string (replace underscores with spaces, capitalize each word). */
+function titleCase(s: string): string {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Display name for a cloud provider slug. Falls back to capitalizing words. */
+function cloudDisplay(provider: string): string {
+  const names: Record<string, string> = {
+    "aws": "AWS",
+    "gcp": "GCP",
+    "azure": "Azure",
+    "cloudflare": "Cloudflare",
+    "digitalocean": "DigitalOcean",
+    "linode": "Linode",
+    "hetzner": "Hetzner",
+    "ovh": "OVH",
+    "oracle": "Oracle",
+    "ibm": "IBM",
+    "vultr": "Vultr",
+    "google-services": "Google",
+  };
+  return names[provider] ?? provider.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function InfoCards(props: Props) {
   const loc = () => props.data.location;
   const net = () => props.data.network;
-  const type = () => net().classification.type;
-
-  // Deduplication: skip flag badge when the type already conveys the same meaning
-  const showDatacenter = () => net().classification.is_datacenter && type() !== "datacenter";
-  const showVpn = () => net().classification.is_vpn && type() !== "vpn";
-  const showTor = () => net().classification.is_tor && type() !== "tor";
-  const showBot = () => net().classification.is_bot && type() !== "bot" && type() !== "botnet_c2";
 
   const mapsUrl = () => {
     const { latitude, longitude, accuracy_radius_km } = loc();
@@ -44,21 +61,46 @@ export default function InfoCards(props: Props) {
       <Show when={loc().is_eu === false}>
         <span class="net-badge net-badge--non-eu">non-EU</span>
       </Show>
-      <span class={`net-badge net-badge--${type()}`}>{type()}</span>
-      <Show when={showDatacenter()}>
-        <span class="net-badge net-badge--datacenter">datacenter</span>
+      {/* infra_type badge — hidden for "residential" (the default, absence is implicit) */}
+      <Show when={net().infra_type !== "residential"}>
+        <span class={`net-badge net-badge--${net().infra_type}`}>{net().infra_type}</span>
       </Show>
-      <Show when={showVpn()}>
-        <span class="net-badge net-badge--vpn">vpn</span>
+      {/* Cloud badge — shown when cloud identity is known */}
+      <Show when={net().cloud != null}>
+        <span class="net-badge net-badge--cloud">
+          {cloudDisplay(net().cloud!.provider)}
+          {net().cloud!.service ? ` · ${net().cloud!.service}` : ""}
+        </span>
       </Show>
-      <Show when={showTor()}>
-        <span class="net-badge net-badge--tor">tor</span>
+      {/* VPN badge */}
+      <Show when={net().is_vpn}>
+        <span class="net-badge net-badge--vpn">
+          {net().vpn!.provider ?? "VPN"}
+        </span>
       </Show>
-      <Show when={showBot()}>
-        <span class="net-badge net-badge--bot">bot</span>
+      {/* Tor badge */}
+      <Show when={net().is_tor}>
+        <span class="net-badge net-badge--tor">Tor</span>
       </Show>
-      <Show when={net().classification.is_threat}>
-        <span class="net-badge net-badge--threat">threat</span>
+      {/* Bot badge */}
+      <Show when={net().is_bot}>
+        <span class="net-badge net-badge--bot">
+          {titleCase(net().bot!.provider)}
+        </span>
+      </Show>
+      {/* C2 badge — active Feodo botnet C2 node */}
+      <Show when={net().is_c2}>
+        <span class="net-badge net-badge--c2">C2</span>
+      </Show>
+      {/* Spamhaus badge — hijacked netblock */}
+      <Show when={net().is_spamhaus}>
+        <span class="net-badge net-badge--spamhaus">Spamhaus</span>
+      </Show>
+      {/* Network role badge */}
+      <Show when={net().network_role != null}>
+        <span class="net-badge net-badge--role">
+          {net().network_role!.replace(/_/g, " ")}
+        </span>
       </Show>
     </div>
     <div class="cards">
@@ -99,10 +141,34 @@ export default function InfoCards(props: Props) {
             <span class="card-value">{net().org}</span>
           </div>
         </Show>
-        <Show when={net().provider}>
+        <Show when={net().asn_category != null}>
           <div class="card-row">
-            <span class="card-label">Provider</span>
-            <span class="card-value">{net().provider}</span>
+            <span class="card-label">Category</span>
+            <span class="card-value">{titleCase(net().asn_category!)}</span>
+          </div>
+        </Show>
+        <Show when={net().cloud != null}>
+          <div class="card-row card-row-stackable">
+            <span class="card-label">Cloud</span>
+            <span class="card-value">
+              {[
+                net().cloud!.provider,
+                net().cloud!.service,
+                net().cloud!.region,
+              ].filter(Boolean).join(" · ")}
+            </span>
+          </div>
+        </Show>
+        <Show when={net().vpn != null}>
+          <div class="card-row">
+            <span class="card-label">VPN</span>
+            <span class="card-value">{net().vpn!.provider ?? "—"}</span>
+          </div>
+        </Show>
+        <Show when={net().bot != null}>
+          <div class="card-row">
+            <span class="card-label">Bot</span>
+            <span class="card-value">{titleCase(net().bot!.provider)}</span>
           </div>
         </Show>
       </div>

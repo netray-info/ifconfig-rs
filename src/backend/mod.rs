@@ -206,11 +206,49 @@ impl Location {
 
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
-pub struct Classification {
-    /// Primary classification: "cloud", "bot", "vpn", "tor", "botnet_c2", "threat", "hosting", "residential", or "internal".
+pub struct CloudInfo {
+    #[schema(example = "aws")]
+    pub provider: String,
+    #[schema(example = "EC2")]
+    pub service: Option<String>,
+    #[schema(example = "us-east-1")]
+    pub region: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+pub struct VpnInfo {
+    /// Provider name when identified via ASN heuristic; None when only CIDR matched.
+    #[schema(example = json!(null))]
+    pub provider: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+pub struct NetworkBot {
+    #[schema(example = "googlebot")]
+    pub provider: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+pub struct Network {
+    #[schema(example = 64496)]
+    pub asn: Option<u32>,
+    #[schema(example = "Example Telecom AG")]
+    pub org: Option<String>,
+    #[schema(example = json!(null))]
+    pub prefix: Option<String>,
+    /// ASN category from ipverse/as-metadata (hosting/isp/business/education_research/government_admin).
+    #[schema(example = json!(null))]
+    pub asn_category: Option<String>,
+    /// Network role from ipverse/as-metadata (e.g. "stub", "tier1_transit").
+    #[schema(example = json!(null))]
+    pub network_role: Option<String>,
+    /// Primary signal: highest-priority classification. One of: internal, c2, bot, cloud, vpn, tor, spamhaus, datacenter, residential.
     #[serde(rename = "type")]
     #[schema(example = "residential")]
     pub network_type: String,
+    /// Infrastructure dimension, orthogonal to type. One of: internal, cloud, datacenter, government, education, business, residential.
+    #[schema(example = "residential")]
+    pub infra_type: String,
     /// True when the IP belongs to a private or reserved range (RFC 1918, loopback, link-local, IPv6 ULA).
     #[schema(example = false)]
     pub is_internal: bool,
@@ -222,31 +260,21 @@ pub struct Classification {
     pub is_tor: bool,
     #[schema(example = false)]
     pub is_bot: bool,
+    /// True when the IP is an active Feodo botnet C2 node.
     #[schema(example = false)]
-    pub is_threat: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
-pub struct Network {
-    #[schema(example = 64496)]
-    pub asn: Option<u32>,
-    #[schema(example = "Example Telecom AG")]
-    pub org: Option<String>,
+    pub is_c2: bool,
+    /// True when the IP falls in a Spamhaus DROP/EDROP hijacked netblock.
+    #[schema(example = false)]
+    pub is_spamhaus: bool,
+    /// Cloud provider identity when the IP is a cloud CIDR match.
     #[schema(example = json!(null))]
-    pub prefix: Option<String>,
-    /// Cloud / VPN / hosting / bot provider name, if identified.
+    pub cloud: Option<CloudInfo>,
+    /// VPN identity when the IP is a VPN match.
     #[schema(example = json!(null))]
-    pub provider: Option<String>,
-    /// Cloud service name (e.g. "EC2", "Cloud Functions").
+    pub vpn: Option<VpnInfo>,
+    /// Bot identity when the IP is a known crawler range.
     #[schema(example = json!(null))]
-    pub service: Option<String>,
-    /// Cloud region (e.g. "us-east-1").
-    #[schema(example = json!(null))]
-    pub region: Option<String>,
-    /// Network role from ipverse/as-metadata (e.g. "stub", "tier1_transit").
-    #[schema(example = json!(null))]
-    pub network_role: Option<String>,
-    pub classification: Classification,
+    pub bot: Option<NetworkBot>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
@@ -418,43 +446,74 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         || matches!(asn_class, asn_heuristic::AsnClassification::Hosting { .. })
         || asn_meta.map(|m| m.category == asn_info::AsnCategory::Hosting).unwrap_or(false);
 
-    // Build network object — primary type uses priority order:
-    // cloud > bot > VPN > Tor > botnet_c2 > threat > hosting > residential
-    let network = {
-        let (network_type, provider) = if cloud.is_some() {
-            ("cloud".to_string(), cloud.as_ref().map(|c| c.provider.clone()))
-        } else if is_bot {
-            ("bot".to_string(), bot.as_ref().map(|b| b.provider.clone()))
-        } else if is_vpn {
-            let vpn_provider = match &asn_class {
-                asn_heuristic::AsnClassification::Vpn { provider } => {
-                    Some(provider.to_string())
-                }
-                _ => None,
-            };
-            ("vpn".to_string(), vpn_provider)
-        } else if is_tor {
-            ("tor".to_string(), None)
-        } else if is_botnet_c2 {
-            ("botnet_c2".to_string(), None)
-        } else if is_threat {
-            ("threat".to_string(), None)
-        } else if is_datacenter {
-            let hosting_provider = match &asn_class {
-                asn_heuristic::AsnClassification::Hosting { provider } => {
-                    Some(provider.to_string())
-                }
-                _ => None,
-            };
-            ("hosting".to_string(), hosting_provider)
-        } else {
-            ("residential".to_string(), None)
-        };
+    let asn_category: Option<String> = asn_meta.and_then(|m| match m.category {
+        asn_info::AsnCategory::Hosting => Some("hosting".to_string()),
+        asn_info::AsnCategory::Isp => Some("isp".to_string()),
+        asn_info::AsnCategory::Business => Some("business".to_string()),
+        asn_info::AsnCategory::EducationResearch => Some("education_research".to_string()),
+        asn_info::AsnCategory::GovernmentAdmin => Some("government_admin".to_string()),
+        asn_info::AsnCategory::Unknown => None,
+    });
 
+    let cloud_info: Option<CloudInfo> = cloud.as_ref().map(|c| CloudInfo {
+        provider: c.provider.clone(),
+        service: c.service.clone(),
+        region: c.region.clone(),
+    });
+
+    let vpn_info: Option<VpnInfo> = if is_vpn {
+        let provider = match &asn_class {
+            asn_heuristic::AsnClassification::Vpn { provider } => Some(provider.to_string()),
+            _ => None,
+        };
+        Some(VpnInfo { provider })
+    } else {
+        None
+    };
+
+    let bot_info: Option<NetworkBot> = bot.as_ref().map(|b| NetworkBot {
+        provider: b.provider.clone(),
+    });
+
+    // Build network object — primary type uses priority order:
+    // internal > c2 > bot > cloud > vpn > tor > spamhaus > datacenter > residential
+    let network = {
         let is_internal = !is_global_ip(param.remote.ip());
-        // Internal IPs override the primary type; all other flags still reflect
-        // what the enrichment data says (likely all false for private ranges).
-        let network_type = if is_internal { "internal".to_string() } else { network_type };
+
+        let network_type = if is_internal {
+            "internal"
+        } else if is_botnet_c2 {
+            "c2"
+        } else if is_bot {
+            "bot"
+        } else if cloud_info.is_some() {
+            "cloud"
+        } else if is_vpn {
+            "vpn"
+        } else if is_tor {
+            "tor"
+        } else if is_threat {
+            "spamhaus"
+        } else if is_datacenter {
+            "datacenter"
+        } else {
+            "residential"
+        }.to_string();
+
+        let infra_type = if is_internal {
+            "internal"
+        } else if cloud_info.is_some() {
+            "cloud"
+        } else if is_datacenter {
+            "datacenter"
+        } else {
+            match asn_category.as_deref() {
+                Some("government_admin") => "government",
+                Some("education_research") => "education",
+                Some("business") => "business",
+                _ => "residential",
+            }
+        }.to_string();
 
         let network_role = asn_meta.and_then(|m| m.network_role.clone());
 
@@ -462,19 +521,20 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             asn: asn_number,
             org: asn_org,
             prefix: asn_prefix,
-            provider: if is_internal { None } else { provider },
-            service: if is_internal { None } else { cloud.as_ref().and_then(|c| c.service.clone()) },
-            region: if is_internal { None } else { cloud.as_ref().and_then(|c| c.region.clone()) },
+            asn_category: if is_internal { None } else { asn_category },
             network_role: if is_internal { None } else { network_role },
-            classification: Classification {
-                network_type,
-                is_internal,
-                is_datacenter,
-                is_vpn,
-                is_tor,
-                is_bot,
-                is_threat,
-            },
+            network_type,
+            infra_type,
+            is_internal,
+            is_datacenter,
+            is_vpn,
+            is_tor,
+            is_bot,
+            is_c2: is_botnet_c2,
+            is_spamhaus: is_threat,
+            cloud: if is_internal { None } else { cloud_info },
+            vpn: if is_internal { None } else { vpn_info },
+            bot: if is_internal { None } else { bot_info },
         }
     };
 

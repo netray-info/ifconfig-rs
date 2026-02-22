@@ -60,7 +60,7 @@ use crate::state::AppState;
         ready_handler,
     ),
     components(schemas(
-        Ifconfig, Ip, Tcp, Location, Network, Classification,
+        Ifconfig, Ip, Tcp, Location, Network, CloudInfo, VpnInfo, NetworkBot,
         UserAgent, Browser, OS, Device, ErrorResponse,
         crate::state::ProjectInfo,
     )),

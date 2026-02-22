@@ -125,35 +125,51 @@ pub mod network {
     pub fn to_plain(ifconfig: &Ifconfig) -> String {
         let n = &ifconfig.network;
         let mut lines = Vec::new();
+        if let Some(asn) = n.asn {
+            let asn_str = if let Some(ref prefix) = n.prefix {
+                format!("AS{} · {}", asn, prefix)
+            } else {
+                format!("AS{}", asn)
+            };
+            lines.push(format!("asn:        {}", asn_str));
+        }
         if let Some(ref org) = n.org {
             lines.push(format!("org:        {}", org));
         }
-        if let Some(asn) = n.asn {
-            lines.push(format!("asn:        AS{}", asn));
-        }
-        if let Some(ref prefix) = n.prefix {
-            lines.push(format!("prefix:     {}", prefix));
-        }
-        lines.push(format!("type:       {}", n.classification.network_type));
-        if let Some(ref provider) = n.provider {
-            lines.push(format!("provider:   {}", provider));
-        }
-        if let Some(ref service) = n.service {
-            lines.push(format!("service:    {}", service));
-        }
-        if let Some(ref region) = n.region {
-            lines.push(format!("region:     {}", region));
+        if let Some(ref cat) = n.asn_category {
+            lines.push(format!("category:   {}", cat));
         }
         if let Some(ref role) = n.network_role {
             lines.push(format!("role:       {}", role));
         }
-        lines.push(format!("internal:   {}", n.classification.is_internal));
-        lines.push(format!("datacenter: {}", n.classification.is_datacenter));
-        lines.push(format!("vpn:        {}", n.classification.is_vpn));
-        lines.push(format!("tor:        {}", n.classification.is_tor));
-
-        lines.push(format!("bot:        {}", n.classification.is_bot));
-        lines.push(format!("threat:     {}", n.classification.is_threat));
+        lines.push(format!("type:       {}", n.network_type));
+        lines.push(format!("infra:      {}", n.infra_type));
+        if let Some(ref c) = n.cloud {
+            let parts: Vec<&str> = [
+                Some(c.provider.as_str()),
+                c.service.as_deref(),
+                c.region.as_deref(),
+            ]
+            .iter()
+            .filter_map(|x| *x)
+            .collect();
+            lines.push(format!("cloud:      {}", parts.join(" · ")));
+        }
+        if let Some(ref v) = n.vpn {
+            if let Some(ref p) = v.provider {
+                lines.push(format!("vpn:        {}", p));
+            }
+        }
+        if let Some(ref b) = n.bot {
+            lines.push(format!("bot:        {}", b.provider));
+        }
+        lines.push(format!("is_vpn:     {}", n.is_vpn));
+        lines.push(format!("is_tor:     {}", n.is_tor));
+        lines.push(format!("is_bot:     {}", n.is_bot));
+        lines.push(format!("is_c2:      {}", n.is_c2));
+        lines.push(format!("is_spamhaus: {}", n.is_spamhaus));
+        lines.push(format!("is_datacenter: {}", n.is_datacenter));
+        lines.push(format!("is_internal: {}", n.is_internal));
         lines.join("\n") + "\n"
     }
 }
@@ -210,35 +226,49 @@ pub mod all {
         }
         {
             let n = &ifconfig.network;
-            if let Some(ref org) = n.org {
-                lines.push(format!("org:        {}", org));
-            }
             if let Some(asn) = n.asn {
                 lines.push(format!("asn:        AS{}", asn));
             }
             if let Some(ref prefix) = n.prefix {
                 lines.push(format!("prefix:     {}", prefix));
             }
-            lines.push(format!("network:    {}", n.classification.network_type));
-            if let Some(ref provider) = n.provider {
-                lines.push(format!("provider:   {}", provider));
+            if let Some(ref org) = n.org {
+                lines.push(format!("org:        {}", org));
             }
-            if let Some(ref service) = n.service {
-                lines.push(format!("service:    {}", service));
-            }
-            if let Some(ref region) = n.region {
-                lines.push(format!("region:     {}", region));
+            if let Some(ref cat) = n.asn_category {
+                lines.push(format!("category:   {}", cat));
             }
             if let Some(ref role) = n.network_role {
                 lines.push(format!("role:       {}", role));
             }
-            lines.push(format!("internal:   {}", n.classification.is_internal));
-            lines.push(format!("datacenter: {}", n.classification.is_datacenter));
-            lines.push(format!("vpn:        {}", n.classification.is_vpn));
-            lines.push(format!("tor:        {}", n.classification.is_tor));
-
-            lines.push(format!("bot:        {}", n.classification.is_bot));
-            lines.push(format!("threat:     {}", n.classification.is_threat));
+            lines.push(format!("network:    {}", n.network_type));
+            lines.push(format!("infra:      {}", n.infra_type));
+            if let Some(ref c) = n.cloud {
+                let parts: Vec<&str> = [
+                    Some(c.provider.as_str()),
+                    c.service.as_deref(),
+                    c.region.as_deref(),
+                ]
+                .iter()
+                .filter_map(|x| *x)
+                .collect();
+                lines.push(format!("cloud:      {}", parts.join(" · ")));
+            }
+            if let Some(ref v) = n.vpn {
+                if let Some(ref p) = v.provider {
+                    lines.push(format!("vpn:        {}", p));
+                }
+            }
+            if let Some(ref b) = n.bot {
+                lines.push(format!("bot:        {}", b.provider));
+            }
+            lines.push(format!("is_vpn:     {}", n.is_vpn));
+            lines.push(format!("is_tor:     {}", n.is_tor));
+            lines.push(format!("is_bot:     {}", n.is_bot));
+            lines.push(format!("is_c2:      {}", n.is_c2));
+            lines.push(format!("is_spamhaus: {}", n.is_spamhaus));
+            lines.push(format!("is_datacenter: {}", n.is_datacenter));
+            lines.push(format!("is_internal: {}", n.is_internal));
         }
         if let Some(ref t) = ifconfig.tcp {
             lines.push(format!("port:       {}", t.port));
@@ -441,19 +471,20 @@ mod tests {
             asn: Some(64496),
             org: Some("Example Telecom".to_string()),
             prefix: None,
-            provider: None,
-            service: None,
-            region: None,
+            asn_category: None,
             network_role: None,
-            classification: Classification {
-                network_type: "residential".to_string(),
-                is_internal: false,
-                is_datacenter: false,
-                is_vpn: false,
-                is_tor: false,
-                is_bot: false,
-                is_threat: false,
-            },
+            network_type: "residential".to_string(),
+            infra_type: "residential".to_string(),
+            is_internal: false,
+            is_datacenter: false,
+            is_vpn: false,
+            is_tor: false,
+            is_bot: false,
+            is_c2: false,
+            is_spamhaus: false,
+            cloud: None,
+            vpn: None,
+            bot: None,
         }
     }
 
@@ -546,11 +577,11 @@ mod tests {
         let ifc = make_ifconfig(None, None, residential_network());
         let plain = network::to_plain(&ifc);
         assert!(plain.contains("org:        Example Telecom"));
-        assert!(plain.contains("asn:        AS64496"));
+        assert!(plain.contains("AS64496"));
         assert!(plain.contains("type:       residential"));
-        assert!(plain.contains("datacenter: false"));
-        assert!(!plain.contains("provider:"));
-        assert!(!plain.contains("prefix:"));
+        assert!(plain.contains("infra:      residential"));
+        assert!(plain.contains("is_datacenter: false"));
+        assert!(!plain.contains("\ncloud:"));
     }
 
     #[test]
@@ -559,30 +590,33 @@ mod tests {
             asn: Some(16509),
             org: Some("Amazon.com".to_string()),
             prefix: Some("54.0.0.0/8".to_string()),
-            provider: Some("AWS".to_string()),
-            service: Some("EC2".to_string()),
-            region: Some("us-east-1".to_string()),
+            asn_category: Some("hosting".to_string()),
             network_role: None,
-            classification: Classification {
-                network_type: "cloud".to_string(),
-                is_internal: false,
-                is_datacenter: true,
-                is_vpn: false,
-                is_tor: false,
-                is_bot: false,
-                is_threat: false,
-            },
+            network_type: "cloud".to_string(),
+            infra_type: "cloud".to_string(),
+            is_internal: false,
+            is_datacenter: true,
+            is_vpn: false,
+            is_tor: false,
+            is_bot: false,
+            is_c2: false,
+            is_spamhaus: false,
+            cloud: Some(CloudInfo {
+                provider: "aws".to_string(),
+                service: Some("EC2".to_string()),
+                region: Some("us-east-1".to_string()),
+            }),
+            vpn: None,
+            bot: None,
         };
         let ifc = make_ifconfig(None, None, n);
         let plain = network::to_plain(&ifc);
         assert!(plain.contains("org:        Amazon.com"));
-        assert!(plain.contains("asn:        AS16509"));
-        assert!(plain.contains("prefix:     54.0.0.0/8"));
+        assert!(plain.contains("AS16509"));
         assert!(plain.contains("type:       cloud"));
-        assert!(plain.contains("provider:   AWS"));
-        assert!(plain.contains("service:    EC2"));
-        assert!(plain.contains("region:     us-east-1"));
-        assert!(plain.contains("datacenter: true"));
+        assert!(plain.contains("infra:      cloud"));
+        assert!(plain.contains("cloud:      aws · EC2 · us-east-1"));
+        assert!(plain.contains("is_datacenter: true"));
     }
 
     // --- user_agent ---
@@ -613,7 +647,7 @@ mod tests {
         assert!(plain.contains("port:       8080"));
         assert!(plain.contains("org:        Example Telecom"));
         assert!(plain.contains("asn:        AS64496"));
-        assert!(plain.contains("network:    residential"));
+        assert!(plain.contains("network:    residential"), "network type missing: {plain}");
     }
 
     // --- headers ---

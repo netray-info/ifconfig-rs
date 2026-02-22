@@ -325,7 +325,18 @@ button:focus-visible {
 
 .net-badge--threat {
   background: rgba(239, 68, 68, 0.15);
-  color: #f87171; /* red — known malicious */
+  color: #f87171; /* red — known malicious (legacy) */
+}
+
+.net-badge--c2 {
+  background: rgba(239, 68, 68, 0.20);
+  color: #ef4444; /* bright red — active C2 botnet node */
+  font-weight: 700;
+}
+
+.net-badge--spamhaus {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316; /* orange — hijacked netblock */
 }
 
 .net-badge--residential {
@@ -353,9 +364,25 @@ button:focus-visible {
   color: #38bdf8; /* sky blue — cloud provider */
 }
 
-.net-badge--botnet_c2 {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444; /* bright red — active C2 node */
+.net-badge--business {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8; /* slate — business network */
+}
+
+.net-badge--education {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e; /* green — education/research */
+}
+
+.net-badge--government {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6; /* blue — government/admin */
+}
+
+.net-badge--role {
+  background: rgba(168, 85, 247, 0.12);
+  color: #a855f7; /* purple — network role */
+  font-style: italic;
 }
 
 .net-badge--version {

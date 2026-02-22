@@ -13,23 +13,38 @@ export interface Ifconfig {
   user_agent: UserAgent | null;
 }
 
-export interface Classification {
-  type: string;
-  is_datacenter: boolean;
-  is_vpn: boolean;
-  is_tor: boolean;
-  is_bot: boolean;
-  is_threat: boolean;
+export interface CloudInfo {
+  provider: string;
+  service: string | null;
+  region: string | null;
+}
+
+export interface VpnInfo {
+  provider: string | null;
+}
+
+export interface NetworkBot {
+  provider: string;
 }
 
 export interface Network {
   asn: number | null;
   org: string | null;
   prefix: string | null;
-  provider: string | null;
-  service: string | null;
-  region: string | null;
-  classification: Classification;
+  asn_category: string | null;
+  network_role: string | null;
+  type: string;
+  infra_type: string;
+  is_internal: boolean;
+  is_datacenter: boolean;
+  is_vpn: boolean;
+  is_tor: boolean;
+  is_bot: boolean;
+  is_c2: boolean;
+  is_spamhaus: boolean;
+  cloud: CloudInfo | null;
+  vpn: VpnInfo | null;
+  bot: NetworkBot | null;
 }
 
 export interface Ip {
