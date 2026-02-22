@@ -169,16 +169,103 @@ panic in `AppState::new()` is now unreachable for these fields. Two unit tests a
 ## Future / Nice-to-Have
 
 Not bugs or coverage gaps — features or polish that could add value but have no current urgency.
+Items marked ✏️ have been explored and have a concrete implementation plan below.
 
 | Item | Notes |
 |---|---|
-| `X-RateLimit-Reset` header | Unix timestamp; pairs with P1 §3 |
+| ~~`X-RateLimit-Reset` header~~ | Already implemented in P1 §3 |
 | Nested `?fields=` dot-notation | e.g. `?fields=location.city,isp.asn` |
-| IP lookup form in SPA | Frontend for `?ip=` queries |
+| IP lookup form in SPA ✏️ | Frontend for `?ip=` queries — plan below |
 | Batch lookup UI | Frontend for `POST /batch` |
 | CSV export / download button | Backend supports it; SPA doesn't expose it |
 | `ETag` / `Last-Modified` headers | Enables 304 Not Modified for repeat requests |
 | Enrichment quality Prometheus gauges | Null-rate per field; helpful for DB freshness monitoring |
-| ASN routing prefix in ISP data | BGP prefix alongside ASN org name |
+| ASN routing prefix in ISP data ✏️ | BGP prefix alongside ASN org name — plan below |
+| GeoIP unused fields ✏️ | Several free fields available in loaded DBs — analysis below |
 | Data file acquisition docs | Where to get GeoLite2 DBs, `geoipupdate` setup |
 | Embedded map in SPA | Currently links out to Google Maps |
+
+---
+
+## Implementation Notes
+
+### IP Lookup Form in SPA
+
+**No backend changes needed.** `GET /all/json?ip=<addr>` already exists, returns the full `Ifconfig` shape, and enforces global-IP validation (400 for private/loopback, silent fallback for unparseable strings).
+
+**Signal architecture (`App.tsx`):**
+- Add `lookedUpIp: Signal<string>` and `lookupError: Signal<string | null>`
+- Extend `loadData(ip?: string)`: when `ip` provided hits `/all/json?ip=<ip>`, otherwise `/json` as today
+- Add `handleLookup(ip)` and `handleReset()` callbacks
+
+**New component `IpLookupForm.tsx`**, placed between `<IpDisplay>` and `<InfoCards>`:
+- Props: `onLookup`, `onReset`, `currentIp`, `loading`, `error`
+- Native `<form onSubmit>` so Enter-key works; `<label>` + `<input>` + submit + conditional "Back to my IP" reset button
+- Input: `autocorrect="off"`, `autocapitalize="none"`, `spellcheck="false"`, `inputmode="text"` (numeric hides `.` on mobile)
+- `role="alert"` error div; `aria-invalid` + `aria-describedby` on the input
+
+**Client-side validation is critical:** invalid IP strings silently fall back to the caller's IP on the backend — the frontend must validate before submitting. Checks: parseable IPv4/IPv6, then reject RFC 1918 / loopback / ULA / link-local (mirrors `is_global_ip()`).
+
+**`api.ts`:** add `fetchIfconfigForIp(ip)` hitting `/all/json?ip=<encoded>` — parses backend JSON error body on non-OK responses.
+
+**`global.css`:** new form styles reusing existing tokens (`--accent`, `--error`, `--border`, `--font-mono`).
+
+**Implementation order:**
+1. `api.ts` — add `fetchIfconfigForIp`
+2. `global.css` — add form CSS
+3. `IpLookupForm.tsx` — new component with `validateIp` helper
+4. `App.tsx` — wire signals and callbacks
+5. `IpDisplay.tsx` — optional `lookedUpFrom?: string` prop for mode indicator
+6. `IpLookupForm.test.tsx` — Vitest tests
+
+---
+
+### ASN Routing Prefix in ISP Data
+
+**The prefix is already computed — it's just discarded.** `maxminddb`'s `LookupResult::network()` returns the BGP routing prefix as `ipnetwork::IpNetwork` (a transitive dep). The current `GeoIpAsnDb::lookup` drops the `LookupResult` after decoding the record body.
+
+**Type bridging:** call `.to_string()` on `ipnetwork::IpNetwork` immediately inside `GeoIpAsnDb::lookup` — the prefix exits as a `String`. No new direct dependency needed.
+
+**Changes required (no new deps):**
+
+| File | Change |
+|---|---|
+| `src/backend/mod.rs:63–72` | Change `lookup` to return `Option<(geoip2::Isp<'_>, Option<String>)>` — keep `LookupResult`, call `.network().map(\|n\| n.to_string())` |
+| `src/backend/mod.rs:155–170` | Add `prefix: Option<String>` to `Isp` struct + `#[schema(example = "203.0.113.0/24")]`; update `Isp::unknown()` |
+| `src/backend/mod.rs:289–296` | Populate `isp.prefix` in `get_ifconfig()` |
+| `src/handlers.rs:104–111` | `isp::to_plain` — new format: `"Example Telecom (AS64496, 203.0.113.0/24)\n"` with all four `(asn, prefix)` combinations |
+| `src/handlers.rs:223–228` | `all::to_plain` — add `"prefix:     {}\n"` line after ASN |
+| `src/handlers.rs` tests | Update `make_ifconfig` fixture and `isp_to_plain_with_asn` assertion |
+| `frontend/src/lib/types.ts:61–64` | Add `prefix: string \| null` to `Isp` interface |
+| `frontend/src/components/InfoCards.tsx:206–218` | Add `<Show when={isp().prefix != null}>` row with `class="card-value mono"` |
+
+`routes.rs`, `Cargo.toml`, and all other files are unaffected. The batch endpoint and all format handlers inherit the field automatically through `Ifconfig.isp`.
+
+---
+
+### Unused GeoIP Fields
+
+Both the City and ISP databases are only ~50% utilised. Fields available in the **currently loaded free databases**:
+
+**GeoLite2-City (high value, zero new deps):**
+
+| Field | Struct | Practical use |
+|---|---|---|
+| `registered_country` | City | Country where IP block was registered — differs from location for VPNs; strong proxy/VPN signal |
+| `represented_country` + `type` | City | Embassy/military base detection; `type` values include `"military"`, `"diplomatic"` |
+| `geoname_id` | Country, City, Continent, Subdivision | External links to GeoNames, Wikipedia, OpenStreetMap |
+| `subdivisions[1..]` | City | County/district level below state — only first subdivision used today |
+| Non-English `names` | Names | Localised names in DE, ES, FR, JA, PT-BR, RU, ZH-CN |
+
+**GeoLite2-ISP / GeoIP2-ISP (already loaded):**
+
+| Field | Tier | Practical use |
+|---|---|---|
+| `isp` | Paid | ISP brand name (distinct from ASN org — e.g. org=`"Google LLC"`, isp=`"Google Fiber"`) |
+| `organization` | Paid | Organisation name for the IP block |
+| `mobile_country_code` | Paid | Carrier identification for mobile IPs |
+| `mobile_network_code` | Paid | Mobile network within country |
+
+**Skip:** `metro_code` (deprecated by MaxMind), `DensityIncome` (out of scope), `AnonymousIp` DB (redundant with existing custom CIDR files), confidence scores (Enterprise-only paid DB).
+
+**Recommended first additions:** `registered_country` (free, high signal for VPN detection) and `geoname_id` on country/city (free, enables rich external linking in the SPA).
