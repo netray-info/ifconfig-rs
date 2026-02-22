@@ -82,9 +82,9 @@ Key modules:
 - `src/backend/vpn.rs` — VPN range CIDR matching
 - `src/backend/bot.rs` — Bot IP range matching (Googlebot, Bingbot, etc.)
 - `src/backend/datacenter.rs` — Datacenter IP range matching
-- `src/backend/feodo.rs` — Feodo C2 botnet IP matching
+- `src/backend/feodo.rs` — Feodo C2 botnet IP matching; `is_loaded()` reports whether the IP list was successfully loaded
 - `src/backend/spamhaus.rs` — Spamhaus DROP/EDROP threat list matching
-- `src/enrichment.rs` — `EnrichmentContext` struct with `ArcSwap` hot-reload via SIGHUP; emits `enrichment_sources_loaded` gauges on load/reload; populates `missing_optional: Vec<&'static str>` with names of configured-but-failed optional sources and emits a single consolidated `WARN` summary line
+- `src/enrichment.rs` — `EnrichmentContext` struct with `ArcSwap` hot-reload via SIGHUP; emits `enrichment_sources_loaded` gauges on load/reload. Mandatory sources (`geoip_city_db`, `geoip_asn_db`, `user_agent_regexes`): if configured but fails to load, logs `error!()` and returns `Err(LoadError)` (process exits via `.expect()` in `AppState::new()`). All not-configured optional sources emit `warn!()` at startup. Populates `missing_optional: Vec<&'static str>` (8 sources) for the `/ready` endpoint `warnings` array.
 - `src/routes.rs` — Axum router with explicit handler functions, `dispatch_standard()` compute-once dispatch, batch handler, OpenAPI spec via utoipa, Scalar API docs UI at `/docs`, static file serving via rust-embed
 - `src/scalar_docs.html` — Lightweight HTML page for Scalar API reference UI (loaded via `include_str!()`; CDN dependency is client-side only)
 - `src/handlers.rs` — Per-endpoint `to_json`/`to_plain` functions used as fn pointers by `dispatch_standard()`
@@ -98,9 +98,9 @@ Key modules:
 
 **API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/meta`, `/health`, `/ready` — all (except probes, `/ip/cidr`, and `/meta`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/meta` returns JSON site metadata (site name, version) used by the SPA. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability and returns a `warnings` array for any configured-but-failed optional sources. `/docs` serves the Scalar API reference UI. `/api-docs/openapi.json` serves the OpenAPI spec.
 
-**Batch endpoint**: `POST /batch` (and `/batch/{format}`) accepts a JSON array of IP addresses and returns enrichment results for each. Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens. Supports `?fields=` and `?dns=true`.
+**Batch endpoint**: `POST /batch` (and `/batch/{format}`) accepts a JSON array of IP addresses and returns enrichment results for each. Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens. Supports `?fields=` and `?dns=true` (PTR skipped by default in batch for performance; opt in via `?dns=true`).
 
-**Query parameters**: Most endpoints support `?ip=` (look up an arbitrary global IP instead of the caller's), `?fields=` (comma-separated top-level field names to include in response), and `?dns=true` (opt-in PTR lookup for `?ip=` queries; PTR is skipped by default for arbitrary IPs). For `?ip=` queries, `tcp` and `host` are omitted from the response (port is synthetic, PTR is slow and usually unwanted).
+**Query parameters**: Most endpoints support `?ip=` (look up an arbitrary global IP instead of the caller's), `?fields=` (comma-separated top-level field names to include in response), and `?dns=false` (opt-out PTR lookup for `?ip=` queries; PTR is performed by default for `?ip=` queries). For `?ip=` queries, `tcp` is omitted (source port is synthetic). PTR lookup behavior is controlled by `parse_dns_param()` returning `Option<bool>`: `None` = absent (use per-context default), `Some(true/false)` = explicit override.
 
 **OpenAPI**: Spec served at `GET /api-docs/openapi.json` via utoipa. All public endpoints are annotated with `#[utoipa::path]` with descriptions, `?ip=`/`?fields=`/`?dns=` params, and error responses (`body = ErrorResponse`). Response types derive `ToSchema` with `#[schema(example = ...)]` on all fields. The spec version is patched at runtime from `CARGO_PKG_VERSION` (no manual sync needed). Interactive docs via Scalar UI at `GET /docs`.
 
@@ -108,7 +108,7 @@ Key modules:
 
 SolidJS 1.9 SPA in `frontend/`:
 - `src/App.tsx` — Main component with data fetching; footer links to GitHub, `/docs` (API reference), and author
-- `src/components/` — IpDisplay, InfoCards, ApiExplorer, RequestHeaders, Faq, ThemeToggle
+- `src/components/` — IpDisplay, IpLookupForm, InfoCards, ApiExplorer, RequestHeaders, Faq, ThemeToggle
 - `src/lib/api.ts` — Fetches `/json` endpoint
 - `src/lib/types.ts` — TypeScript interfaces matching Rust `Ifconfig` struct
 - `src/styles/global.css` — Dark-mode-first design with CSS custom properties

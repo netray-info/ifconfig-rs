@@ -171,11 +171,11 @@ curl ip.pdt.sh/location?ip=8.8.8.8
 # Network classification
 curl 'ip.pdt.sh/network/json?ip=1.1.1.1'
 
-# Opt-in reverse DNS (skipped by default for arbitrary IPs)
-curl 'ip.pdt.sh/all/json?ip=8.8.8.8&dns=true'
+# Skip reverse DNS for this lookup (PTR is performed by default for ?ip= queries)
+curl 'ip.pdt.sh/all/json?ip=8.8.8.8&dns=false'
 ```
 
-For `?ip=` lookups, `tcp` (source port) and `host` (reverse DNS) are omitted from the response since they aren't meaningful for arbitrary IPs. Use `&dns=true` to opt in to PTR lookups.
+For `?ip=` lookups, `tcp` (source port) is omitted — it isn't meaningful for arbitrary IPs. Reverse DNS (`ip.hostname`) is performed by default; use `&dns=false` to skip PTR lookups.
 
 Private, loopback, and link-local addresses are rejected (400 Bad Request).
 

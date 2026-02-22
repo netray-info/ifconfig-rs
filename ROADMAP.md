@@ -104,9 +104,9 @@ Frontend-only: detect IPs leaked via WebRTC when using a VPN. Strong differentia
 
 Add `ip_decimal` to the `Ip` struct — the integer representation (e.g., `1.2.3.4` = `16909060`). This has to be discussed first, before it gets implemented, because I dont know if I want it.
 
-#### 24. ~~Multi-language location names~~ (done)
+#### 24. Multi-language location names — won't do
 
-`?lang=` query parameter (de, es, fr, ja, pt-BR, ru, zh-CN; default en) on all endpoints. `pick_name()` helper in `backend/mod.rs` selects the language field from MaxMind `Names` with English fallback. Language selector dropdown in the Location card header triggers a re-fetch.
+Implemented `?lang=` query parameter with `pick_name()` helper in `backend/mod.rs` and a language selector dropdown, then reverted in full — the UX added noise without clear value. Backend uses `.english` field directly. The MaxMind `Names` struct fields are documented in Implementation Notes if this is reconsidered.
 
 #### 25. Whois lookup
 
@@ -233,6 +233,18 @@ Current API shape (v0.9.0):
   "user_agent": { "raw": "curl/8.7.1", "browser": {}, "os": {}, "device": {} }
 }
 ```
+
+### Backend Maintenance
+
+#### Enrichment startup logging
+
+`geoip_city_db`, `geoip_asn_db`, and `user_agent_regexes` are now mandatory: if configured but fails to load, the server logs `ERROR` and exits. All not-configured optional sources emit `WARN` at startup instead of being silently skipped. `FeodoBotnetIps::is_loaded()` added to mirror `TorExitNodes::is_loaded()`. `missing_optional` tracking expanded to 8 sources.
+
+#### DNS default flip for `?ip=` queries
+
+`parse_dns_param()` returns `Option<bool>` (None = absent, Some = explicit). For `?ip=` queries, PTR lookup is **on by default** — opt out via `?dns=false`. Batch keeps DNS off by default (opt in via `?dns=true`). Mirrors user expectation that an arbitrary IP lookup behaves like a self-lookup.
+
+---
 
 ### Sprint 2 — Low-Effort Backend Wins (v0.9.0)
 
