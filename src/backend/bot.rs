@@ -51,6 +51,11 @@ impl BotDb {
     pub fn lookup(&self, ip: IpAddr) -> Option<&BotInfo> {
         self.table.longest_match(ip).map(|(_net, info)| info)
     }
+
+    pub fn len(&self) -> usize {
+        let (v4, v6) = self.table.len();
+        v4 + v6
+    }
 }
 
 #[cfg(test)]

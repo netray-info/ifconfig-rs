@@ -30,6 +30,10 @@ impl FeodoBotnetIps {
     pub fn lookup(&self, addr: &IpAddr) -> Option<bool> {
         self.0.as_ref().map(|set| set.contains(addr))
     }
+
+    pub fn len(&self) -> Option<usize> {
+        self.0.as_ref().map(|set| set.len())
+    }
 }
 
 #[cfg(test)]

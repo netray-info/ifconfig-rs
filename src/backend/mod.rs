@@ -98,6 +98,10 @@ impl GeoIpCityDb {
     pub fn build_epoch(&self) -> u64 {
         self.0.metadata.build_epoch
     }
+
+    pub fn node_count(&self) -> u32 {
+        self.0.metadata.node_count
+    }
 }
 
 pub struct GeoIpAsnDb(maxminddb::Reader<Vec<u8>>);
@@ -113,6 +117,10 @@ impl GeoIpAsnDb {
         let prefix = result.network().ok().map(|n| n.to_string());
         let isp = result.decode().ok().flatten()?;
         Some((isp, prefix))
+    }
+
+    pub fn node_count(&self) -> u32 {
+        self.0.metadata.node_count
     }
 }
 
@@ -144,6 +152,10 @@ impl TorExitNodes {
 
     pub fn lookup(&self, addr: &IpAddr) -> Option<bool> {
         self.0.as_ref().map(|set| set.contains(addr))
+    }
+
+    pub fn len(&self) -> Option<usize> {
+        self.0.as_ref().map(|set| set.len())
     }
 }
 

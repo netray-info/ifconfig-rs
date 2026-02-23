@@ -64,6 +64,10 @@ impl AsnInfo {
     pub fn lookup(&self, asn: u32) -> Option<&AsnMeta> {
         self.map.get(&asn)
     }
+
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
 }
 
 #[cfg(test)]

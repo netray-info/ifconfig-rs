@@ -40,7 +40,7 @@ impl EnrichmentContext {
         let geoip_city_db = if let Some(path) = config.geoip_city_db.as_deref() {
             match GeoIpCityDb::new(path).await {
                 Some(db) => {
-                    info!("Loaded GeoIP City database from {}", path);
+                    info!("Loaded GeoIP City database from {} ({} nodes)", path, db.node_count());
                     Some(Arc::new(db))
                 }
                 None => {
@@ -56,7 +56,7 @@ impl EnrichmentContext {
         let geoip_asn_db = if let Some(path) = config.geoip_asn_db.as_deref() {
             match GeoIpAsnDb::new(path).await {
                 Some(db) => {
-                    info!("Loaded GeoIP ASN database from {}", path);
+                    info!("Loaded GeoIP ASN database from {} ({} nodes)", path, db.node_count());
                     Some(Arc::new(db))
                 }
                 None => {
@@ -87,8 +87,8 @@ impl EnrichmentContext {
 
         let tor_exit_nodes = if let Some(path) = config.tor_exit_nodes.as_deref() {
             let nodes = TorExitNodes::from_file(path).await;
-            if nodes.is_loaded() {
-                info!("Loaded Tor exit nodes from {}", path);
+            if let Some(count) = nodes.len() {
+                info!("Loaded Tor exit nodes from {} ({} IPs)", path, count);
             } else {
                 warn!("Failed to load Tor exit nodes from {}", path);
             }
@@ -100,8 +100,8 @@ impl EnrichmentContext {
 
         let feodo_botnet_ips = if let Some(path) = config.feodo_botnet_ips.as_deref() {
             let ips = FeodoBotnetIps::from_file(path).await;
-            if ips.is_loaded() {
-                info!("Loaded Feodo botnet IPs from {}", path);
+            if let Some(count) = ips.len() {
+                info!("Loaded Feodo botnet IPs from {} ({} IPs)", path, count);
                 Some(Arc::new(ips))
             } else {
                 warn!("Failed to load Feodo botnet IPs from {}", path);
@@ -115,7 +115,7 @@ impl EnrichmentContext {
         let cloud_provider_db = if let Some(path) = config.cloud_provider_ranges.as_deref() {
             match CloudProviderDb::from_file(path).await {
                 Some(db) => {
-                    info!("Loaded cloud provider ranges from {}", path);
+                    info!("Loaded cloud provider ranges from {} ({} ranges)", path, db.len());
                     Some(Arc::new(db))
                 }
                 None => {
@@ -131,7 +131,7 @@ impl EnrichmentContext {
         let vpn_ranges = if let Some(path) = config.vpn_ranges.as_deref() {
             match VpnRanges::from_file(path).await {
                 Some(db) => {
-                    info!("Loaded VPN ranges from {}", path);
+                    info!("Loaded VPN ranges from {} ({} ranges)", path, db.len());
                     Some(Arc::new(db))
                 }
                 None => {
@@ -147,7 +147,7 @@ impl EnrichmentContext {
         let datacenter_ranges = if let Some(path) = config.datacenter_ranges.as_deref() {
             match DatacenterRanges::from_file(path).await {
                 Some(db) => {
-                    info!("Loaded datacenter ranges from {}", path);
+                    info!("Loaded datacenter ranges from {} ({} ranges)", path, db.len());
                     Some(Arc::new(db))
                 }
                 None => {
@@ -163,7 +163,7 @@ impl EnrichmentContext {
         let bot_db = if let Some(path) = config.bot_ranges.as_deref() {
             match BotDb::from_file(path).await {
                 Some(db) => {
-                    info!("Loaded bot ranges from {}", path);
+                    info!("Loaded bot ranges from {} ({} ranges)", path, db.len());
                     Some(Arc::new(db))
                 }
                 None => {
@@ -179,7 +179,7 @@ impl EnrichmentContext {
         let spamhaus_drop = if let Some(path) = config.spamhaus_drop.as_deref() {
             match SpamhausDrop::from_file(path).await {
                 Some(db) => {
-                    info!("Loaded Spamhaus DROP from {}", path);
+                    info!("Loaded Spamhaus DROP from {} ({} ranges)", path, db.len());
                     Some(Arc::new(db))
                 }
                 None => {
@@ -195,7 +195,7 @@ impl EnrichmentContext {
         let asn_patterns = Arc::new(if let Some(path) = config.asn_patterns.as_deref() {
             match AsnPatterns::from_file(path).await {
                 Ok(p) => {
-                    info!("Loaded ASN patterns from {}", path);
+                    info!("Loaded ASN patterns from {} ({} patterns)", path, p.hosting.len() + p.vpn.len());
                     p
                 }
                 Err(e) => {
@@ -210,7 +210,7 @@ impl EnrichmentContext {
         let asn_info = if let Some(path) = config.asn_info.as_deref() {
             match AsnInfo::from_file(path).await {
                 Ok(db) => {
-                    info!("Loaded ASN info from {}", path);
+                    info!("Loaded ASN info from {} ({} ASNs)", path, db.len());
                     Some(Arc::new(db))
                 }
                 Err(e) => {
