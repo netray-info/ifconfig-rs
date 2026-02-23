@@ -131,19 +131,29 @@ pub async fn build_app(config: &Config) -> AppBundle {
             extractors::requester_info_middleware,
         ))
         .layer(
-            TraceLayer::new_for_http().make_span_with(|req: &axum::http::Request<axum::body::Body>| {
-                let request_id = req
-                    .headers()
-                    .get("x-request-id")
-                    .and_then(|v| v.to_str().ok())
-                    .unwrap_or("-");
-                tracing::info_span!(
-                    "http_request",
-                    method = %req.method(),
-                    uri = %req.uri(),
-                    request_id = %request_id,
-                )
-            }),
+            TraceLayer::new_for_http()
+                .make_span_with(|req: &axum::http::Request<axum::body::Body>| {
+                    let request_id = req
+                        .headers()
+                        .get("x-request-id")
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or("-");
+                    tracing::info_span!(
+                        "http_request",
+                        method = %req.method(),
+                        uri = %req.uri(),
+                        request_id = %request_id,
+                        client_ip = tracing::field::Empty,
+                    )
+                })
+                .on_response(|response: &axum::http::Response<_>, latency: std::time::Duration, span: &tracing::Span| {
+                    tracing::info!(
+                        parent: span,
+                        status = response.status().as_u16(),
+                        ms = latency.as_millis(),
+                        "",
+                    );
+                }),
         )
         .layer(axum_mw::from_fn(middleware::record_metrics))
         .layer(axum_mw::from_fn(middleware::request_id))

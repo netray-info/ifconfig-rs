@@ -115,6 +115,7 @@ pub async fn requester_info_middleware(
     next: Next,
 ) -> Response {
     let info = RequesterInfo::from_request(&ConnectInfo(addr), req.headers(), req.uri(), &state);
+    tracing::Span::current().record("client_ip", tracing::field::display(info.remote.ip()));
     req.extensions_mut().insert(info);
     next.run(req).await
 }
