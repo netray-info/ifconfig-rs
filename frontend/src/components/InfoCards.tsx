@@ -10,6 +10,14 @@ function known(v: string | null | undefined): string | null {
   return v && v !== "unknown" ? v : null;
 }
 
+/** Insert a <wbr> after each dot so long hostnames can wrap at label boundaries. */
+function breakAtDots(hostname: string) {
+  const parts = hostname.split('.');
+  return parts.flatMap((part, i) =>
+    i < parts.length - 1 ? [`${part}.`, <wbr />] : [part]
+  );
+}
+
 /** Convert GeoIP accuracy radius (km) to a Google Maps zoom level. */
 function radiusToZoom(radiusKm: number): number {
   const zoom = Math.log2(40075 / (radiusKm * 4));
@@ -124,7 +132,7 @@ export default function InfoCards(props: Props) {
         <Show when={props.data.ip.hostname}>
           <div class="card-row card-row-stackable">
             <span class="card-label">Hostname</span>
-            <span class="card-value">{props.data.ip.hostname}</span>
+            <span class="card-value">{breakAtDots(props.data.ip.hostname!)}</span>
           </div>
         </Show>
         <Show when={net().asn != null || net().prefix != null}>
