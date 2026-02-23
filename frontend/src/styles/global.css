@@ -267,7 +267,6 @@ button:focus-visible {
 
 .card-row-stackable .card-value {
   flex: 1 1 60%;
-  white-space: nowrap;
 }
 
 .card-value {
