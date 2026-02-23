@@ -98,7 +98,7 @@ spamhaus_drop.txt:
 	| sed -e 's/ ;.*//' -e '/^;/d' -e '/^$$/d' > $@
 
 as_metadata.jsonl: .as_metadata.json
-	jq -c 'to_entries[] | select(.value.asn != null) | {asn: .value.asn, category: (.value.category // ""), network_role: (.value.networkRole // "")}' .as_metadata.json > $@
+	jq -c 'to_entries[] | select(.value.asn != null) | {asn: .value.asn, category: (.value.metadata.category // ""), network_role: (.value.metadata.networkRole // ""), registered: ((.value.metadata.registered // "")[:10])}' .as_metadata.json > $@
 	rm -f .as_metadata.json
 
 .as_metadata.json:

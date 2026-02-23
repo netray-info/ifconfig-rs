@@ -135,6 +135,12 @@ export default function InfoCards(props: Props) {
             </span>
           </div>
         </Show>
+        <Show when={net().asn_registered != null}>
+          <div class="card-row">
+            <span class="card-label">ASN Since</span>
+            <span class="card-value">{net().asn_registered}</span>
+          </div>
+        </Show>
         <Show when={net().org != null}>
           <div class="card-row card-row-stackable">
             <span class="card-label">Org</span>
@@ -145,6 +151,12 @@ export default function InfoCards(props: Props) {
           <div class="card-row">
             <span class="card-label">Category</span>
             <span class="card-value">{titleCase(net().asn_category!)}</span>
+          </div>
+        </Show>
+        <Show when={net().network_role != null}>
+          <div class="card-row">
+            <span class="card-label">Role</span>
+            <span class="card-value">{titleCase(net().network_role!)}</span>
           </div>
         </Show>
         <Show when={net().cloud != null}>
@@ -169,12 +181,6 @@ export default function InfoCards(props: Props) {
           <div class="card-row">
             <span class="card-label">Bot</span>
             <span class="card-value">{titleCase(net().bot!.provider)}</span>
-          </div>
-        </Show>
-        <Show when={net().network_role != null}>
-          <div class="card-row">
-            <span class="card-label">Role</span>
-            <span class="card-value">{titleCase(net().network_role!)}</span>
           </div>
         </Show>
       </div>

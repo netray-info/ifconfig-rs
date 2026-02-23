@@ -33,6 +33,7 @@ export interface Network {
   prefix: string | null;
   asn_category: string | null;
   network_role: string | null;
+  asn_registered: string | null;
   type: string;
   infra_type: string;
   is_internal: boolean;

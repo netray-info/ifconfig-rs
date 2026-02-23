@@ -242,6 +242,9 @@ pub struct Network {
     /// Network role from ipverse/as-metadata (e.g. "stub", "tier1_transit").
     #[schema(example = json!(null))]
     pub network_role: Option<String>,
+    /// ASN registration date from ipverse/as-metadata (YYYY-MM-DD). Null for internal IPs or unknown ASNs.
+    #[schema(example = json!(null))]
+    pub asn_registered: Option<String>,
     /// Primary signal: highest-priority classification. One of: internal, c2, bot, cloud, vpn, tor, spamhaus, datacenter, residential.
     #[serde(rename = "type")]
     #[schema(example = "residential")]
@@ -516,6 +519,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         }.to_string();
 
         let network_role = asn_meta.and_then(|m| m.network_role.clone());
+        let asn_registered = asn_meta.and_then(|m| m.asn_registered.clone());
 
         Network {
             asn: asn_number,
@@ -523,6 +527,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             prefix: asn_prefix,
             asn_category: if is_internal { None } else { asn_category },
             network_role: if is_internal { None } else { network_role },
+            asn_registered: if is_internal { None } else { asn_registered },
             network_type,
             infra_type,
             is_internal,

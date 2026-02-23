@@ -142,6 +142,9 @@ pub mod network {
         if let Some(ref role) = n.network_role {
             lines.push(format!("role:       {}", role));
         }
+        if let Some(ref reg) = n.asn_registered {
+            lines.push(format!("registered: {}", reg));
+        }
         lines.push(format!("type:       {}", n.network_type));
         lines.push(format!("infra:      {}", n.infra_type));
         if let Some(ref c) = n.cloud {
@@ -240,6 +243,9 @@ pub mod all {
             }
             if let Some(ref role) = n.network_role {
                 lines.push(format!("role:       {}", role));
+            }
+            if let Some(ref reg) = n.asn_registered {
+                lines.push(format!("registered: {}", reg));
             }
             lines.push(format!("network:    {}", n.network_type));
             lines.push(format!("infra:      {}", n.infra_type));
@@ -473,6 +479,7 @@ mod tests {
             prefix: None,
             asn_category: None,
             network_role: None,
+            asn_registered: None,
             network_type: "residential".to_string(),
             infra_type: "residential".to_string(),
             is_internal: false,
@@ -592,6 +599,7 @@ mod tests {
             prefix: Some("54.0.0.0/8".to_string()),
             asn_category: Some("hosting".to_string()),
             network_role: None,
+            asn_registered: None,
             network_type: "cloud".to_string(),
             infra_type: "cloud".to_string(),
             is_internal: false,

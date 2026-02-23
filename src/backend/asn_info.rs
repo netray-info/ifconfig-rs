@@ -14,6 +14,7 @@ pub enum AsnCategory {
 pub struct AsnMeta {
     pub category: AsnCategory,
     pub network_role: Option<String>,
+    pub asn_registered: Option<String>,
 }
 
 pub struct AsnInfo {
@@ -25,6 +26,8 @@ struct RawRecord {
     asn: u32,
     category: String,
     network_role: String,
+    #[serde(default)]
+    registered: String,
 }
 
 impl AsnInfo {
@@ -52,7 +55,8 @@ impl AsnInfo {
             } else {
                 Some(r.network_role)
             };
-            map.insert(r.asn, AsnMeta { category, network_role });
+            let asn_registered = if r.registered.is_empty() { None } else { Some(r.registered) };
+            map.insert(r.asn, AsnMeta { category, network_role, asn_registered });
         }
         Ok(AsnInfo { map })
     }
@@ -115,5 +119,19 @@ mod tests {
         let db = load_from_str(content).await;
         let meta = db.lookup(1234).unwrap();
         assert!(meta.network_role.is_none());
+    }
+
+    #[tokio::test]
+    async fn registered_date_parsed() {
+        let content = r#"{"asn":4711,"category":"business","network_role":"stub","registered":"1997-03-14"}"#;
+        let db = load_from_str(content).await;
+        assert_eq!(db.lookup(4711).unwrap().asn_registered.as_deref(), Some("1997-03-14"));
+    }
+
+    #[tokio::test]
+    async fn empty_registered_becomes_none() {
+        let content = r#"{"asn":1234,"category":"isp","network_role":"","registered":""}"#;
+        let db = load_from_str(content).await;
+        assert!(db.lookup(1234).unwrap().asn_registered.is_none());
     }
 }
