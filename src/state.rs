@@ -29,11 +29,32 @@ pub struct AppState {
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
+pub struct RateLimitInfo {
+    pub per_ip_per_minute: u32,
+    pub per_ip_burst: u32,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct BatchInfo {
+    pub enabled: bool,
+    pub max_size: usize,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct BuildInfo {
+    pub date: String,
+    pub revision: String,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct ProjectInfo {
     pub name: String,
     pub version: String,
     pub base_url: String,
     pub site_name: String,
+    pub batch: BatchInfo,
+    pub rate_limit: RateLimitInfo,
+    pub build: BuildInfo,
 }
 
 impl AppState {
@@ -47,6 +68,18 @@ impl AppState {
             version: config.project_version.clone(),
             base_url: config.base_url.clone(),
             site_name: config.site_name.clone().unwrap_or_else(|| config.base_url.clone()),
+            batch: BatchInfo {
+                enabled: config.batch.enabled,
+                max_size: config.batch.max_size,
+            },
+            rate_limit: RateLimitInfo {
+                per_ip_per_minute: config.rate_limit.per_ip_per_minute,
+                per_ip_burst: config.rate_limit.per_ip_burst,
+            },
+            build: BuildInfo {
+                date: env!("BUILD_DATE").to_string(),
+                revision: env!("GIT_SHORT_SHA").to_string(),
+            },
         };
 
         if config.batch.enabled {

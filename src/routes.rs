@@ -62,7 +62,8 @@ use crate::state::AppState;
     components(schemas(
         Ifconfig, Ip, Tcp, Location, Network, CloudInfo, VpnInfo, NetworkBot,
         UserAgent, Browser, OS, Device, ErrorResponse,
-        crate::state::ProjectInfo,
+        MetaResponse, DataSources,
+        crate::state::RateLimitInfo, crate::state::BatchInfo, crate::state::BuildInfo,
     )),
     tags(
         (name = "IP", description = "IP address lookup and version endpoints"),
@@ -1105,16 +1106,87 @@ async fn ip_version_dispatch(
 
 // ---- Meta handler (site info for SPA) ----
 
+#[derive(serde::Serialize, utoipa::ToSchema)]
+struct DataSources {
+    geoip_city: bool,
+    geoip_asn: bool,
+    user_agent: bool,
+    tor: bool,
+    vpn: bool,
+    cloud: bool,
+    datacenter: bool,
+    bot: bool,
+    feodo: bool,
+    spamhaus: bool,
+    asn_info: bool,
+}
+
+/// Converts a Unix epoch (seconds) to an ISO 8601 date string (`YYYY-MM-DD`).
+/// Uses the civil_from_days algorithm (Howard Hinnant) — no external dependencies.
+fn epoch_to_iso_date(epoch_secs: u64) -> String {
+    let z = (epoch_secs / 86400) as i64 + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+#[derive(serde::Serialize, utoipa::ToSchema)]
+struct MetaResponse<'a> {
+    name: &'a str,
+    version: &'a str,
+    base_url: &'a str,
+    site_name: &'a str,
+    batch: &'a crate::state::BatchInfo,
+    rate_limit: &'a crate::state::RateLimitInfo,
+    data_sources: DataSources,
+    /// ISO 8601 date of the loaded GeoIP City database build, or `null` if not loaded.
+    geoip_database_date: Option<String>,
+    build: &'a crate::state::BuildInfo,
+}
+
 #[utoipa::path(
     get, path = "/meta",
     tag = "Probes",
-    description = "Returns site metadata used by the SPA: project name, version, base URL, and site name.",
+    description = "Returns site metadata used by the SPA: project name, version, base URL, site name, \
+        batch availability, rate limit settings, loaded data sources, and build info.",
     responses(
-        (status = 200, description = "Site metadata", body = crate::state::ProjectInfo),
+        (status = 200, description = "Site metadata", body = MetaResponse),
     )
 )]
 async fn meta_handler(State(state): State<AppState>) -> Response {
-    (StatusCode::OK, axum::Json(&*state.project_info)).into_response()
+    let info = &*state.project_info;
+    let ctx = state.enrichment.load();
+    let response = MetaResponse {
+        name: &info.name,
+        version: &info.version,
+        base_url: &info.base_url,
+        site_name: &info.site_name,
+        batch: &info.batch,
+        rate_limit: &info.rate_limit,
+        data_sources: DataSources {
+            geoip_city: ctx.geoip_city_db.is_some(),
+            geoip_asn: ctx.geoip_asn_db.is_some(),
+            user_agent: ctx.user_agent_parser.is_some(),
+            tor: ctx.tor_exit_nodes.is_loaded(),
+            vpn: ctx.vpn_ranges.is_some(),
+            cloud: ctx.cloud_provider_db.is_some(),
+            datacenter: ctx.datacenter_ranges.is_some(),
+            bot: ctx.bot_db.is_some(),
+            feodo: ctx.feodo_botnet_ips.is_some(),
+            spamhaus: ctx.spamhaus_drop.is_some(),
+            asn_info: ctx.asn_info.is_some(),
+        },
+        geoip_database_date: ctx.geoip_city_build_epoch.map(epoch_to_iso_date),
+        build: &info.build,
+    };
+    (StatusCode::OK, axum::Json(response)).into_response()
 }
 
 // ---- Health handler ----
@@ -1251,6 +1323,15 @@ fn serve_spa_with_no_cache() -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn epoch_to_iso_date_known_values() {
+        assert_eq!(epoch_to_iso_date(0), "1970-01-01");
+        assert_eq!(epoch_to_iso_date(86400), "1970-01-02");
+        assert_eq!(epoch_to_iso_date(1_000_000_000), "2001-09-09");
+        assert_eq!(epoch_to_iso_date(1_700_000_000), "2023-11-14");
+        assert_eq!(epoch_to_iso_date(1_740_268_800), "2025-02-23");
+    }
 
     #[test]
     fn parse_ip_param_v4() {

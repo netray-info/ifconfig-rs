@@ -2,6 +2,26 @@ use std::path::Path;
 
 fn main() {
     println!("cargo::rerun-if-changed=frontend/dist");
+    println!("cargo::rerun-if-changed=.git/HEAD");
+    println!("cargo::rerun-if-changed=.git/refs/heads");
+
+    let git_sha = std::process::Command::new("git")
+        .args(["rev-parse", "--short", "HEAD"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    println!("cargo::rustc-env=GIT_SHORT_SHA={git_sha}");
+
+    let git_date = std::process::Command::new("git")
+        .args(["log", "-1", "--format=%cd", "--date=short"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    println!("cargo::rustc-env=BUILD_DATE={git_date}");
 
     let dist = Path::new("frontend/dist/index.html");
     if !dist.exists() {
