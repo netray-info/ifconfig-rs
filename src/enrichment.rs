@@ -1,6 +1,9 @@
 use crate::backend::asn_heuristic::AsnPatterns;
 use crate::backend::user_agent::UserAgentParser;
-use crate::backend::{AsnInfo, BotDb, CloudProviderDb, DatacenterRanges, FeodoBotnetIps, GeoIpAsnDb, GeoIpCityDb, SpamhausDrop, TorExitNodes, VpnRanges};
+use crate::backend::{
+    AsnInfo, BotDb, CloudProviderDb, DatacenterRanges, FeodoBotnetIps, GeoIpAsnDb, GeoIpCityDb, SpamhausDrop,
+    TorExitNodes, VpnRanges,
+};
 use crate::config::Config;
 use mhost::resolver::{ResolverGroup, ResolverGroupBuilder};
 use std::sync::Arc;
@@ -195,7 +198,11 @@ impl EnrichmentContext {
         let asn_patterns = Arc::new(if let Some(path) = config.asn_patterns.as_deref() {
             match AsnPatterns::from_file(path).await {
                 Ok(p) => {
-                    info!("Loaded ASN patterns from {} ({} patterns)", path, p.hosting.len() + p.vpn.len());
+                    info!(
+                        "Loaded ASN patterns from {} ({} patterns)",
+                        path,
+                        p.hosting.len() + p.vpn.len()
+                    );
                     p
                 }
                 Err(e) => {
@@ -234,15 +241,33 @@ impl EnrichmentContext {
 
         // Collect optional sources that were configured but failed to load.
         let missing_optional: Vec<&'static str> = [
-            (config.user_agent_regexes.is_some()    && user_agent_parser.is_none(),      "user_agent_regexes"),
-            (config.tor_exit_nodes.is_some()        && !tor_exit_nodes.is_loaded(),      "tor_exit_nodes"),
-            (config.feodo_botnet_ips.is_some()      && feodo_botnet_ips.is_none(),       "feodo_botnet_ips"),
-            (config.cloud_provider_ranges.is_some() && cloud_provider_db.is_none(),      "cloud_provider_ranges"),
-            (config.vpn_ranges.is_some()            && vpn_ranges.is_none(),             "vpn_ranges"),
-            (config.datacenter_ranges.is_some()     && datacenter_ranges.is_none(),      "datacenter_ranges"),
-            (config.bot_ranges.is_some()            && bot_db.is_none(),                 "bot_ranges"),
-            (config.spamhaus_drop.is_some()         && spamhaus_drop.is_none(),          "spamhaus_drop"),
-            (config.asn_info.is_some()              && asn_info.is_none(),               "asn_info"),
+            (
+                config.user_agent_regexes.is_some() && user_agent_parser.is_none(),
+                "user_agent_regexes",
+            ),
+            (
+                config.tor_exit_nodes.is_some() && !tor_exit_nodes.is_loaded(),
+                "tor_exit_nodes",
+            ),
+            (
+                config.feodo_botnet_ips.is_some() && feodo_botnet_ips.is_none(),
+                "feodo_botnet_ips",
+            ),
+            (
+                config.cloud_provider_ranges.is_some() && cloud_provider_db.is_none(),
+                "cloud_provider_ranges",
+            ),
+            (config.vpn_ranges.is_some() && vpn_ranges.is_none(), "vpn_ranges"),
+            (
+                config.datacenter_ranges.is_some() && datacenter_ranges.is_none(),
+                "datacenter_ranges",
+            ),
+            (config.bot_ranges.is_some() && bot_db.is_none(), "bot_ranges"),
+            (
+                config.spamhaus_drop.is_some() && spamhaus_drop.is_none(),
+                "spamhaus_drop",
+            ),
+            (config.asn_info.is_some() && asn_info.is_none(), "asn_info"),
         ]
         .into_iter()
         .filter_map(|(failed, name)| if failed { Some(name) } else { None })

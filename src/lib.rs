@@ -88,10 +88,7 @@ pub async fn build_app(config: &Config) -> AppBundle {
                 limiter.shrink_to_fit();
                 let after = limiter.len();
                 if before != after {
-                    tracing::debug!(
-                        "Rate limiter cleanup: {} -> {} entries",
-                        before, after
-                    );
+                    tracing::debug!("Rate limiter cleanup: {} -> {} entries", before, after);
                 }
             }
         });
@@ -100,10 +97,7 @@ pub async fn build_app(config: &Config) -> AppBundle {
     let api_routes = routes::router();
 
     let cors = if config.server.cors_allowed_origins.iter().any(|o| o == "*") {
-        CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods(Any)
-            .allow_headers(Any)
+        CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any)
     } else {
         let origins: Vec<axum::http::HeaderValue> = config
             .server
@@ -123,8 +117,14 @@ pub async fn build_app(config: &Config) -> AppBundle {
         .layer(DefaultBodyLimit::max(1_048_576))
         .layer(axum_mw::from_fn(middleware::security_headers))
         .layer(cors)
-        .layer(axum_mw::from_fn_with_state(state.clone(), middleware::geoip_date_headers))
-        .layer(axum_mw::from_fn_with_state(state.clone(), middleware::etag_last_modified))
+        .layer(axum_mw::from_fn_with_state(
+            state.clone(),
+            middleware::geoip_date_headers,
+        ))
+        .layer(axum_mw::from_fn_with_state(
+            state.clone(),
+            middleware::etag_last_modified,
+        ))
         .layer(axum_mw::from_fn_with_state(state.clone(), middleware::rate_limit))
         .layer(axum_mw::from_fn_with_state(
             state.clone(),
@@ -146,14 +146,16 @@ pub async fn build_app(config: &Config) -> AppBundle {
                         client_ip = tracing::field::Empty,
                     )
                 })
-                .on_response(|response: &axum::http::Response<_>, latency: std::time::Duration, span: &tracing::Span| {
-                    tracing::info!(
-                        parent: span,
-                        status = response.status().as_u16(),
-                        ms = latency.as_millis(),
-                        "",
-                    );
-                }),
+                .on_response(
+                    |response: &axum::http::Response<_>, latency: std::time::Duration, span: &tracing::Span| {
+                        tracing::info!(
+                            parent: span,
+                            status = response.status().as_u16(),
+                            ms = latency.as_millis(),
+                            "",
+                        );
+                    },
+                ),
         )
         .layer(axum_mw::from_fn(middleware::record_metrics))
         .layer(axum_mw::from_fn(middleware::request_id))

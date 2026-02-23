@@ -216,7 +216,6 @@ impl Location {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct CloudInfo {
     #[schema(example = "aws")]
@@ -350,7 +349,10 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
                 let query = MultiQuery::single(ip, RecordType::PTR).ok()?;
                 let lookups = match resolver.lookup(query).await {
                     Ok(r) => r,
-                    Err(e) => { tracing::debug!("PTR lookup error for {ip}: {e}"); return None; }
+                    Err(e) => {
+                        tracing::debug!("PTR lookup error for {ip}: {e}");
+                        return None;
+                    }
                 };
                 lookups.ptr().into_iter().next().map(|name| {
                     let s = name.to_string();
@@ -359,7 +361,11 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             })
             .await;
             let result = result.ok().flatten();
-            param.dns_cache.lock().unwrap().put(ip, (result.clone(), std::time::Instant::now()));
+            param
+                .dns_cache
+                .lock()
+                .unwrap()
+                .put(ip, (result.clone(), std::time::Instant::now()));
             result
         }
     };
@@ -375,7 +381,9 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
     let tcp = if param.remote.port() == 0 {
         None // ?ip= query — port is synthetic (0), omit from response
     } else {
-        Some(Tcp { port: param.remote.port() })
+        Some(Tcp {
+            port: param.remote.port(),
+        })
     };
 
     let location = param
@@ -406,18 +414,17 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
     let (asn_number, asn_org, asn_prefix) = param
         .geoip_asn_db
         .and_then(|db| db.lookup(param.remote.ip()))
-        .map(|(isp, prefix)| (
-            isp.autonomous_system_number,
-            isp.autonomous_system_organization.map(|s| s.to_owned()),
-            prefix,
-        ))
+        .map(|(isp, prefix)| {
+            (
+                isp.autonomous_system_number,
+                isp.autonomous_system_organization.map(|s| s.to_owned()),
+                prefix,
+            )
+        })
         .unwrap_or((None, None, None));
 
     // --- Classification flags ---
-    let is_tor = param
-        .tor_exit_nodes
-        .lookup(&param.remote.ip())
-        .unwrap_or(false);
+    let is_tor = param.tor_exit_nodes.lookup(&param.remote.ip()).unwrap_or(false);
 
     let is_botnet_c2 = param
         .feodo_botnet_ips
@@ -428,14 +435,9 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         .cloud_provider_db
         .and_then(|db| db.lookup(param.remote.ip()).cloned());
 
-    let vpn_cidr = param
-        .vpn_ranges
-        .map(|db| db.lookup(param.remote.ip()))
-        .unwrap_or(false);
+    let vpn_cidr = param.vpn_ranges.map(|db| db.lookup(param.remote.ip())).unwrap_or(false);
 
-    let bot = param
-        .bot_db
-        .and_then(|db| db.lookup(param.remote.ip()).cloned());
+    let bot = param.bot_db.and_then(|db| db.lookup(param.remote.ip()).cloned());
 
     let is_threat = param
         .spamhaus_drop
@@ -451,15 +453,16 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
 
     let asn_meta = asn_number.and_then(|n| param.asn_info.and_then(|db| db.lookup(n)));
 
-    let is_vpn = vpn_cidr
-        || matches!(asn_class, asn_heuristic::AsnClassification::Vpn { .. });
+    let is_vpn = vpn_cidr || matches!(asn_class, asn_heuristic::AsnClassification::Vpn { .. });
 
     let is_bot = bot.is_some();
 
     let is_datacenter = cloud.is_some()
         || dc_range_match
         || matches!(asn_class, asn_heuristic::AsnClassification::Hosting { .. })
-        || asn_meta.map(|m| m.category == asn_info::AsnCategory::Hosting).unwrap_or(false);
+        || asn_meta
+            .map(|m| m.category == asn_info::AsnCategory::Hosting)
+            .unwrap_or(false);
 
     let asn_category: Option<String> = asn_meta.and_then(|m| match m.category {
         asn_info::AsnCategory::Hosting => Some("hosting".to_string()),
@@ -513,7 +516,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             "datacenter"
         } else {
             "residential"
-        }.to_string();
+        }
+        .to_string();
 
         let infra_type = if is_internal {
             "internal"
@@ -528,7 +532,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
                 Some("business") => "business",
                 _ => "residential",
             }
-        }.to_string();
+        }
+        .to_string();
 
         let network_role = asn_meta.and_then(|m| m.network_role.clone());
         let asn_registered = asn_meta.and_then(|m| m.asn_registered.clone());

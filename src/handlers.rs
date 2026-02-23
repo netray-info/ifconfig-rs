@@ -88,8 +88,6 @@ pub mod tcp {
     }
 }
 
-
-
 pub mod location {
     use super::*;
 
@@ -148,14 +146,10 @@ pub mod network {
         lines.push(format!("type:       {}", n.network_type));
         lines.push(format!("infra:      {}", n.infra_type));
         if let Some(ref c) = n.cloud {
-            let parts: Vec<&str> = [
-                Some(c.provider.as_str()),
-                c.service.as_deref(),
-                c.region.as_deref(),
-            ]
-            .iter()
-            .filter_map(|x| *x)
-            .collect();
+            let parts: Vec<&str> = [Some(c.provider.as_str()), c.service.as_deref(), c.region.as_deref()]
+                .iter()
+                .filter_map(|x| *x)
+                .collect();
             lines.push(format!("cloud:      {}", parts.join(" · ")));
         }
         if let Some(ref v) = n.vpn {
@@ -250,14 +244,10 @@ pub mod all {
             lines.push(format!("network:    {}", n.network_type));
             lines.push(format!("infra:      {}", n.infra_type));
             if let Some(ref c) = n.cloud {
-                let parts: Vec<&str> = [
-                    Some(c.provider.as_str()),
-                    c.service.as_deref(),
-                    c.region.as_deref(),
-                ]
-                .iter()
-                .filter_map(|x| *x)
-                .collect();
+                let parts: Vec<&str> = [Some(c.provider.as_str()), c.service.as_deref(), c.region.as_deref()]
+                    .iter()
+                    .filter_map(|x| *x)
+                    .collect();
                 lines.push(format!("cloud:      {}", parts.join(" · ")));
             }
             if let Some(ref v) = n.vpn {
@@ -448,7 +438,11 @@ mod tests {
 
     fn make_ifconfig(hostname: Option<&str>, tcp_port: Option<u16>, network: Network) -> Ifconfig {
         Ifconfig {
-            ip: Ip { addr: "203.0.113.42".to_string(), version: "4".to_string(), hostname: hostname.map(|s| s.to_string()) },
+            ip: Ip {
+                addr: "203.0.113.42".to_string(),
+                version: "4".to_string(),
+                hostname: hostname.map(|s| s.to_string()),
+            },
             tcp: tcp_port.map(|p| Tcp { port: p }),
             location: Location {
                 city: Some("Berlin".to_string()),
@@ -651,11 +645,17 @@ mod tests {
     fn all_to_plain_full() {
         let ifc = make_ifconfig(Some("dns.example.com"), Some(8080), residential_network());
         let plain = all::to_plain(&ifc);
-        assert!(plain.contains("hostname:   dns.example.com"), "hostname missing: {plain}");
+        assert!(
+            plain.contains("hostname:   dns.example.com"),
+            "hostname missing: {plain}"
+        );
         assert!(plain.contains("port:       8080"));
         assert!(plain.contains("org:        Example Telecom"));
         assert!(plain.contains("asn:        AS64496"));
-        assert!(plain.contains("network:    residential"), "network type missing: {plain}");
+        assert!(
+            plain.contains("network:    residential"),
+            "network type missing: {plain}"
+        );
     }
 
     // --- headers ---
@@ -672,9 +672,7 @@ mod tests {
 
     #[test]
     fn headers_to_json_value() {
-        let h = vec![
-            ("host".to_string(), "example.com".to_string()),
-        ];
+        let h = vec![("host".to_string(), "example.com".to_string())];
         let val = headers::to_json_value(&h);
         assert_eq!(val["host"], "example.com");
     }

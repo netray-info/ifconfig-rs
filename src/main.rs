@@ -44,8 +44,8 @@ async fn main() {
         let enrichment_handle = Arc::clone(&bundle.enrichment_handle);
         let reload_config = Arc::clone(&config);
         tokio::spawn(async move {
-            let mut sig =
-                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()).expect("Failed to register SIGHUP handler");
+            let mut sig = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())
+                .expect("Failed to register SIGHUP handler");
             loop {
                 sig.recv().await;
                 reload_enrichment(&enrichment_handle, &reload_config, "SIGHUP").await;

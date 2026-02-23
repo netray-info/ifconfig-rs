@@ -87,17 +87,18 @@ pub fn extract_headers(headers: &HeaderMap) -> Vec<(String, String)> {
         .map(|(name, value)| {
             let v = value.to_str().unwrap_or("");
             // Header values are ASCII; safe to slice at byte boundary.
-            let v = if v.len() > MAX_VALUE_LEN { &v[..MAX_VALUE_LEN] } else { v };
+            let v = if v.len() > MAX_VALUE_LEN {
+                &v[..MAX_VALUE_LEN]
+            } else {
+                v
+            };
             (name.to_string(), v.to_string())
         })
         .collect()
 }
 
 /// Remove headers whose names match any of the provided regex filters.
-pub fn filter_headers(
-    headers: Vec<(String, String)>,
-    filters: &regex::RegexSet,
-) -> Vec<(String, String)> {
+pub fn filter_headers(headers: Vec<(String, String)>, filters: &regex::RegexSet) -> Vec<(String, String)> {
     if filters.is_empty() {
         return headers;
     }
@@ -219,10 +220,7 @@ mod tests {
         let result = filter_headers(headers, &filters);
         assert_eq!(
             result,
-            vec![
-                ("host".into(), "example.com".into()),
-                ("accept".into(), "*/*".into()),
-            ]
+            vec![("host".into(), "example.com".into()), ("accept".into(), "*/*".into()),]
         );
     }
 

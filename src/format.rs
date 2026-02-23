@@ -61,10 +61,12 @@ impl OutputFormat {
 /// Parse `?fields=ip,location,isp` from a URI string into a set of field names.
 pub fn parse_fields_param(uri: &str) -> Option<HashSet<String>> {
     let query = uri.split('?').nth(1)?;
-    query
-        .split('&')
-        .find_map(|p| p.strip_prefix("fields="))
-        .map(|f| f.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+    query.split('&').find_map(|p| p.strip_prefix("fields=")).map(|f| {
+        f.split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    })
 }
 
 /// Keep only the specified top-level keys from a JSON object.
@@ -160,7 +162,13 @@ pub fn json_array_to_csv(array: &[Value]) -> String {
     }
 
     let mut rows = Vec::with_capacity(array.len() + 1);
-    rows.push(columns.iter().map(|c| csv_escape(c).into_owned()).collect::<Vec<_>>().join(","));
+    rows.push(
+        columns
+            .iter()
+            .map(|c| csv_escape(c).into_owned())
+            .collect::<Vec<_>>()
+            .join(","),
+    );
 
     for item in array {
         if item.get("error").is_some() {
@@ -192,7 +200,11 @@ fn collect_keys(value: &Value, prefix: String, keys: &mut Vec<String>) {
     match value {
         Value::Object(map) => {
             for (k, v) in map {
-                let key = if prefix.is_empty() { k.clone() } else { format!("{}.{}", prefix, k) };
+                let key = if prefix.is_empty() {
+                    k.clone()
+                } else {
+                    format!("{}.{}", prefix, k)
+                };
                 match v {
                     Value::Object(_) => collect_keys(v, key, keys),
                     _ => keys.push(key),

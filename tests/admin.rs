@@ -20,9 +20,7 @@ fn test_config() -> Config {
 
 /// Sends a GET request to the given URI with optional headers.
 async fn admin_get(addr: SocketAddr, path: &str, headers: &[(&str, &str)]) -> (StatusCode, String) {
-    let client =
-        hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-            .build_http();
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new()).build_http();
     let uri = format!("http://{}{}", addr, path);
     let mut builder = Request::builder().uri(&uri);
     for (k, v) in headers {
@@ -59,7 +57,9 @@ async fn admin_port_metrics_and_bearer_auth() {
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     tokio::spawn(async move {
         axum::serve(listener, admin_app.into_make_service())
-            .with_graceful_shutdown(async { rx.await.ok(); })
+            .with_graceful_shutdown(async {
+                rx.await.ok();
+            })
             .await
             .unwrap();
     });
@@ -70,11 +70,14 @@ async fn admin_port_metrics_and_bearer_auth() {
 
     // Wrong token → 401
     let (status, _) = admin_get(addr, "/metrics", &[("authorization", "Bearer wrong-token")]).await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "/metrics with wrong token should be 401");
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "/metrics with wrong token should be 401"
+    );
 
     // Correct token → 200 with Prometheus text/plain body
-    let (status, body) =
-        admin_get(addr, "/metrics", &[("authorization", "Bearer test-admin-secret")]).await;
+    let (status, body) = admin_get(addr, "/metrics", &[("authorization", "Bearer test-admin-secret")]).await;
     assert_eq!(status, StatusCode::OK, "/metrics with correct token should be 200");
     assert!(
         body.contains("# HELP") || body.contains("# TYPE"),
@@ -86,8 +89,7 @@ async fn admin_port_metrics_and_bearer_auth() {
     let (status, _) = admin_get(addr, "/health", &[]).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "/health without token should be 401");
 
-    let (status, _) =
-        admin_get(addr, "/health", &[("authorization", "Bearer test-admin-secret")]).await;
+    let (status, _) = admin_get(addr, "/health", &[("authorization", "Bearer test-admin-secret")]).await;
     assert_eq!(status, StatusCode::OK, "/health with correct token should be 200");
 
     let _ = tx.send(());

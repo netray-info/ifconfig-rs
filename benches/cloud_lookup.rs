@@ -27,9 +27,7 @@ fn make_bench_db() -> CloudProviderDb {
     let path = std::env::temp_dir().join(format!("ifconfig_bench_cloud_{}.jsonl", id));
     std::fs::write(&path, &jsonl).unwrap();
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let db = rt
-        .block_on(CloudProviderDb::from_file(path.to_str().unwrap()))
-        .unwrap();
+    let db = rt.block_on(CloudProviderDb::from_file(path.to_str().unwrap())).unwrap();
     let _ = std::fs::remove_file(&path);
     db
 }

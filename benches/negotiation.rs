@@ -20,7 +20,10 @@ fn bench_negotiate(c: &mut Criterion) {
     let json_headers = headers_with(&[("accept", "application/json")]);
     let browser_headers = headers_with(&[
         ("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"),
-        ("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+        (
+            "accept",
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        ),
     ]);
 
     c.bench_function("negotiate_suffix_json", |b| {

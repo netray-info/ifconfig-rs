@@ -83,7 +83,10 @@ impl AppState {
         };
 
         if config.batch.enabled {
-            assert!(config.batch.max_size > 0, "batch.max_size must be > 0 when batch is enabled");
+            assert!(
+                config.batch.max_size > 0,
+                "batch.max_size must be > 0 when batch is enabled"
+            );
             if config.batch.max_size > 10_000 {
                 warn!(
                     "batch.max_size={} is very large; values above 10000 risk resource exhaustion under load",
@@ -92,8 +95,7 @@ impl AppState {
             }
         }
 
-        let per_minute =
-            NonZeroU32::new(config.rate_limit.per_ip_per_minute).expect("per_ip_per_minute must be > 0");
+        let per_minute = NonZeroU32::new(config.rate_limit.per_ip_per_minute).expect("per_ip_per_minute must be > 0");
         let burst = NonZeroU32::new(config.rate_limit.per_ip_burst).expect("per_ip_burst must be > 0");
         let quota = Quota::per_minute(per_minute).allow_burst(burst);
         let rate_limiter = Arc::new(RateLimiter::keyed(quota).with_middleware::<StateInformationMiddleware>());
@@ -204,7 +206,10 @@ mod tests {
     #[should_panic(expected = "batch.max_size must be > 0")]
     async fn batch_max_size_zero_panics() {
         build_state(|c| {
-            c.batch = BatchConfig { enabled: true, max_size: 0 };
+            c.batch = BatchConfig {
+                enabled: true,
+                max_size: 0,
+            };
         })
         .await;
     }
@@ -213,7 +218,10 @@ mod tests {
     async fn batch_max_size_zero_ok_when_disabled() {
         // max_size=0 is not validated when batch is disabled
         let state = build_state(|c| {
-            c.batch = BatchConfig { enabled: false, max_size: 0 };
+            c.batch = BatchConfig {
+                enabled: false,
+                max_size: 0,
+            };
         })
         .await;
         assert_eq!(state.config.batch.max_size, 0);

@@ -40,8 +40,7 @@ impl AsnInfo {
             if line.is_empty() {
                 continue;
             }
-            let r: RawRecord = serde_json::from_str(line)
-                .map_err(|e| format!("line {}: {e}", i + 1))?;
+            let r: RawRecord = serde_json::from_str(line).map_err(|e| format!("line {}: {e}", i + 1))?;
             let category = match r.category.as_str() {
                 "hosting" => AsnCategory::Hosting,
                 "isp" => AsnCategory::Isp,
@@ -55,8 +54,19 @@ impl AsnInfo {
             } else {
                 Some(r.network_role)
             };
-            let asn_registered = if r.registered.is_empty() { None } else { Some(r.registered) };
-            map.insert(r.asn, AsnMeta { category, network_role, asn_registered });
+            let asn_registered = if r.registered.is_empty() {
+                None
+            } else {
+                Some(r.registered)
+            };
+            map.insert(
+                r.asn,
+                AsnMeta {
+                    category,
+                    network_role,
+                    asn_registered,
+                },
+            );
         }
         Ok(AsnInfo { map })
     }

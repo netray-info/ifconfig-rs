@@ -51,8 +51,7 @@ impl AsnPatterns {
         let contents = tokio::fs::read_to_string(path)
             .await
             .map_err(|e| format!("failed to read {path}: {e}"))?;
-        let raw: RawAsnPatterns = toml::from_str(&contents)
-            .map_err(|e| format!("failed to parse {path}: {e}"))?;
+        let raw: RawAsnPatterns = toml::from_str(&contents).map_err(|e| format!("failed to parse {path}: {e}"))?;
         let hosting = compile_patterns(raw.hosting)?;
         let vpn = compile_patterns(raw.vpn)?;
         Ok(AsnPatterns { hosting, vpn })
@@ -119,11 +118,7 @@ fn compile_patterns(entries: Vec<RawPatternEntry>) -> Result<Vec<CompiledEntry>,
 /// Pass 1: exact ASN number match (higher confidence, skipped if `asn_number` is `None`).
 /// Pass 2: case-insensitive regex match on org name (skipped if `asn_org` is `None`).
 /// Returns the first match found across both passes.
-pub fn classify_asn(
-    asn_number: Option<u32>,
-    asn_org: Option<&str>,
-    patterns: &AsnPatterns,
-) -> AsnClassification {
+pub fn classify_asn(asn_number: Option<u32>, asn_org: Option<&str>, patterns: &AsnPatterns) -> AsnClassification {
     // Pass 1: ASN number matches
     if let Some(n) = asn_number {
         for entry in &patterns.hosting {
@@ -243,7 +238,9 @@ mod tests {
     fn classify_hetzner() {
         assert_eq!(
             classify_asn(None, Some("Hetzner Online GmbH"), &builtin()),
-            AsnClassification::Hosting { provider: "Hetzner".to_string() }
+            AsnClassification::Hosting {
+                provider: "Hetzner".to_string()
+            }
         );
     }
 
@@ -251,7 +248,9 @@ mod tests {
     fn classify_digitalocean() {
         assert_eq!(
             classify_asn(None, Some("DIGITALOCEAN-ASN"), &builtin()),
-            AsnClassification::Hosting { provider: "DigitalOcean".to_string() }
+            AsnClassification::Hosting {
+                provider: "DigitalOcean".to_string()
+            }
         );
     }
 
@@ -259,7 +258,9 @@ mod tests {
     fn classify_mullvad() {
         assert_eq!(
             classify_asn(None, Some("MULLVAD-VPN-SE"), &builtin()),
-            AsnClassification::Vpn { provider: "Mullvad".to_string() }
+            AsnClassification::Vpn {
+                provider: "Mullvad".to_string()
+            }
         );
     }
 
@@ -267,20 +268,27 @@ mod tests {
     fn classify_mullvad_31173() {
         assert_eq!(
             classify_asn(None, Some("31173 Services AB"), &builtin()),
-            AsnClassification::Vpn { provider: "Mullvad".to_string() }
+            AsnClassification::Vpn {
+                provider: "Mullvad".to_string()
+            }
         );
     }
 
     #[test]
     fn classify_unknown() {
-        assert_eq!(classify_asn(None, Some("Deutsche Telekom AG"), &builtin()), AsnClassification::None);
+        assert_eq!(
+            classify_asn(None, Some("Deutsche Telekom AG"), &builtin()),
+            AsnClassification::None
+        );
     }
 
     #[test]
     fn case_insensitive() {
         assert_eq!(
             classify_asn(None, Some("hetzner online gmbh"), &builtin()),
-            AsnClassification::Hosting { provider: "Hetzner".to_string() }
+            AsnClassification::Hosting {
+                provider: "Hetzner".to_string()
+            }
         );
     }
 
@@ -288,7 +296,9 @@ mod tests {
     fn classify_vultr_choopa() {
         assert_eq!(
             classify_asn(None, Some("AS-CHOOPA - Choopa, LLC"), &builtin()),
-            AsnClassification::Hosting { provider: "Vultr".to_string() }
+            AsnClassification::Hosting {
+                provider: "Vultr".to_string()
+            }
         );
     }
 
@@ -296,7 +306,9 @@ mod tests {
     fn classify_linode_akamai() {
         assert_eq!(
             classify_asn(None, Some("Akamai Connected Cloud"), &builtin()),
-            AsnClassification::Hosting { provider: "Linode".to_string() }
+            AsnClassification::Hosting {
+                provider: "Linode".to_string()
+            }
         );
     }
 
@@ -304,7 +316,9 @@ mod tests {
     fn classify_akamai_technologies() {
         assert_eq!(
             classify_asn(None, Some("Akamai Technologies, Inc."), &builtin()),
-            AsnClassification::Hosting { provider: "Akamai".to_string() }
+            AsnClassification::Hosting {
+                provider: "Akamai".to_string()
+            }
         );
     }
 
@@ -352,20 +366,27 @@ mod tests {
     fn classify_google_llc() {
         assert_eq!(
             classify_asn(None, Some("Google LLC"), &builtin()),
-            AsnClassification::Hosting { provider: "Google".to_string() }
+            AsnClassification::Hosting {
+                provider: "Google".to_string()
+            }
         );
     }
 
     #[test]
     fn no_false_positive_google_fiber() {
-        assert_eq!(classify_asn(None, Some("Google Fiber Inc."), &builtin()), AsnClassification::None);
+        assert_eq!(
+            classify_asn(None, Some("Google Fiber Inc."), &builtin()),
+            AsnClassification::None
+        );
     }
 
     #[test]
     fn classify_protonvpn() {
         assert_eq!(
             classify_asn(None, Some("Proton AG"), &builtin()),
-            AsnClassification::Vpn { provider: "ProtonVPN".to_string() }
+            AsnClassification::Vpn {
+                provider: "ProtonVPN".to_string()
+            }
         );
     }
 
@@ -381,7 +402,9 @@ mod tests {
         };
         assert_eq!(
             classify_asn(Some(64496), None, &patterns),
-            AsnClassification::Hosting { provider: "TestHost".to_string() }
+            AsnClassification::Hosting {
+                provider: "TestHost".to_string()
+            }
         );
     }
 
@@ -397,7 +420,9 @@ mod tests {
         };
         assert_eq!(
             classify_asn(Some(64497), None, &patterns),
-            AsnClassification::Vpn { provider: "TestVPN".to_string() }
+            AsnClassification::Vpn {
+                provider: "TestVPN".to_string()
+            }
         );
     }
 
@@ -414,7 +439,9 @@ mod tests {
         };
         assert_eq!(
             classify_asn(Some(64496), None, &patterns),
-            AsnClassification::Hosting { provider: "TestHost".to_string() }
+            AsnClassification::Hosting {
+                provider: "TestHost".to_string()
+            }
         );
     }
 
@@ -437,7 +464,9 @@ mod tests {
         let class = classify_asn(Some(48152), None, &patterns);
         assert_eq!(
             class,
-            AsnClassification::Hosting { provider: "Digital Realty Frankfurt GmbH".to_string() }
+            AsnClassification::Hosting {
+                provider: "Digital Realty Frankfurt GmbH".to_string()
+            }
         );
     }
 }

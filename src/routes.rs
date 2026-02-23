@@ -190,10 +190,16 @@ fn parse_dns_param(uri: &str) -> Option<bool> {
     parse_query_param(uri, "dns").map(|v| v.eq_ignore_ascii_case("true") || v == "1")
 }
 
-
 // ---- Compute-once dispatch ----
 
-fn resolve_core_backends(ctx: &EnrichmentContext) -> (Option<&UserAgentParser>, Option<&GeoIpCityDb>, Option<&GeoIpAsnDb>, &TorExitNodes) {
+fn resolve_core_backends(
+    ctx: &EnrichmentContext,
+) -> (
+    Option<&UserAgentParser>,
+    Option<&GeoIpCityDb>,
+    Option<&GeoIpAsnDb>,
+    &TorExitNodes,
+) {
     (
         ctx.user_agent_parser.as_deref(),
         ctx.geoip_city_db.as_deref(),
@@ -234,7 +240,26 @@ async fn dispatch_standard(
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, ctx.asn_patterns.as_ref(), ctx.asn_info.as_deref()).await;
+    let ifconfig = handlers::make_ifconfig(
+        &target_addr,
+        &ua_opt,
+        uap,
+        city,
+        asn,
+        tor,
+        ctx.feodo_botnet_ips.as_deref(),
+        ctx.vpn_ranges.as_deref(),
+        ctx.cloud_provider_db.as_deref(),
+        ctx.datacenter_ranges.as_deref(),
+        ctx.bot_db.as_deref(),
+        ctx.spamhaus_drop.as_deref(),
+        &ctx.dns_resolver,
+        &*state.dns_cache,
+        skip_dns,
+        ctx.asn_patterns.as_ref(),
+        ctx.asn_info.as_deref(),
+    )
+    .await;
 
     let fields = format::parse_fields_param(&req_info.uri);
 
@@ -258,10 +283,13 @@ async fn dispatch_standard(
                 NegotiatedFormat::Csv => OutputFormat::Csv,
                 _ => unreachable!(),
             };
-            match to_json_fn(&ifconfig).map(|v| match &fields {
-                Some(f) => format::filter_fields(v, f),
-                None => v,
-            }).and_then(|v| output_fmt.serialize_body(&v)) {
+            match to_json_fn(&ifconfig)
+                .map(|v| match &fields {
+                    Some(f) => format::filter_fields(v, f),
+                    None => v,
+                })
+                .and_then(|v| output_fmt.serialize_body(&v))
+            {
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
                 None => error_response(StatusCode::NOT_FOUND, "not implemented"),
             }
@@ -418,7 +446,6 @@ standard_endpoint! {
     module = handlers::tcp,
 }
 
-
 standard_endpoint! {
     #[utoipa::path(
         get, path = "/location",
@@ -439,7 +466,6 @@ standard_endpoint! {
     format_handler = location_format_handler,
     module = handlers::location,
 }
-
 
 standard_endpoint! {
     #[utoipa::path(
@@ -551,7 +577,26 @@ async fn dispatch_all(
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, ctx.asn_patterns.as_ref(), ctx.asn_info.as_deref()).await;
+    let ifconfig = handlers::make_ifconfig(
+        &target_addr,
+        &ua_opt,
+        uap,
+        city,
+        asn,
+        tor,
+        ctx.feodo_botnet_ips.as_deref(),
+        ctx.vpn_ranges.as_deref(),
+        ctx.cloud_provider_db.as_deref(),
+        ctx.datacenter_ranges.as_deref(),
+        ctx.bot_db.as_deref(),
+        ctx.spamhaus_drop.as_deref(),
+        &ctx.dns_resolver,
+        &*state.dns_cache,
+        skip_dns,
+        ctx.asn_patterns.as_ref(),
+        ctx.asn_info.as_deref(),
+    )
+    .await;
 
     let fields = format::parse_fields_param(&req_info.uri);
 
@@ -821,7 +866,10 @@ async fn batch_dispatch(
     let ips: Vec<String> = match serde_json::from_slice(body) {
         Ok(v) => v,
         Err(_) => {
-            return error_response(StatusCode::BAD_REQUEST, "request body must be a JSON array of IP strings");
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "request body must be a JSON array of IP strings",
+            );
         }
     };
 
@@ -915,11 +963,22 @@ async fn batch_dispatch(
             let target_addr = SocketAddr::new(ip, 0);
 
             let lookup = handlers::make_ifconfig(
-                &target_addr, &ua_ref, uap, city, asn, tor,
-                ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(),
-                ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(),
-                ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(),
-                &ctx.dns_resolver, &*dns_cache, skip_dns, ctx.asn_patterns.as_ref(),
+                &target_addr,
+                &ua_ref,
+                uap,
+                city,
+                asn,
+                tor,
+                ctx.feodo_botnet_ips.as_deref(),
+                ctx.vpn_ranges.as_deref(),
+                ctx.cloud_provider_db.as_deref(),
+                ctx.datacenter_ranges.as_deref(),
+                ctx.bot_db.as_deref(),
+                ctx.spamhaus_drop.as_deref(),
+                &ctx.dns_resolver,
+                &*dns_cache,
+                skip_dns,
+                ctx.asn_patterns.as_ref(),
                 ctx.asn_info.as_deref(),
             );
             let ifconfig = match tokio::time::timeout(std::time::Duration::from_secs(5), lookup).await {
@@ -1076,7 +1135,26 @@ async fn ip_version_dispatch(
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(&target_addr, &ua_opt, uap, city, asn, tor, ctx.feodo_botnet_ips.as_deref(), ctx.vpn_ranges.as_deref(), ctx.cloud_provider_db.as_deref(), ctx.datacenter_ranges.as_deref(), ctx.bot_db.as_deref(), ctx.spamhaus_drop.as_deref(), &ctx.dns_resolver, &*state.dns_cache, skip_dns, ctx.asn_patterns.as_ref(), ctx.asn_info.as_deref()).await;
+    let ifconfig = handlers::make_ifconfig(
+        &target_addr,
+        &ua_opt,
+        uap,
+        city,
+        asn,
+        tor,
+        ctx.feodo_botnet_ips.as_deref(),
+        ctx.vpn_ranges.as_deref(),
+        ctx.cloud_provider_db.as_deref(),
+        ctx.datacenter_ranges.as_deref(),
+        ctx.bot_db.as_deref(),
+        ctx.spamhaus_drop.as_deref(),
+        &ctx.dns_resolver,
+        &*state.dns_cache,
+        skip_dns,
+        ctx.asn_patterns.as_ref(),
+        ctx.asn_info.as_deref(),
+    )
+    .await;
 
     if ifconfig.ip.version != version {
         return error_response(StatusCode::NOT_FOUND, "not implemented");
@@ -1225,7 +1303,11 @@ async fn ready_handler(State(state): State<AppState>) -> Response {
         if warnings.is_empty() {
             (StatusCode::OK, axum::Json(json!({ "status": "ready" }))).into_response()
         } else {
-            (StatusCode::OK, axum::Json(json!({ "status": "ready", "warnings": warnings }))).into_response()
+            (
+                StatusCode::OK,
+                axum::Json(json!({ "status": "ready", "warnings": warnings })),
+            )
+                .into_response()
         }
     } else {
         let mut missing = Vec::new();
@@ -1335,10 +1417,7 @@ mod tests {
 
     #[test]
     fn parse_ip_param_v4() {
-        assert_eq!(
-            parse_ip_param("/all/json?ip=8.8.8.8"),
-            Some("8.8.8.8".parse().unwrap())
-        );
+        assert_eq!(parse_ip_param("/all/json?ip=8.8.8.8"), Some("8.8.8.8".parse().unwrap()));
     }
 
     #[test]

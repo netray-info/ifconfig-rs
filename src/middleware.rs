@@ -22,9 +22,7 @@ fn generate_request_id() -> String {
 }
 
 fn is_valid_request_id(s: &str) -> bool {
-    !s.is_empty()
-        && s.len() <= 64
-        && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    !s.is_empty() && s.len() <= 64 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
 pub async fn record_metrics(req: Request<axum::body::Body>, next: Next) -> Response {
@@ -119,7 +117,10 @@ pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Res
     let headers = response.headers_mut();
     headers.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
     headers.insert("x-frame-options", HeaderValue::from_static("DENY"));
-    headers.insert("referrer-policy", HeaderValue::from_static("strict-origin-when-cross-origin"));
+    headers.insert(
+        "referrer-policy",
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
     headers.insert(
         "strict-transport-security",
         HeaderValue::from_static("max-age=63072000; includeSubDomains"),
@@ -184,10 +185,9 @@ pub async fn geoip_date_headers(State(state): State<AppState>, req: Request<axum
             .unwrap_or_default()
             .as_secs();
         let age_days = age_secs / 86400;
-        response.headers_mut().insert(
-            "x-geoip-database-age-days",
-            HeaderValue::from(age_days),
-        );
+        response
+            .headers_mut()
+            .insert("x-geoip-database-age-days", HeaderValue::from(age_days));
         metrics::gauge!("geoip_database_age_seconds").set(age_secs as f64);
     }
 
@@ -242,4 +242,3 @@ pub async fn etag_last_modified(State(state): State<AppState>, req: Request<axum
     }
     response
 }
-

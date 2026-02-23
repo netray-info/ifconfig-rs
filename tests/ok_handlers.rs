@@ -276,8 +276,6 @@ async fn handle_tcp_json_json() {
     assert!(json["port"].is_number());
 }
 
-
-
 #[tokio::test]
 async fn handle_location_plain_cli() {
     let req = get_with_headers("/location", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
@@ -726,7 +724,6 @@ async fn handle_tcp_csv_suffix() {
     assert!(body.contains("port,"));
 }
 
-
 #[tokio::test]
 async fn handle_all_yaml_suffix() {
     let req = get("/all/yaml");
@@ -982,7 +979,10 @@ async fn ip_param_ip_json() {
 
 #[tokio::test]
 async fn ip_param_rejects_private() {
-    let req = get_with_headers("/all/json?ip=10.0.0.1", &[("user-agent", "curl/7.54.0"), ("accept", "*/*")]);
+    let req = get_with_headers(
+        "/all/json?ip=10.0.0.1",
+        &[("user-agent", "curl/7.54.0"), ("accept", "*/*")],
+    );
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(body.contains("private/loopback"));
@@ -1132,7 +1132,11 @@ async fn batch_max_size_rejected() {
     let req = post_json("/batch", &body);
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body.contains("exceeds limit"), "Expected max_size rejection, got: {}", body);
+    assert!(
+        body.contains("exceeds limit"),
+        "Expected max_size rejection, got: {}",
+        body
+    );
 }
 
 #[tokio::test]
@@ -1259,7 +1263,10 @@ async fn openapi_spec_valid_json() {
     assert!(json["paths"]["/ip"].is_object(), "Should have /ip path");
     assert!(json["paths"]["/all"].is_object(), "Should have /all path");
     assert!(json["paths"]["/batch"].is_object(), "Should have /batch path");
-    assert!(json["components"]["schemas"]["Ifconfig"].is_object(), "Should have Ifconfig schema");
+    assert!(
+        json["components"]["schemas"]["Ifconfig"].is_object(),
+        "Should have Ifconfig schema"
+    );
 }
 
 #[tokio::test]
@@ -1270,7 +1277,10 @@ async fn docs_serves_scalar_html() {
     let ct = content_type_str(&headers);
     assert!(is_html(&ct), "Expected HTML, got {:?}", ct);
     assert!(body.contains("scalar"), "Body should reference Scalar");
-    assert!(body.contains("/api-docs/openapi.json"), "Body should reference the OpenAPI spec URL");
+    assert!(
+        body.contains("/api-docs/openapi.json"),
+        "Body should reference the OpenAPI spec URL"
+    );
 }
 
 // --- Security headers ---
@@ -1284,9 +1294,15 @@ async fn security_headers_on_json() {
     let req = get_with_headers("/ip", &[("accept", "application/json")]);
     let (status, headers, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(header_str(&headers, "x-content-type-options").as_deref(), Some("nosniff"));
+    assert_eq!(
+        header_str(&headers, "x-content-type-options").as_deref(),
+        Some("nosniff")
+    );
     assert_eq!(header_str(&headers, "x-frame-options").as_deref(), Some("DENY"));
-    assert_eq!(header_str(&headers, "referrer-policy").as_deref(), Some("strict-origin-when-cross-origin"));
+    assert_eq!(
+        header_str(&headers, "referrer-policy").as_deref(),
+        Some("strict-origin-when-cross-origin")
+    );
     let hsts = header_str(&headers, "strict-transport-security").unwrap();
     assert!(hsts.contains("max-age=63072000"));
     assert!(hsts.contains("includeSubDomains"));
@@ -1299,7 +1315,10 @@ async fn security_headers_csp_on_json() {
     let csp = header_str(&headers, "content-security-policy").unwrap();
     assert!(csp.contains("default-src 'self'"));
     // Non-docs CSP should NOT include cdn.jsdelivr.net
-    assert!(!csp.contains("cdn.jsdelivr.net"), "Non-docs CSP should not allow CDN scripts");
+    assert!(
+        !csp.contains("cdn.jsdelivr.net"),
+        "Non-docs CSP should not allow CDN scripts"
+    );
 }
 
 #[tokio::test]
@@ -1320,7 +1339,10 @@ async fn request_id_generated() {
 
 #[tokio::test]
 async fn request_id_propagated() {
-    let req = get_with_headers("/ip", &[("accept", "application/json"), ("x-request-id", "custom-id-12345")]);
+    let req = get_with_headers(
+        "/ip",
+        &[("accept", "application/json"), ("x-request-id", "custom-id-12345")],
+    );
     let (_, headers, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(header_str(&headers, "x-request-id").as_deref(), Some("custom-id-12345"));
 }
@@ -1373,7 +1395,9 @@ async fn send_request_v6(path: &str, req_headers: &[(&str, &str)]) -> (StatusCod
 
     tokio::spawn(async move {
         axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-            .with_graceful_shutdown(async { rx.await.ok(); })
+            .with_graceful_shutdown(async {
+                rx.await.ok();
+            })
             .await
             .unwrap();
     });
@@ -1434,7 +1458,9 @@ async fn cors_preflight_returns_correct_headers() {
 
     tokio::spawn(async move {
         axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-            .with_graceful_shutdown(async { rx.await.ok(); })
+            .with_graceful_shutdown(async {
+                rx.await.ok();
+            })
             .await
             .unwrap();
     });
@@ -1458,7 +1484,10 @@ async fn cors_preflight_returns_correct_headers() {
         response.status()
     );
     assert_eq!(
-        response.headers().get("access-control-allow-origin").and_then(|v| v.to_str().ok()),
+        response
+            .headers()
+            .get("access-control-allow-origin")
+            .and_then(|v| v.to_str().ok()),
         Some("*"),
         "CORS preflight must echo back Access-Control-Allow-Origin: *"
     );
@@ -1474,10 +1503,7 @@ async fn cors_preflight_returns_correct_headers() {
 async fn ip_param_dns_true_returns_valid_response() {
     // ?dns=true opts-in to PTR lookup for ?ip= queries. The result may be null
     // (DNS timeout, no PTR record) or a hostname string — both are valid.
-    let req = get_with_headers(
-        "/all/json?ip=8.8.8.8&dns=true",
-        &[("user-agent", "curl/7.54.0")],
-    );
+    let req = get_with_headers("/all/json?ip=8.8.8.8&dns=true", &[("user-agent", "curl/7.54.0")]);
     let (status, _, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
@@ -1502,7 +1528,9 @@ async fn filtered_headers_excluded_from_response() {
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     tokio::spawn(async move {
         axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-            .with_graceful_shutdown(async { rx.await.ok(); })
+            .with_graceful_shutdown(async {
+                rx.await.ok();
+            })
             .await
             .unwrap();
     });
