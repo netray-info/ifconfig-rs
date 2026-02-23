@@ -996,12 +996,12 @@ async fn ip_param_rejects_loopback() {
 }
 
 #[tokio::test]
-async fn ip_param_skips_dns_by_default() {
-    let req = get_with_headers("/all/json?ip=8.8.8.8", &[("user-agent", "curl/7.54.0")]);
+async fn ip_param_dns_false_skips_dns() {
+    let req = get_with_headers("/all/json?ip=8.8.8.8&dns=false", &[("user-agent", "curl/7.54.0")]);
     let (status, _headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    // DNS skipped → hostname should be null
+    // DNS explicitly disabled via ?dns=false → hostname should be null
     assert!(json["ip"]["hostname"].is_null());
 }
 
