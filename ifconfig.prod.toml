@@ -5,11 +5,11 @@
 
 # Base URL / public domain name, used in curl examples.
 # Default: "localhost"
-base_url = "ip.pdt.sh"
+base_url = "ip.netray.info"
 
 # Display name shown in the site header, footer, and FAQ.
 # If omitted, defaults to base_url.
-site_name = "ip.pdt.sh"
+site_name = "ip.netray.info"
 
 # Project name returned by the /meta endpoint.
 # Default: "ifconfig-rs" (from Cargo.toml)

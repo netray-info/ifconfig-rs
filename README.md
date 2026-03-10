@@ -2,7 +2,7 @@
   <h1>ifconfig-rs</h1>
   <p><strong>IP enrichment API. Your IP, any IP. From the terminal or the browser.</strong></p>
   <p>
-    <a href="https://ip.pdt.sh"><img src="https://img.shields.io/badge/ip.pdt.sh-live-brightgreen.svg" alt="Live at ip.pdt.sh" /></a>
+    <a href="https://ip.netray.info"><img src="https://img.shields.io/badge/ip.netray.info-live-brightgreen.svg" alt="Live at ip.netray.info" /></a>
     <a href="https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml"><img src="https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
     <a href="https://github.com/lukaspustina/ifconfig-rs/releases"><img src="https://img.shields.io/github/release/lukaspustina/ifconfig-rs.svg" alt="GitHub release" /></a>
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" />
@@ -19,10 +19,10 @@
 
 ---
 
-_ifconfig-rs_ is a fast, self-hostable IP enrichment API written in [Rust](https://www.rust-lang.org), powered by [Axum](https://github.com/tokio-rs/axum), with a [SolidJS](https://www.solidjs.com) SPA. Beyond "what's my IP", it classifies IPs by network type (cloud, VPN, Tor, bot, hosting, residential), detects cloud providers (AWS, GCP, Azure, Cloudflare), and supports batch lookups and arbitrary IP queries. It serves a clean browser UI to humans and plain text to scripts — no configuration needed on the client side. Currently powering [ip.pdt.sh](https://ip.pdt.sh).
+_ifconfig-rs_ is a fast, self-hostable IP enrichment API written in [Rust](https://www.rust-lang.org), powered by [Axum](https://github.com/tokio-rs/axum), with a [SolidJS](https://www.solidjs.com) SPA. Beyond "what's my IP", it classifies IPs by network type (cloud, VPN, Tor, bot, hosting, residential), detects cloud providers (AWS, GCP, Azure, Cloudflare), and supports batch lookups and arbitrary IP queries. It serves a clean browser UI to humans and plain text to scripts — no configuration needed on the client side. Currently powering [ip.netray.info](https://ip.netray.info).
 
 ```sh
-$ curl ip.pdt.sh
+$ curl ip.netray.info
 203.0.113.42
 ```
 
@@ -34,53 +34,53 @@ That's it. One command. Your IP. No noise.
 
 ```sh
 # Your public IP address — the most common use case
-curl ip.pdt.sh
+curl ip.netray.info
 
 # Works great with wget and httpie too
-wget -qO- ip.pdt.sh
-http ip.pdt.sh
+wget -qO- ip.netray.info
+http ip.netray.info
 
 # Want more than just the IP?
-curl ip.pdt.sh/all
+curl ip.netray.info/all
 
 # Everything as JSON — pipe it anywhere
-curl ip.pdt.sh/json
+curl ip.netray.info/json
 
 # Just your IPv4 address (useful from dual-stack machines)
-curl -4 ip.pdt.sh/ipv4
+curl -4 ip.netray.info/ipv4
 
 # Just your IPv6 address
-curl -6 ip.pdt.sh/ipv6
+curl -6 ip.netray.info/ipv6
 
 # Where are you connecting from?
-curl ip.pdt.sh/location
+curl ip.netray.info/location
 
 # Which ISP and ASN?
-curl ip.pdt.sh/isp
+curl ip.netray.info/isp
 
 # Reverse DNS hostname
-curl ip.pdt.sh/host
+curl ip.netray.info/host
 
 # What headers did you send?
-curl ip.pdt.sh/headers
+curl ip.netray.info/headers
 
 # Your IP as a CIDR prefix (handy for Terraform/Ansible)
-curl ip.pdt.sh/ip/cidr
+curl ip.netray.info/ip/cidr
 
 # Look up any IP address
-curl 'ip.pdt.sh/all/json?ip=8.8.8.8'
+curl 'ip.netray.info/all/json?ip=8.8.8.8'
 
 # Health check (liveness)
-curl ip.pdt.sh/health
+curl ip.netray.info/health
 
 # Readiness probe (checks GeoIP databases are loaded)
-curl ip.pdt.sh/ready
+curl ip.netray.info/ready
 ```
 
 **Pro tip:** Set up a shell alias and never think about it again:
 
 ```sh
-alias myip="curl -s ip.pdt.sh"
+alias myip="curl -s ip.netray.info"
 ```
 
 ---
@@ -120,24 +120,24 @@ Every endpoint accepts a format suffix or an `Accept` header — see [Output For
 
 | Endpoint | Returns | Example |
 |----------|---------|---------|
-| `/` | Full info (SPA for browsers, plain IP for CLIs) | `curl ip.pdt.sh` |
-| `/ip` | Your IP address | `curl ip.pdt.sh/ip` |
-| `/ip/cidr` | Your IP as a CIDR prefix (`/32` or `/128`) | `curl ip.pdt.sh/ip/cidr` |
-| `/ipv4` | Your IPv4 address | `curl -4 ip.pdt.sh/ipv4` |
-| `/ipv6` | Your IPv6 address | `curl -6 ip.pdt.sh/ipv6` |
-| `/tcp` | Your IP and source port | `curl ip.pdt.sh/tcp` |
-| `/host` | Reverse DNS hostname | `curl ip.pdt.sh/host` |
-| `/location` | City, region, country, coordinates | `curl ip.pdt.sh/location` |
-| `/isp` | ASN number and organisation name | `curl ip.pdt.sh/isp` |
-| `/network` | Network classification (type, provider, flags) | `curl ip.pdt.sh/network` |
-| `/user_agent` | Parsed browser / OS / device info | `curl ip.pdt.sh/user_agent` |
-| `/all` | Everything at once | `curl ip.pdt.sh/all` |
-| `/headers` | Your raw request headers | `curl ip.pdt.sh/headers` |
-| `POST /batch` | Bulk IP lookup (JSON array input) | `curl -X POST -d '["8.8.8.8"]' ip.pdt.sh/batch` |
-| `/api-docs/openapi.json` | OpenAPI 3.1 specification | `curl ip.pdt.sh/api-docs/openapi.json` |
+| `/` | Full info (SPA for browsers, plain IP for CLIs) | `curl ip.netray.info` |
+| `/ip` | Your IP address | `curl ip.netray.info/ip` |
+| `/ip/cidr` | Your IP as a CIDR prefix (`/32` or `/128`) | `curl ip.netray.info/ip/cidr` |
+| `/ipv4` | Your IPv4 address | `curl -4 ip.netray.info/ipv4` |
+| `/ipv6` | Your IPv6 address | `curl -6 ip.netray.info/ipv6` |
+| `/tcp` | Your IP and source port | `curl ip.netray.info/tcp` |
+| `/host` | Reverse DNS hostname | `curl ip.netray.info/host` |
+| `/location` | City, region, country, coordinates | `curl ip.netray.info/location` |
+| `/isp` | ASN number and organisation name | `curl ip.netray.info/isp` |
+| `/network` | Network classification (type, provider, flags) | `curl ip.netray.info/network` |
+| `/user_agent` | Parsed browser / OS / device info | `curl ip.netray.info/user_agent` |
+| `/all` | Everything at once | `curl ip.netray.info/all` |
+| `/headers` | Your raw request headers | `curl ip.netray.info/headers` |
+| `POST /batch` | Bulk IP lookup (JSON array input) | `curl -X POST -d '["8.8.8.8"]' ip.netray.info/batch` |
+| `/api-docs/openapi.json` | OpenAPI 3.1 specification | `curl ip.netray.info/api-docs/openapi.json` |
 | `/docs` | Interactive API reference (Scalar UI) | Open in browser |
-| `/health` | Liveness probe | `curl ip.pdt.sh/health` |
-| `/ready` | Readiness probe (checks GeoIP DBs are loaded; body includes `warnings` for missing optional sources) | `curl ip.pdt.sh/ready` |
+| `/health` | Liveness probe | `curl ip.netray.info/health` |
+| `/ready` | Readiness probe (checks GeoIP DBs are loaded; body includes `warnings` for missing optional sources) | `curl ip.netray.info/ready` |
 
 ### Content Negotiation
 
@@ -164,16 +164,16 @@ Look up any public IP address instead of your own:
 
 ```sh
 # Full enrichment of 8.8.8.8
-curl ip.pdt.sh/all/json?ip=8.8.8.8
+curl ip.netray.info/all/json?ip=8.8.8.8
 
 # Location of a specific IP
-curl ip.pdt.sh/location?ip=8.8.8.8
+curl ip.netray.info/location?ip=8.8.8.8
 
 # Network classification
-curl 'ip.pdt.sh/network/json?ip=1.1.1.1'
+curl 'ip.netray.info/network/json?ip=1.1.1.1'
 
 # Skip reverse DNS for this lookup (PTR is performed by default for ?ip= queries)
-curl 'ip.pdt.sh/all/json?ip=8.8.8.8&dns=false'
+curl 'ip.netray.info/all/json?ip=8.8.8.8&dns=false'
 ```
 
 For `?ip=` lookups, `tcp` (source port) is omitted — it isn't meaningful for arbitrary IPs. Reverse DNS (`ip.hostname`) is performed by default; use `&dns=false` to skip PTR lookups.
@@ -186,10 +186,10 @@ Return only the fields you need:
 
 ```sh
 # Just IP and location
-curl 'ip.pdt.sh/all/json?fields=ip,location'
+curl 'ip.netray.info/all/json?fields=ip,location'
 
 # Combine with ?ip= for targeted lookups
-curl 'ip.pdt.sh/all/json?ip=8.8.8.8&fields=ip,isp,network'
+curl 'ip.netray.info/all/json?ip=8.8.8.8&fields=ip,isp,network'
 ```
 
 ### Batch Lookup (`POST /batch`)
@@ -200,17 +200,17 @@ Look up multiple IPs in a single request (must be enabled in config):
 # JSON output (default)
 curl -X POST -H 'Content-Type: application/json' \
   -d '["8.8.8.8", "1.1.1.1"]' \
-  ip.pdt.sh/batch
+  ip.netray.info/batch
 
 # CSV output — one row per IP, great for spreadsheets and SIEM tools
 curl -X POST -H 'Content-Type: application/json' \
   -d '["8.8.8.8", "1.1.1.1"]' \
-  ip.pdt.sh/batch/csv
+  ip.netray.info/batch/csv
 
 # With field filtering
 curl -X POST -H 'Content-Type: application/json' \
   -d '["8.8.8.8", "1.1.1.1"]' \
-  'ip.pdt.sh/batch?fields=ip,location'
+  'ip.netray.info/batch?fields=ip,location'
 ```
 
 - Max 100 IPs per request (configurable)
@@ -226,19 +226,19 @@ Append a format to any endpoint, or use an `Accept` header:
 
 ```sh
 # Format suffix (easiest)
-curl ip.pdt.sh/all/json
-curl ip.pdt.sh/all/yaml
-curl ip.pdt.sh/all/toml
-curl ip.pdt.sh/all/csv
+curl ip.netray.info/all/json
+curl ip.netray.info/all/yaml
+curl ip.netray.info/all/toml
+curl ip.netray.info/all/csv
 
 # Or at the root
-curl ip.pdt.sh/json
+curl ip.netray.info/json
 
 # Or via Accept header
-curl -H "Accept: application/json" ip.pdt.sh/all
-curl -H "Accept: application/yaml" ip.pdt.sh/all
-curl -H "Accept: application/toml" ip.pdt.sh/all
-curl -H "Accept: text/csv"         ip.pdt.sh/all
+curl -H "Accept: application/json" ip.netray.info/all
+curl -H "Accept: application/yaml" ip.netray.info/all
+curl -H "Accept: application/toml" ip.netray.info/all
+curl -H "Accept: text/csv"         ip.netray.info/all
 ```
 
 | Format | Suffix | Content-Type |
@@ -353,7 +353,7 @@ make build        # Build frontend + cargo build
 make dev          # Run dev server on :8080
 make tests        # Unit + Docker integration + Playwright E2E
 make integration  # Docker-based integration tests only
-make acceptance   # Playwright E2E tests against ip.pdt.sh
+make acceptance   # Playwright E2E tests against ip.netray.info
 make bench        # Run Criterion benchmarks
 make docker-build # Build production Docker image
 ```
@@ -451,7 +451,7 @@ All rate-limited responses include `X-RateLimit-Limit` and `X-RateLimit-Remainin
 ### Example Config
 
 ```toml
-base_url = "ip.pdt.sh"
+base_url = "ip.netray.info"
 site_name = "My IP Service"
 
 geoip_city_db = "data/GeoLite2-City.mmdb"
@@ -496,7 +496,7 @@ IFCONFIG_SERVER__TRUSTED_PROXIES='["10.0.0.0/8"]'
 IFCONFIG_RATE_LIMIT__PER_IP_PER_MINUTE=120
 IFCONFIG_BATCH__ENABLED=true
 IFCONFIG_BATCH__MAX_SIZE=50
-IFCONFIG_SERVER__CORS_ALLOWED_ORIGINS='["https://ip.pdt.sh"]'
+IFCONFIG_SERVER__CORS_ALLOWED_ORIGINS='["https://ip.netray.info"]'
 IFCONFIG_SERVER__ADMIN_TOKEN=change-me
 IFCONFIG_FILTERED_HEADERS='["^x-koyeb-", "^cf-"]'
 IFCONFIG_WATCH_DATA_FILES=true
@@ -516,7 +516,7 @@ ifconfig-rs --print-config ifconfig.toml   # print effective config (file + env)
 
 **The IP address is wrong!**
 
-There may be proxies, load balancers, or NAT gateways between you and the server. If you're self-hosting, configure `trusted_proxies` to trust your infrastructure. If you're using [ip.pdt.sh](https://ip.pdt.sh), open a [GitHub issue](https://github.com/lukaspustina/ifconfig-rs/issues) and let's look into it.
+There may be proxies, load balancers, or NAT gateways between you and the server. If you're self-hosting, configure `trusted_proxies` to trust your infrastructure. If you're using [ip.netray.info](https://ip.netray.info), open a [GitHub issue](https://github.com/lukaspustina/ifconfig-rs/issues) and let's look into it.
 
 **Does it support IPv6?**
 
@@ -527,18 +527,18 @@ Yes. The service is IP-version-agnostic. Use `/ipv4` or `/ipv6` if you want to f
 Absolutely — that's the primary use case. `curl` and `wget` are auto-detected and always get plain text back:
 
 ```sh
-IP=$(curl -s ip.pdt.sh)
-LOCATION=$(curl -s ip.pdt.sh/location)
+IP=$(curl -s ip.netray.info)
+LOCATION=$(curl -s ip.netray.info/location)
 ```
 
 Or grab structured data:
 
 ```sh
-curl -s ip.pdt.sh/json | jq .country
-curl -s ip.pdt.sh/all/csv
+curl -s ip.netray.info/json | jq .country
+curl -s ip.netray.info/all/csv
 ```
 
-**Where is [ip.pdt.sh](https://ip.pdt.sh) hosted?**
+**Where is [ip.netray.info](https://ip.netray.info) hosted?**
 
 On [Koyeb](https://koyeb.com).
 

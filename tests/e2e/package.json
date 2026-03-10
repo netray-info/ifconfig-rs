@@ -1,7 +1,7 @@
 {
   "name": "ifconfig-rs",
   "version": "1.0.0",
-  "description": "[![Production deployed](https://img.shields.io/badge/ip.pdt.sh.rs-prod-brightgreen.svg)](http://ip.pdt.sh) [![Build Status](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/release/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/releases) [![license](https://img.shields.io/github/license/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/blob/master/LICENSE)",
+  "description": "[![Production deployed](https://img.shields.io/badge/ip.netray.info.rs-prod-brightgreen.svg)](http://ip.netray.info) [![Build Status](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaspustina/ifconfig-rs/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/release/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/releases) [![license](https://img.shields.io/github/license/lukaspustina/ifconfig-rs.svg)](https://github.com/lukaspustina/ifconfig-rs/blob/master/LICENSE)",
   "main": "index.js",
   "directories": {
     "test": "tests"

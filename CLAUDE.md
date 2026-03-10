@@ -26,7 +26,7 @@
 
 ## Project Overview
 
-**ifconfig-rs** is a "what's my IP" web service written in Rust, powering **ip.pdt.sh**. Returns IP address, hostname, geolocation, ISP, and user agent info as plain text, JSON, YAML, TOML, CSV, or via a SolidJS SPA depending on the client.
+**ifconfig-rs** is a "what's my IP" web service written in Rust, powering **ip.netray.info**. Returns IP address, hostname, geolocation, ISP, and user agent info as plain text, JSON, YAML, TOML, CSV, or via a SolidJS SPA depending on the client.
 
 - **Author**: Lukas Pustina | **License**: MIT | **Edition**: 2021
 - **Repository**: https://github.com/lukaspustina/ifconfig-rs
@@ -176,7 +176,7 @@ max_size = 100     # max IPs per batch request
 
 `watch_data_files = true` enables filesystem watcher for auto-reload of data files (alternative to SIGHUP).
 
-Env var examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.pdt.sh`, `IFCONFIG_SERVER__ADMIN_TOKEN=secret`.
+Env var examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.netray.info`, `IFCONFIG_SERVER__ADMIN_TOKEN=secret`.
 Structured JSON logging: `IFCONFIG_LOG_FORMAT=json`.
 Print effective config and exit: `--print-config` flag.
 

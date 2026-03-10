@@ -5,11 +5,11 @@
 
 # Base URL / public domain name, used in curl examples.
 # Default: "localhost"
-base_url = "ip.pdt.sh"
+base_url = "ip.netray.info"
 
 # Display name shown in the site header, footer, and FAQ.
 # If omitted, defaults to base_url.
-# site_name = "ip.pdt.sh"
+# site_name = "ip.netray.info"
 
 # Project name returned by the /meta endpoint.
 # Default: "ifconfig-rs" (from Cargo.toml)
@@ -119,7 +119,7 @@ bind = "0.0.0.0:8080"
 # Allowed origins for CORS. Default: ["*"] (allow all origins).
 # Handles OPTIONS preflight automatically via tower-http CorsLayer.
 # cors_allowed_origins = ["*"]
-# cors_allowed_origins = ["https://ip.pdt.sh", "https://example.com"]
+# cors_allowed_origins = ["https://ip.netray.info", "https://example.com"]
 
 [rate_limit]
 # Maximum sustained requests per IP per minute.
