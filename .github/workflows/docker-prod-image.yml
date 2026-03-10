@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff9f9a9e541e1e5f5b # v3.6.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5730e9c2d2e6c59ca7b06ee5bc8c6d1e9ae6f3d # v3.10.0
       - name: Log into registry GHCR
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
@@ -21,6 +25,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ghcr.io/lukaspustina/ifconfig-rs:latest
       - name: Install Koyeb CLI
         env:
