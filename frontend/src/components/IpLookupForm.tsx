@@ -1,14 +1,19 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, createEffect, Show } from "solid-js";
 
 interface Props {
   onLookup: (ip: string) => void;
   loading: boolean;
   isLookup: boolean;
   onReset: () => void;
+  value?: string | null;
 }
 
 export default function IpLookupForm(props: Props) {
   const [input, setInput] = createSignal("");
+
+  createEffect(() => {
+    setInput(props.value ?? "");
+  });
 
   const handleSubmit = (e: SubmitEvent) => {
     e.preventDefault();

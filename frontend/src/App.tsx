@@ -19,13 +19,17 @@ export default function App() {
 
   const siteName = () => meta()?.site_name ?? location.hostname;
 
-  const loadData = async (ip?: string) => {
+  const loadData = async (ip?: string, pushState = true) => {
     setLoading(true);
     setError(null);
     try {
       const result = ip ? await fetchIfconfigForIp(ip) : await fetchIfconfig();
       setData(result);
       setLookupIp(ip ?? null);
+      if (pushState) {
+        const url = ip ? `/?ip=${encodeURIComponent(ip)}` : "/";
+        history.pushState({ ip: ip ?? null }, "", url);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -42,7 +46,15 @@ export default function App() {
       })
       .catch(() => {}); // fall back to location.hostname via siteName()
 
-    loadData();
+    // Read ?ip= from URL on initial load (bookmarkable / shareable links)
+    const initialIp = new URLSearchParams(location.search).get("ip") ?? undefined;
+    loadData(initialIp, false);
+
+    // Keep URL in sync with browser back/forward
+    window.addEventListener("popstate", (e) => {
+      const ip = (e.state as { ip?: string | null } | null)?.ip ?? undefined;
+      loadData(ip, false);
+    });
   });
 
   return (
@@ -96,6 +108,7 @@ export default function App() {
             loading={loading()}
             isLookup={lookupIp() !== null}
             onReset={() => loadData()}
+            value={lookupIp()}
           />
           <RequestHeaders />
           <ApiExplorer lookupIp={lookupIp()} />
