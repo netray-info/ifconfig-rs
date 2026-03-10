@@ -6,8 +6,7 @@ SHELL       := /bin/bash
 
 # ── Project metadata ─────────────────────────────────────────────
 APP         := ifconfig-rs
-VERSION     := $(shell cargo metadata --format-version=1 --no-deps 2>/dev/null | \
-                 python3 -c "import sys,json; print(json.load(sys.stdin)['packages'][0]['version'])" 2>/dev/null || echo "unknown")
+VERSION     := $(shell grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)"/\1/' 2>/dev/null || echo "unknown")
 GIT_SHA     := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DOCKER_TAG  := $(APP):$(VERSION)
 
@@ -24,7 +23,7 @@ NPM_CI_FLAGS ?=
         backend-build backend-check backend-clippy backend-fmt backend-fmt-fix backend-clean backend-test \
         frontend-build frontend-clean frontend-dev \
         dev test unit integration acceptance bench \
-        update-data docker-build push-to-prod \
+        update-data docker-build release \
         stats help
 
 # ══════════════════════════════════════════════════════════════════
@@ -128,11 +127,10 @@ docker-build: ## Build production Docker image
 #  Release
 # ══════════════════════════════════════════════════════════════════
 
-push-to-prod: ## Merge master into prod and push (triggers CI/CD)
-	git checkout prod
-	git merge master
+release: ## Tag, push, and create GitHub release (triggers Docker image build)
 	git push
-	git checkout master
+	git push origin "v$(VERSION)"
+	gh release create "v$(VERSION)" --title "v$(VERSION)" --generate-notes
 
 # ══════════════════════════════════════════════════════════════════
 #  Stats
