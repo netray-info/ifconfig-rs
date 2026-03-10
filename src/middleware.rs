@@ -228,7 +228,15 @@ pub async fn etag_last_modified(State(state): State<AppState>, req: Request<axum
         .unwrap_or(false);
 
     if inm_matches || ims_not_modified {
-        return StatusCode::NOT_MODIFIED.into_response();
+        let mut response = StatusCode::NOT_MODIFIED.into_response();
+        let h = response.headers_mut();
+        if let Ok(val) = HeaderValue::from_str(&etag_str) {
+            h.insert("etag", val);
+        }
+        if let Ok(val) = HeaderValue::from_str(&last_modified_str) {
+            h.insert("last-modified", val);
+        }
+        return response;
     }
 
     let mut response = next.run(req).await;
