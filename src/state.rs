@@ -23,6 +23,7 @@ pub struct AppState {
     pub project_info: Arc<ProjectInfo>,
     pub enrichment: Arc<ArcSwap<EnrichmentContext>>,
     pub rate_limiter: Arc<KeyedRateLimiter>,
+    pub target_rate_limiter: Arc<KeyedRateLimiter>,
     pub header_filters: Arc<RegexSet>,
     pub trusted_proxies: Arc<Vec<IpNetwork>>,
     pub dns_cache: Arc<DnsCache>,
@@ -32,6 +33,8 @@ pub struct AppState {
 pub struct RateLimitInfo {
     pub per_ip_per_minute: u32,
     pub per_ip_burst: u32,
+    pub per_target_per_minute: u32,
+    pub per_target_burst: u32,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -75,6 +78,8 @@ impl AppState {
             rate_limit: RateLimitInfo {
                 per_ip_per_minute: config.rate_limit.per_ip_per_minute,
                 per_ip_burst: config.rate_limit.per_ip_burst,
+                per_target_per_minute: config.rate_limit.per_target_per_minute,
+                per_target_burst: config.rate_limit.per_target_burst,
             },
             build: BuildInfo {
                 date: env!("BUILD_DATE").to_string(),
@@ -102,6 +107,18 @@ impl AppState {
         info!(
             "Rate limiter configured: {} req/min, burst {}",
             config.rate_limit.per_ip_per_minute, config.rate_limit.per_ip_burst
+        );
+
+        let target_per_minute =
+            NonZeroU32::new(config.rate_limit.per_target_per_minute).expect("per_target_per_minute must be > 0");
+        let target_burst =
+            NonZeroU32::new(config.rate_limit.per_target_burst).expect("per_target_burst must be > 0");
+        let target_quota = Quota::per_minute(target_per_minute).allow_burst(target_burst);
+        let target_rate_limiter =
+            Arc::new(RateLimiter::keyed(target_quota).with_middleware::<StateInformationMiddleware>());
+        info!(
+            "Target rate limiter configured: {} req/min, burst {}",
+            config.rate_limit.per_target_per_minute, config.rate_limit.per_target_burst
         );
 
         let valid_patterns: Vec<&str> = config
@@ -148,6 +165,7 @@ impl AppState {
             project_info: Arc::new(project_info),
             enrichment: Arc::new(ArcSwap::from_pointee(enrichment)),
             rate_limiter,
+            target_rate_limiter,
             header_filters: Arc::new(header_filters),
             trusted_proxies: Arc::new(trusted_proxies),
             dns_cache: Arc::new(new_dns_cache()),

@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+pub const HARD_CAP_RATE_LIMIT_PER_MINUTE: u32 = 600;
+pub const HARD_CAP_RATE_LIMIT_BURST: u32 = 100;
+pub const HARD_CAP_BATCH_SIZE: usize = 100;
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     #[serde(default)]
@@ -98,6 +102,10 @@ pub struct RateLimitConfig {
     pub per_ip_per_minute: u32,
     #[serde(default = "RateLimitConfig::default_per_ip_burst")]
     pub per_ip_burst: u32,
+    #[serde(default = "RateLimitConfig::default_per_target_per_minute")]
+    pub per_target_per_minute: u32,
+    #[serde(default = "RateLimitConfig::default_per_target_burst")]
+    pub per_target_burst: u32,
 }
 
 impl Default for RateLimitConfig {
@@ -105,6 +113,8 @@ impl Default for RateLimitConfig {
         Self {
             per_ip_per_minute: Self::default_per_ip_per_minute(),
             per_ip_burst: Self::default_per_ip_burst(),
+            per_target_per_minute: Self::default_per_target_per_minute(),
+            per_target_burst: Self::default_per_target_burst(),
         }
     }
 }
@@ -115,6 +125,12 @@ impl RateLimitConfig {
     }
     fn default_per_ip_burst() -> u32 {
         10
+    }
+    fn default_per_target_per_minute() -> u32 {
+        120
+    }
+    fn default_per_target_burst() -> u32 {
+        20
     }
 }
 
@@ -167,10 +183,40 @@ impl Config {
                 "rate_limit.per_ip_per_minute must be > 0".to_string(),
             ));
         }
+        if self.rate_limit.per_ip_per_minute > HARD_CAP_RATE_LIMIT_PER_MINUTE {
+            return Err(config::ConfigError::Message(format!(
+                "rate_limit.per_ip_per_minute ({}) exceeds hard cap ({})",
+                self.rate_limit.per_ip_per_minute, HARD_CAP_RATE_LIMIT_PER_MINUTE
+            )));
+        }
         if self.rate_limit.per_ip_burst == 0 {
             return Err(config::ConfigError::Message(
                 "rate_limit.per_ip_burst must be > 0".to_string(),
             ));
+        }
+        if self.rate_limit.per_ip_burst > HARD_CAP_RATE_LIMIT_BURST {
+            return Err(config::ConfigError::Message(format!(
+                "rate_limit.per_ip_burst ({}) exceeds hard cap ({})",
+                self.rate_limit.per_ip_burst, HARD_CAP_RATE_LIMIT_BURST
+            )));
+        }
+        if self.rate_limit.per_target_per_minute > HARD_CAP_RATE_LIMIT_PER_MINUTE {
+            return Err(config::ConfigError::Message(format!(
+                "rate_limit.per_target_per_minute ({}) exceeds hard cap ({})",
+                self.rate_limit.per_target_per_minute, HARD_CAP_RATE_LIMIT_PER_MINUTE
+            )));
+        }
+        if self.rate_limit.per_target_burst > HARD_CAP_RATE_LIMIT_BURST {
+            return Err(config::ConfigError::Message(format!(
+                "rate_limit.per_target_burst ({}) exceeds hard cap ({})",
+                self.rate_limit.per_target_burst, HARD_CAP_RATE_LIMIT_BURST
+            )));
+        }
+        if self.batch.max_size > HARD_CAP_BATCH_SIZE {
+            return Err(config::ConfigError::Message(format!(
+                "batch.max_size ({}) exceeds hard cap ({})",
+                self.batch.max_size, HARD_CAP_BATCH_SIZE
+            )));
         }
         Ok(())
     }

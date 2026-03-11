@@ -78,6 +78,7 @@ pub async fn build_app(config: &Config) -> AppBundle {
     // Spawn periodic rate limiter cleanup to prevent unbounded DashMap growth
     {
         let limiter = Arc::clone(&state.rate_limiter);
+        let target_limiter = Arc::clone(&state.target_rate_limiter);
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
             interval.tick().await; // skip the immediate first tick
@@ -89,6 +90,13 @@ pub async fn build_app(config: &Config) -> AppBundle {
                 let after = limiter.len();
                 if before != after {
                     tracing::debug!("Rate limiter cleanup: {} -> {} entries", before, after);
+                }
+                let before = target_limiter.len();
+                target_limiter.retain_recent();
+                target_limiter.shrink_to_fit();
+                let after = target_limiter.len();
+                if before != after {
+                    tracing::debug!("Target rate limiter cleanup: {} -> {} entries", before, after);
                 }
             }
         });
