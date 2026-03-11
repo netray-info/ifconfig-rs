@@ -2,15 +2,17 @@ import { createSignal, onMount, Show } from "solid-js";
 import type { Ifconfig, SiteMeta } from "./lib/types";
 import { fetchIfconfig, fetchIfconfigForIp, fetchMeta } from "./lib/api";
 import { toastMessage } from "./lib/toast";
+import { createTheme } from "../../../frontend-shared/src/theme";
 import IpDisplay from "./components/IpDisplay";
 import InfoCards from "./components/InfoCards";
 import RequestHeaders from "./components/RequestHeaders";
 import ApiExplorer from "./components/ApiExplorer";
 import Faq from "./components/Faq";
-import ThemeToggle from "./components/ThemeToggle";
 import IpLookupForm from "./components/IpLookupForm";
 
 export default function App() {
+  const { theme, toggleTheme } = createTheme('theme', 'dark');
+
   const [data, setData] = createSignal<Ifconfig | null>(null);
   const [meta, setMeta] = createSignal<SiteMeta | null>(null);
   const [error, setError] = createSignal<string | null>(null);
@@ -59,7 +61,14 @@ export default function App() {
 
   return (
     <>
-      <ThemeToggle />
+      <button
+        class="theme-toggle"
+        onClick={toggleTheme}
+        title={`Theme: ${theme() === 'dark' ? 'Dark' : theme() === 'light' ? 'Light' : 'System'}. Click to switch.`}
+        aria-label={`Theme: ${theme() === 'dark' ? 'Dark' : theme() === 'light' ? 'Light' : 'System'}. Click to switch.`}
+      >
+        {theme() === 'system' ? '\u25D1' : theme() === 'dark' ? '\u263E' : '\u2600'}
+      </button>
       <div class="container">
         <header class="site-header">
           <h1 class="site-title">{siteName()}</h1>
