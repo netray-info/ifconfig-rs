@@ -1,8 +1,3 @@
-use std::collections::hash_map::RandomState;
-use std::hash::{BuildHasher, Hasher};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::LazyLock;
-
 use axum::extract::State;
 use axum::http::{HeaderValue, Request};
 use axum::middleware::Next;
@@ -13,12 +8,8 @@ use crate::error::AppError;
 use crate::extractors::RequesterInfo;
 use crate::state::AppState;
 
-static REQUEST_ID_SEED: LazyLock<u64> = LazyLock::new(|| RandomState::new().build_hasher().finish());
-static REQUEST_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
-
 fn generate_request_id() -> String {
-    let count = REQUEST_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("{:016x}", REQUEST_ID_SEED.wrapping_add(count))
+    uuid::Uuid::now_v7().to_string()
 }
 
 fn is_valid_request_id(s: &str) -> bool {
@@ -89,7 +80,7 @@ pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::
                 .map(|d| d.as_secs())
                 .unwrap_or(0)
                 .saturating_add(retry_after);
-            let mut response = AppError::RateLimited.into_response();
+            let mut response = AppError::RateLimited { retry_after_secs: retry_after }.into_response();
             let h = response.headers_mut();
             h.insert("x-ratelimit-limit", HeaderValue::from(per_minute));
             h.insert("x-ratelimit-remaining", HeaderValue::from(0u32));
@@ -155,10 +146,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn generate_request_id_is_16_hex_chars() {
+    fn generate_request_id_is_uuid_v7() {
         let id = generate_request_id();
-        assert_eq!(id.len(), 16);
-        assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+        let parsed = uuid::Uuid::parse_str(&id).expect("should be a valid UUID");
+        assert_eq!(parsed.get_version_num(), 7);
     }
 
     #[test]
