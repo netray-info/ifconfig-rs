@@ -5,7 +5,7 @@ RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
-FROM clux/muslrust:latest AS builder
+FROM clux/muslrust:stable AS builder
 WORKDIR /build
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY src src/
@@ -15,9 +15,13 @@ RUN cargo build --release --bins && cp $(find /build -xdev -name ifconfig-rs) /
 
 FROM ghcr.io/lukaspustina/ifconfig-rs-data:latest AS data
 
-FROM alpine:latest
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates wget \
+ && addgroup -S ifconfig && adduser -S ifconfig -G ifconfig
 WORKDIR /ifconfig-rs
 COPY ifconfig.prod.toml ifconfig.toml
 COPY --from=builder /ifconfig-rs .
 COPY --from=data /data data/
+RUN chown -R ifconfig:ifconfig /ifconfig-rs
+USER ifconfig
 CMD ["./ifconfig-rs", "ifconfig.toml"]
