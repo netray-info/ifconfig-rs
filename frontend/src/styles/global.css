@@ -1,4 +1,4 @@
-@import '../../../../frontend-shared/src/styles/theme.css';
+@import '../../../../netray-common-frontend/src/styles/theme.css';
 
 /* ifconfig-rs project overrides */
 :root {
@@ -115,6 +115,13 @@ button:focus-visible {
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
+}
+
+.tagline {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
 }
 
 /* ---- Hero / IP Display ---- */
@@ -690,14 +697,9 @@ button:focus-visible {
 /* ---- Footer ---- */
 
 .footer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
   margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-subtle);
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--border);
 }
 
 .footer a,
@@ -720,6 +722,33 @@ button:focus-visible {
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+}
+
+.footer-about {
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  max-width: 540px;
+  margin: 0 auto 0.75rem;
+  color: var(--text-muted);
+}
+
+.footer-about a {
+  color: var(--text-secondary);
+}
+
+.footer-about em {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 /* ---- Theme Toggle ---- */
@@ -962,6 +991,7 @@ button:focus-visible {
   .site-header {
     padding: 1.5rem 0 0;
   }
+  .tagline { display: none; }
   .hero {
     padding: 1rem 0 1.5rem;
   }

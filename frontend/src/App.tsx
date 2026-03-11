@@ -2,7 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import type { Ifconfig, SiteMeta } from "./lib/types";
 import { fetchIfconfig, fetchIfconfigForIp, fetchMeta } from "./lib/api";
 import { toastMessage } from "./lib/toast";
-import { createTheme } from "../../../frontend-shared/src/theme";
+import { createTheme } from "../../../netray-common-frontend/src/theme";
 import IpDisplay from "./components/IpDisplay";
 import InfoCards from "./components/InfoCards";
 import RequestHeaders from "./components/RequestHeaders";
@@ -72,6 +72,7 @@ export default function App() {
       <div class="container">
         <header class="site-header">
           <h1 class="site-title">{siteName()}</h1>
+          <span class="tagline">IP, decoded</span>
         </header>
 
         <Show when={loading() && !data()}>
@@ -125,15 +126,28 @@ export default function App() {
         </Show>
 
         <footer class="footer">
-          <a class="footer-link" href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <span class="footer-sep">&middot;</span>
-          <a class="footer-link" href="/docs">API Docs</a>
-          <span class="footer-sep">&middot;</span>
-          <a class="footer-link" href="https://lukas.pustina.de" target="_blank" rel="noopener noreferrer">Author</a>
-          <Show when={meta()?.version}>
+          <div class="footer-about">
+            <em>{siteName()}</em> is an IP address and network information service.
+            Returns geolocation, ASN, and user-agent details via a plain HTTP API.
+            Built in <a href="https://www.rust-lang.org/" target="_blank" rel="noopener noreferrer">Rust</a>{" "}
+            with <a href="https://github.com/tokio-rs/axum" target="_blank" rel="noopener noreferrer">Axum</a>{" "}
+            and <a href="https://www.solidjs.com/" target="_blank" rel="noopener noreferrer">SolidJS</a>,{" "}
+            powered by <a href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">ifconfig-rs</a>.
+            Geolocation data by{" "}
+            <a href="https://www.maxmind.com" target="_blank" rel="noopener noreferrer">MaxMind</a> GeoLite2.
+            Open to use and self-host — rate limiting applies.
+          </div>
+          <div class="footer-links">
+            <a class="footer-link" href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">GitHub</a>
             <span class="footer-sep">&middot;</span>
-            <span class="footer-text">v{meta()!.version}</span>
-          </Show>
+            <a class="footer-link" href="/docs">API Docs</a>
+            <span class="footer-sep">&middot;</span>
+            <a class="footer-link" href="https://lukas.pustina.de" target="_blank" rel="noopener noreferrer">Author</a>
+            <Show when={meta()?.version}>
+              <span class="footer-sep">&middot;</span>
+              <span class="footer-text">v{meta()!.version}</span>
+            </Show>
+          </div>
         </footer>
       </div>
 
