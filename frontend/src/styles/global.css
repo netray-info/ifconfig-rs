@@ -4,7 +4,6 @@
 :root {
   --bg-primary: #0f1117;
   --bg-secondary: #161822;
-  --bg-card: #1c1e2e;
   --bg-card-hover: #232538;
   --border: #2a2d42;
   --text-primary: #e4e4e7;
@@ -22,7 +21,6 @@
 [data-theme="light"] {
   --bg-primary: #fafafa;
   --bg-secondary: #f4f4f5;
-  --bg-card: #ffffff;
   --bg-card-hover: #f8f8fa;
   --border: #e4e4e7;
   --text-primary: #18181b;
@@ -47,11 +45,16 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
 body {
   font-family: var(--font-sans);
   background: var(--bg-primary);
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: 1.5;
   min-height: 100vh;
 }
 
@@ -72,12 +75,12 @@ a:hover {
 
 :focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: -1px;
 }
 
 button:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: -1px;
 }
 
 .map-link::after {
@@ -168,7 +171,7 @@ button:focus-visible {
   padding: 0;
   flex-shrink: 0;
   color: var(--text-secondary);
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
@@ -198,7 +201,7 @@ button:focus-visible {
 }
 
 .card {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
@@ -427,7 +430,7 @@ button:focus-visible {
 /* ---- Request Headers ---- */
 
 .headers-card {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1rem 1.25rem;
@@ -478,7 +481,7 @@ button:focus-visible {
 /* ---- API Explorer ---- */
 
 .api-explorer {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
@@ -498,7 +501,7 @@ button:focus-visible {
   right: 0;
   bottom: 0;
   width: 2rem;
-  background: linear-gradient(to right, transparent, var(--bg-card));
+  background: linear-gradient(to right, transparent, var(--bg-secondary));
   pointer-events: none;
   opacity: 1;
   transition: opacity 0.15s ease;
@@ -655,7 +658,7 @@ button:focus-visible {
 /* ---- FAQ ---- */
 
 .faq {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1rem 1.25rem;
@@ -686,37 +689,35 @@ button:focus-visible {
 
 /* ---- Footer ---- */
 
-footer {
-  text-align: center;
-  padding: 2rem 0 1.5rem;
-  font-size: 0.8rem;
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.footer a,
+.footer-link {
   color: var(--text-muted);
-  border-top: 1px solid var(--border);
-  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  text-decoration: none;
 }
 
-footer a {
-  color: var(--text-secondary);
-}
-
-.footer-about {
-  line-height: 1.6;
-  max-width: 540px;
-  margin: 0 auto 0.75rem;
-}
-
-.footer-about em {
+.footer a:hover {
   color: var(--accent);
-  font-style: normal;
-  font-weight: 600;
 }
 
-.footer-links {
-  font-size: 0.8rem;
+.footer-sep {
   color: var(--text-muted);
+  font-size: 0.75rem;
 }
 
-.footer-version {
+.footer-text {
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 0.75rem;
 }
@@ -728,7 +729,7 @@ footer a {
   top: 1rem;
   right: 1rem;
   padding: 0.5rem;
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
@@ -766,7 +767,7 @@ footer a {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   padding: 0.5rem 0.75rem;
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text-primary);
@@ -775,7 +776,8 @@ footer a {
 }
 
 .lookup-input:focus {
-  border-color: var(--accent-dim);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .lookup-input::placeholder {
@@ -791,20 +793,18 @@ footer a {
   font-family: var(--font-mono);
   font-size: 0.8rem;
   font-weight: 600;
-  padding: 0.5rem 1rem;
-  background: var(--accent-glow);
-  border: 1px solid var(--accent-dim);
+  padding: 0.5rem 1.25rem;
+  background: var(--accent);
+  border: none;
   border-radius: var(--radius);
-  color: var(--accent);
+  color: #fff;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
 }
 
 .lookup-btn:hover:not(:disabled) {
-  background: var(--accent);
-  color: var(--bg-primary);
-  border-color: var(--accent);
+  background: var(--accent-dim);
 }
 
 .lookup-btn:disabled {
@@ -841,12 +841,12 @@ footer a {
 .skeleton-block {
   background: linear-gradient(
     90deg,
-    var(--bg-card) 0%,
+    var(--bg-secondary) 0%,
     var(--border) 50%,
-    var(--bg-card) 100%
+    var(--bg-secondary) 100%
   );
   background-size: 200% auto;
-  animation: skeleton-shimmer 1.8s linear infinite;
+  animation: skeleton-shimmer 1.5s linear infinite;
   border-radius: var(--radius);
 }
 
@@ -870,7 +870,7 @@ footer a {
 }
 
 .skeleton-card {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
@@ -899,7 +899,7 @@ footer a {
   bottom: 1.5rem;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.5rem 1rem;
@@ -946,7 +946,7 @@ footer a {
 
 /* ---- Responsive ---- */
 
-@media (max-width: 900px) and (min-width: 601px) {
+@media (max-width: 768px) and (min-width: 481px) {
   .cards {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -955,7 +955,7 @@ footer a {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .container {
     padding: 1rem;
   }

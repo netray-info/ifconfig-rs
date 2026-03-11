@@ -124,29 +124,16 @@ export default function App() {
           <Faq siteName={siteName()} />
         </Show>
 
-        <footer>
-          <div class="footer-about">
-            <em>{siteName()}</em> is an IP address and network information service.
-            Returns geolocation, ASN, and user-agent details via a plain HTTP API.
-            Built in <a href="https://www.rust-lang.org/" target="_blank" rel="noopener noreferrer">Rust</a>{" "}
-            with <a href="https://github.com/tokio-rs/axum" target="_blank" rel="noopener noreferrer">Axum</a>{" "}
-            and <a href="https://www.solidjs.com/" target="_blank" rel="noopener noreferrer">SolidJS</a>,{" "}
-            powered by <a href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">ifconfig-rs</a>.
-            Geolocation data by{" "}
-            <a href="https://www.maxmind.com" target="_blank" rel="noopener noreferrer">MaxMind</a> GeoLite2.
-            Open to use and self-host — rate limiting applies.
-          </div>
-          <div class="footer-links">
-            <a href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">GitHub</a>
-            {" · "}
-            <a href="/docs">API Docs</a>
-            {" · "}
-            <a href="https://lukas.pustina.de" target="_blank" rel="noopener noreferrer">Author</a>
-            <Show when={meta()?.version}>
-              {" · "}
-              <span class="footer-version">v{meta()!.version}</span>
-            </Show>
-          </div>
+        <footer class="footer">
+          <a class="footer-link" href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <span class="footer-sep">&middot;</span>
+          <a class="footer-link" href="/docs">API Docs</a>
+          <span class="footer-sep">&middot;</span>
+          <a class="footer-link" href="https://lukas.pustina.de" target="_blank" rel="noopener noreferrer">Author</a>
+          <Show when={meta()?.version}>
+            <span class="footer-sep">&middot;</span>
+            <span class="footer-text">v{meta()!.version}</span>
+          </Show>
         </footer>
       </div>
 
