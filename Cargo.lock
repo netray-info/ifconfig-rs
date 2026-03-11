@@ -1381,6 +1381,7 @@ dependencies = [
  "metrics-process",
  "mhost",
  "mime_guess",
+ "netray-common",
  "notify",
  "pretty_assertions",
  "regex",
@@ -1397,6 +1398,7 @@ dependencies = [
  "tracing-subscriber",
  "uaparser",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]
@@ -1810,6 +1812,20 @@ dependencies = [
  "smallvec",
  "tagptr",
  "uuid",
+]
+
+[[package]]
+name = "netray-common"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bb3c673f6c20c7287f139eedecd28754bea674e2caaa8e78f1af7a45ac39ff8"
+dependencies = [
+ "axum",
+ "governor",
+ "ip_network",
+ "metrics",
+ "serde",
+ "tracing",
 ]
 
 [[package]]

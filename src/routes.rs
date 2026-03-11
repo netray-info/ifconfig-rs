@@ -12,12 +12,20 @@ use utoipa::OpenApi;
 
 use crate::backend::*;
 use crate::enrichment::EnrichmentContext;
-use crate::error::{error_response, ErrorResponse};
+use crate::error::{error_response, AppError, ErrorResponse};
 use crate::extractors::{extract_headers, filter_headers, RequesterInfo};
 use crate::format::{self, OutputFormat};
 use crate::handlers;
 use crate::negotiate::{negotiate, NegotiatedFormat};
 use crate::state::AppState;
+
+fn check_target_rate_limit(state: &AppState, target_ip: IpAddr) -> Option<Response> {
+    if state.target_rate_limiter.check_key(&target_ip).is_err() {
+        Some(AppError::RateLimited { retry_after_secs: 1 }.into_response())
+    } else {
+        None
+    }
+}
 
 #[derive(OpenApi)]
 #[openapi(
@@ -61,7 +69,7 @@ use crate::state::AppState;
     ),
     components(schemas(
         Ifconfig, Ip, Tcp, Location, Network, CloudInfo, VpnInfo, NetworkBot,
-        UserAgent, Browser, OS, Device, ErrorResponse,
+        UserAgent, Browser, OS, Device, crate::error::ErrorInfo, ErrorResponse,
         MetaResponse, DataSources,
         crate::state::RateLimitInfo, crate::state::BatchInfo, crate::state::BuildInfo,
     )),
@@ -226,20 +234,24 @@ async fn dispatch_standard(
     }
 
     if format == NegotiatedFormat::Unknown {
-        return error_response(StatusCode::NOT_FOUND, "unknown format suffix");
+        return error_response(StatusCode::NOT_FOUND, "INVALID_FORMAT", "unknown format suffix");
     }
 
     // Parse ?ip= to override target IP
     let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
         Some(ip) => {
             if !state.config.internal_mode && !is_global_ip(ip) {
-                return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
+                return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "private/loopback IP not allowed");
             }
             let skip_dns = parse_dns_param(&req_info.uri).map(|v| !v).unwrap_or(false);
             (SocketAddr::new(ip, 0), skip_dns)
         }
         None => (req_info.remote, false),
     };
+
+    if let Some(resp) = check_target_rate_limit(state, target_addr.ip()) {
+        return resp;
+    }
 
     let ctx = state.enrichment.load();
 
@@ -280,7 +292,7 @@ async fn dispatch_standard(
                 };
                 respond_json_value(val)
             }
-            None => error_response(StatusCode::NOT_FOUND, "not implemented"),
+            None => error_response(StatusCode::NOT_FOUND, "NOT_FOUND", "not implemented"),
         },
         fmt => {
             let output_fmt = match fmt {
@@ -297,7 +309,7 @@ async fn dispatch_standard(
                 .and_then(|v| output_fmt.serialize_body(&v))
             {
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
-                None => error_response(StatusCode::NOT_FOUND, "not implemented"),
+                None => error_response(StatusCode::NOT_FOUND, "NOT_FOUND", "not implemented"),
             }
         }
     }
@@ -565,19 +577,23 @@ async fn dispatch_all(
         return serve_spa();
     }
     if format == NegotiatedFormat::Unknown {
-        return error_response(StatusCode::NOT_FOUND, "unknown format suffix");
+        return error_response(StatusCode::NOT_FOUND, "INVALID_FORMAT", "unknown format suffix");
     }
 
     let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
         Some(ip) => {
             if !state.config.internal_mode && !is_global_ip(ip) {
-                return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
+                return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "private/loopback IP not allowed");
             }
             let skip_dns = parse_dns_param(&req_info.uri).map(|v| !v).unwrap_or(false);
             (SocketAddr::new(ip, 0), skip_dns)
         }
         None => (req_info.remote, false),
     };
+
+    if let Some(resp) = check_target_rate_limit(state, target_addr.ip()) {
+        return resp;
+    }
 
     let ctx = state.enrichment.load();
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
@@ -629,7 +645,7 @@ async fn dispatch_all(
                 };
                 respond_json_value(val)
             }
-            None => error_response(StatusCode::NOT_FOUND, "not implemented"),
+            None => error_response(StatusCode::NOT_FOUND, "NOT_FOUND", "not implemented"),
         },
         fmt => {
             let output_fmt = match fmt {
@@ -646,7 +662,7 @@ async fn dispatch_all(
                 .and_then(|v| output_fmt.serialize_body(&v))
             {
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
-                None => error_response(StatusCode::NOT_FOUND, "not implemented"),
+                None => error_response(StatusCode::NOT_FOUND, "NOT_FOUND", "not implemented"),
             }
         }
     }
@@ -803,7 +819,7 @@ async fn headers_format_handler(
 fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) -> Response {
     match format {
         NegotiatedFormat::Html => serve_spa(),
-        NegotiatedFormat::Unknown => error_response(StatusCode::NOT_FOUND, "unknown format suffix"),
+        NegotiatedFormat::Unknown => error_response(StatusCode::NOT_FOUND, "INVALID_FORMAT", "unknown format suffix"),
         NegotiatedFormat::Plain => respond_plain(handlers::headers::to_plain(req_headers)),
         NegotiatedFormat::Json => respond_json_value(handlers::headers::to_json_value(req_headers)),
         fmt => {
@@ -815,7 +831,7 @@ fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) 
             };
             match handlers::headers::formatted(&output_fmt, req_headers) {
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
-                None => error_response(StatusCode::INTERNAL_SERVER_ERROR, "serialization failed"),
+                None => error_response(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "serialization failed"),
             }
         }
     }
@@ -866,7 +882,7 @@ async fn batch_dispatch(
     body: &[u8],
 ) -> Response {
     if !state.config.batch.enabled {
-        return error_response(StatusCode::NOT_FOUND, "batch endpoint is disabled");
+        return error_response(StatusCode::NOT_FOUND, "BATCH_DISABLED", "batch endpoint is disabled");
     }
 
     let ips: Vec<String> = match serde_json::from_slice(body) {
@@ -874,17 +890,18 @@ async fn batch_dispatch(
         Err(_) => {
             return error_response(
                 StatusCode::BAD_REQUEST,
+                "INVALID_FORMAT",
                 "request body must be a JSON array of IP strings",
             );
         }
     };
 
     if ips.is_empty() {
-        return error_response(StatusCode::BAD_REQUEST, "empty IP array");
+        return error_response(StatusCode::BAD_REQUEST, "INVALID_FORMAT", "empty IP array");
     }
 
     if ips.len() > state.config.batch.max_size {
-        return error_response(StatusCode::BAD_REQUEST, "batch size exceeds limit");
+        return error_response(StatusCode::BAD_REQUEST, "BATCH_TOO_MANY", "batch size exceeds limit");
     }
 
     // Rate-limit: consume N tokens for N IPs
@@ -902,7 +919,7 @@ async fn batch_dispatch(
                 .map(|d| d.as_secs())
                 .unwrap_or(0)
                 .saturating_add(retry_after);
-            let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "rate limit exceeded");
+            let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "RATE_LIMITED", "rate limit exceeded");
             let h = resp.headers_mut();
             h.insert("x-ratelimit-limit", HeaderValue::from(limit));
             h.insert("x-ratelimit-remaining", HeaderValue::from(0u32));
@@ -917,7 +934,7 @@ async fn batch_dispatch(
                 .map(|d| d.as_secs())
                 .unwrap_or(0)
                 .saturating_add(1);
-            let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "rate limit exceeded");
+            let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "RATE_LIMITED", "rate limit exceeded");
             let h = resp.headers_mut();
             h.insert("x-ratelimit-limit", HeaderValue::from(limit));
             h.insert("x-ratelimit-remaining", HeaderValue::from(0u32));
@@ -951,6 +968,11 @@ async fn batch_dispatch(
 
         if !state.config.internal_mode && !is_global_ip(ip) {
             results[i] = json!({"error": "private/loopback IP not allowed", "index": i});
+            continue;
+        }
+
+        if state.target_rate_limiter.check_key(&ip).is_err() {
+            results[i] = json!({"error": "target rate limit exceeded", "index": i});
             continue;
         }
 
@@ -1020,7 +1042,7 @@ async fn batch_dispatch(
             let arr = serde_json::Value::Array(results);
             match OutputFormat::Yaml.serialize_body(&arr) {
                 Some(body) => respond_formatted(OutputFormat::Yaml.content_type(), body),
-                None => error_response(StatusCode::INTERNAL_SERVER_ERROR, "serialization failed"),
+                None => error_response(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "serialization failed"),
             }
         }
         NegotiatedFormat::Toml => {
@@ -1028,7 +1050,7 @@ async fn batch_dispatch(
             let wrapped = json!({"results": results});
             match OutputFormat::Toml.serialize_body(&wrapped) {
                 Some(body) => respond_formatted(OutputFormat::Toml.content_type(), body),
-                None => error_response(StatusCode::INTERNAL_SERVER_ERROR, "serialization failed"),
+                None => error_response(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "serialization failed"),
             }
         }
         NegotiatedFormat::Csv => {
@@ -1121,20 +1143,24 @@ async fn ip_version_dispatch(
     }
 
     if format == NegotiatedFormat::Unknown {
-        return error_response(StatusCode::NOT_FOUND, "unknown format suffix");
+        return error_response(StatusCode::NOT_FOUND, "INVALID_FORMAT", "unknown format suffix");
     }
 
     // Parse ?ip= to override target IP
     let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
         Some(ip) => {
             if !state.config.internal_mode && !is_global_ip(ip) {
-                return error_response(StatusCode::BAD_REQUEST, "private/loopback IP not allowed");
+                return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "private/loopback IP not allowed");
             }
             let skip_dns = parse_dns_param(&req_info.uri).map(|v| !v).unwrap_or(false);
             (SocketAddr::new(ip, 0), skip_dns)
         }
         None => (req_info.remote, false),
     };
+
+    if let Some(resp) = check_target_rate_limit(state, target_addr.ip()) {
+        return resp;
+    }
 
     let ctx = state.enrichment.load();
 
@@ -1163,7 +1189,7 @@ async fn ip_version_dispatch(
     .await;
 
     if ifconfig.ip.version != version {
-        return error_response(StatusCode::NOT_FOUND, "not implemented");
+        return error_response(StatusCode::NOT_FOUND, "NOT_FOUND", "not implemented");
     }
 
     match format {
@@ -1171,7 +1197,7 @@ async fn ip_version_dispatch(
         NegotiatedFormat::Plain => respond_plain(handlers::ip_version::to_plain(&ifconfig)),
         NegotiatedFormat::Json => match handlers::ip_version::to_json(&ifconfig) {
             Some(val) => respond_json_value(val),
-            None => error_response(StatusCode::NOT_FOUND, "not implemented"),
+            None => error_response(StatusCode::NOT_FOUND, "NOT_FOUND", "not implemented"),
         },
         fmt => {
             let output_fmt = match fmt {
@@ -1182,7 +1208,7 @@ async fn ip_version_dispatch(
             };
             match handlers::ip_version::to_json(&ifconfig).and_then(|v| output_fmt.serialize_body(&v)) {
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
-                None => error_response(StatusCode::NOT_FOUND, "not implemented"),
+                None => error_response(StatusCode::NOT_FOUND, "NOT_FOUND", "not implemented"),
             }
         }
     }
