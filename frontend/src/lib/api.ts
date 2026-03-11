@@ -13,7 +13,7 @@ export async function fetchIfconfig(): Promise<Ifconfig> {
 }
 
 export async function fetchIfconfigForIp(ip: string): Promise<Ifconfig> {
-  const url = `/json?ip=${encodeURIComponent(ip)}`;
+  const url = `/json?ip=${ip}`;
   const res = await fetchWithTimeout(url, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();

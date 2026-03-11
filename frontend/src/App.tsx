@@ -27,7 +27,7 @@ export default function App() {
       setData(result);
       setLookupIp(ip ?? null);
       if (pushState) {
-        const url = ip ? `/?ip=${encodeURIComponent(ip)}` : "/";
+        const url = ip ? `/?ip=${ip}` : "/";
         history.pushState({ ip: ip ?? null }, "", url);
       }
     } catch (e) {

@@ -183,7 +183,13 @@ fn parse_query_param<'a>(uri: &'a str, key: &str) -> Option<&'a str> {
 }
 
 fn parse_ip_param(uri: &str) -> Option<IpAddr> {
-    parse_query_param(uri, "ip").and_then(|s| s.parse().ok())
+    parse_query_param(uri, "ip").and_then(|s| {
+        if s.contains('%') {
+            s.replace("%3A", ":").replace("%3a", ":").parse().ok()
+        } else {
+            s.parse().ok()
+        }
+    })
 }
 
 fn parse_dns_param(uri: &str) -> Option<bool> {
