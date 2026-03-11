@@ -1,5 +1,5 @@
 ---
-name: Continous Integration
+name: CI
 
 on:
   push:
@@ -11,57 +11,89 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
-    name: Check
+  fmt:
+    name: Cargo Fmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          node-version: 22
-      - name: Build Frontend
-        run: cd frontend && npm ci && npm run build
-      - name: Cargo Check
-        run: cargo check --verbose
+          components: rustfmt
+      - name: cargo fmt
+        run: cargo fmt -- --check
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
-      - name: Build Frontend
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build frontend
         run: cd frontend && npm ci && npm run build
-      - name: Cargo Clippy
-        run: cargo clippy --verbose
+      - name: cargo clippy
+        run: cargo clippy --locked -- -D warnings
 
-  fmt:
-    name: Cargo Fmt
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - name: Cargo Fmt
-        run: cargo fmt  --check --verbose
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
+      - name: cargo test
+        run: cargo test --locked --no-fail-fast
 
-  build-n-test:
-    name: Build and Test
+  frontend:
+    name: Frontend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
-      - name: Build Frontend
-        run: cd frontend && npm ci && npm run build
-      - name: Cargo Build
-        run: cargo build --verbose
-      - name: Cargo Unit Test
-        run: cargo test --lib --no-fail-fast
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: frontend build
+        run: npm ci && npm run build
+        working-directory: frontend
+      - name: frontend test
+        run: npm test
+        working-directory: frontend
+
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: install cargo-audit
+        run: cargo install cargo-audit --locked --quiet
+      - name: cargo audit
+        run: cargo audit
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: npm audit (frontend)
+        run: cd frontend && npm audit --audit-level=high
 
   integration-test:
-    needs: [check, build-n-test]
+    needs: [test]
     name: Integration Tests
     runs-on: ubuntu-latest
     steps:
@@ -80,7 +112,7 @@ jobs:
           push: false
 
   e2e-test:
-    needs: [check, build-n-test]
+    needs: [test]
     name: E2E Tests
     runs-on: ubuntu-latest
     steps:
@@ -109,7 +141,7 @@ jobs:
           done
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: "22"
       - name: Install Playwright browsers
         run: cd tests/e2e && npm ci && npx playwright install --with-deps
       - name: Run E2E tests
@@ -123,19 +155,13 @@ jobs:
           name: playwright-report
           path: tests/e2e/playwright-report/
 
-  audit:
-    name: Dependency Audit
+  e2e-audit:
+    name: E2E Dependency Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked --quiet
-      - name: Cargo Audit
-        run: cargo audit
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
-      - name: NPM Audit (frontend)
-        run: cd frontend && npm audit --audit-level=high
-      - name: NPM Audit (e2e)
+          node-version: "22"
+      - name: npm audit (e2e)
         run: cd tests/e2e && npm audit --audit-level=high
