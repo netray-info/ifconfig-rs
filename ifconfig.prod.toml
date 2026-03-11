@@ -97,6 +97,14 @@ per_ip_per_minute = 60
 # Default: 10
 per_ip_burst = 10
 
+# Maximum sustained requests per looked-up target IP per minute.
+# Default: 120
+per_target_per_minute = 120
+
+# Per-target burst capacity.
+# Default: 20
+per_target_burst = 20
+
 [batch]
 # Enable the POST /batch endpoint for bulk IP lookups.
 enabled = true
