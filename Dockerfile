@@ -1,7 +1,7 @@
 FROM node:22-alpine AS frontend
 WORKDIR /build/frontend
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
+RUN --mount=type=secret,id=NODE_AUTH_TOKEN,env=NODE_AUTH_TOKEN npm ci
 COPY frontend/ .
 RUN npm run build
 

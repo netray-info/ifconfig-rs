@@ -2,39 +2,8 @@ import { createSignal, onMount, Show } from "solid-js";
 import type { Ifconfig, SiteMeta } from "./lib/types";
 import { fetchIfconfig, fetchIfconfigForIp, fetchMeta } from "./lib/api";
 import { toastMessage } from "./lib/toast";
+import { createTheme } from "@netray/common-frontend/theme";
 import IpDisplay from "./components/IpDisplay";
-
-type ThemeChoice = "dark" | "light" | "system";
-
-function createTheme(storageKey: string, defaultTheme: ThemeChoice) {
-  const [theme, setTheme] = createSignal<ThemeChoice>(defaultTheme);
-
-  function applyTheme(choice: ThemeChoice) {
-    if (choice === "system") {
-      document.documentElement.removeAttribute("data-theme");
-    } else {
-      document.documentElement.setAttribute("data-theme", choice);
-    }
-  }
-
-  onMount(() => {
-    const saved = localStorage.getItem(storageKey);
-    const choice: ThemeChoice =
-      saved === "light" || saved === "dark" || saved === "system" ? saved : defaultTheme;
-    setTheme(choice);
-    applyTheme(choice);
-  });
-
-  const toggleTheme = () => {
-    const order: ThemeChoice[] = ["dark", "light", "system"];
-    const next = order[(order.indexOf(theme()) + 1) % order.length];
-    setTheme(next);
-    localStorage.setItem(storageKey, next);
-    applyTheme(next);
-  };
-
-  return { theme, toggleTheme };
-}
 import InfoCards from "./components/InfoCards";
 import RequestHeaders from "./components/RequestHeaders";
 import ApiExplorer from "./components/ApiExplorer";
