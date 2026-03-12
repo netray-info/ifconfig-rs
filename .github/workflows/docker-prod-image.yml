@@ -7,10 +7,13 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY_IMAGE: ghcr.io/lukaspustina/ifconfig-rs
+  REGISTRY_IMAGE: ghcr.io/netray-info/ifconfig-rs
 
 jobs:
   build:
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -35,8 +38,8 @@ jobs:
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
-          username: lukaspustina
-          password: ${{ secrets.LP_GHCR_TOKEN }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -73,6 +76,9 @@ jobs:
   merge:
     runs-on: ubuntu-latest
     needs: [build]
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Download digests
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -88,8 +94,8 @@ jobs:
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
-          username: lukaspustina
-          password: ${{ secrets.LP_GHCR_TOKEN }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
