@@ -2,7 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import type { Ifconfig, SiteMeta } from "./lib/types";
 import { fetchIfconfig, fetchIfconfigForIp, fetchMeta } from "./lib/api";
 import { toastMessage } from "./lib/toast";
-import { createTheme } from "@netray/common-frontend/theme";
+import { createTheme } from "@netray-info/common-frontend/theme";
 import IpDisplay from "./components/IpDisplay";
 import InfoCards from "./components/InfoCards";
 import RequestHeaders from "./components/RequestHeaders";
