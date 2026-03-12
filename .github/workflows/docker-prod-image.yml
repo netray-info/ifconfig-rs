@@ -4,6 +4,7 @@ name: Build Docker Image for Prod
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
 
 env:
   REGISTRY_IMAGE: ghcr.io/lukaspustina/ifconfig-rs
