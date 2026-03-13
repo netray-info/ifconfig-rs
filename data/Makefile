@@ -110,13 +110,13 @@ DATA_FILES = GeoLite2-ASN.mmdb GeoLite2-City.mmdb regexes.yaml tor_exit_nodes.tx
 
 build: $(DATA_FILES)
 	docker buildx build --platform linux/amd64,linux/arm64 \
-		--tag ghcr.io/lukaspustina/ifconfig-rs-data:latest \
+		--tag ghcr.io/netray-info/ifconfig-rs-data:latest \
 		--load \
 		.
 
 push: $(DATA_FILES)
 	docker buildx build --platform linux/amd64,linux/arm64 \
-		--tag ghcr.io/lukaspustina/ifconfig-rs-data:latest \
+		--tag ghcr.io/netray-info/ifconfig-rs-data:latest \
 		--push \
 		.
 
