@@ -1399,7 +1399,6 @@ dependencies = [
  "tracing-subscriber",
  "uaparser",
  "utoipa",
- "uuid",
 ]
 
 [[package]]
@@ -1826,6 +1825,7 @@ dependencies = [
  "serde",
  "tracing",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]

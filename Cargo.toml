@@ -33,7 +33,7 @@ metrics-exporter-prometheus = "0.18"
 config = "0.15"
 mhost = { version = "0.11", default-features = false }
 governor = "0.10"
-netray-common = { version = "0.2.1", features = ["schema"] }
+netray-common = { version = "0.2.1", features = ["schema", "middleware"] }
 httpdate = "1"
 ip_network = "0.4"
 ip_network_table = "0.2"
@@ -60,7 +60,6 @@ tokio = { version = "1", features = [
 ] }
 toml = "0.9"
 tower = "0.5"
-uuid = { version = "1", features = ["v7"] }
 tower-http = { version = "0.6", features = [
   "cors",
   "set-header",

@@ -8,43 +8,10 @@ use crate::error::AppError;
 use crate::extractors::RequesterInfo;
 use crate::state::AppState;
 
-fn generate_request_id() -> String {
-    uuid::Uuid::now_v7().to_string()
-}
-
-fn is_valid_request_id(s: &str) -> bool {
-    !s.is_empty() && s.len() <= 64 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
-}
+pub use netray_common::middleware::request_id;
 
 pub async fn record_metrics(req: Request<axum::body::Body>, next: Next) -> Response {
-    let method = req.method().to_string();
-    let start = std::time::Instant::now();
-    let response = next.run(req).await;
-    let status = response.status().as_u16().to_string();
-    let duration = start.elapsed().as_secs_f64();
-    metrics::counter!("http_requests_total", "method" => method.clone(), "status" => status).increment(1);
-    metrics::histogram!("http_request_duration_seconds", "method" => method).record(duration);
-    response
-}
-
-pub async fn request_id(mut req: Request<axum::body::Body>, next: Next) -> Response {
-    let id = req
-        .headers()
-        .get("x-request-id")
-        .and_then(|v| v.to_str().ok())
-        .filter(|s| is_valid_request_id(s))
-        .map(String::from)
-        .unwrap_or_else(generate_request_id);
-
-    if let Ok(val) = HeaderValue::from_str(&id) {
-        req.headers_mut().insert("x-request-id", val);
-    }
-
-    let mut response = next.run(req).await;
-    if let Ok(val) = HeaderValue::from_str(&id) {
-        response.headers_mut().insert("x-request-id", val);
-    }
-    response
+    netray_common::middleware::http_metrics("ifconfig", req, next).await
 }
 
 pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::Body>, next: Next) -> Response {
@@ -139,25 +106,6 @@ pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Res
     }
 
     response
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn generate_request_id_is_uuid_v7() {
-        let id = generate_request_id();
-        let parsed = uuid::Uuid::parse_str(&id).expect("should be a valid UUID");
-        assert_eq!(parsed.get_version_num(), 7);
-    }
-
-    #[test]
-    fn generate_request_id_is_unique() {
-        let id1 = generate_request_id();
-        let id2 = generate_request_id();
-        assert_ne!(id1, id2);
-    }
 }
 
 pub async fn geoip_date_headers(State(state): State<AppState>, req: Request<axum::body::Body>, next: Next) -> Response {
