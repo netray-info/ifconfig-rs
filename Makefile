@@ -23,7 +23,7 @@ CARGO_FLAGS  ?=
 NPM_CI_FLAGS ?=
 
 # ── Phony targets ────────────────────────────────────────────────
-.PHONY: all build check test lint ci clean dev run \
+.PHONY: all build check test lint ci pre-push clean dev run \
         frontend frontend-install frontend-dev frontend-test \
         test-rust test-frontend \
         fmt fmt-check clippy \
@@ -98,6 +98,25 @@ test-frontend: frontend-test ## Alias for frontend-test
 lint: clippy fmt-check ## Run all lints (clippy + fmt-check)
 
 ci: lint test frontend ## Full CI pipeline (lint + test + frontend build)
+
+# NOTE: NODE_AUTH_TOKEN must be exported before running pre-push or any
+# target that invokes the frontend build.  The frontend/.npmrc references
+# ${NODE_AUTH_TOKEN} for GitHub Packages authentication.  Without it npm
+# ci will fail with E401.  Export it in your shell:
+#   export NODE_AUTH_TOKEN=<your-PAT-or-GITHUB_TOKEN>
+pre-push: ## Run all checks locally before pushing (fmt-check → clippy → test → frontend)
+	@echo "--- fmt-check ---"
+	$(CARGO) fmt -- --check
+	@echo "--- clippy ---"
+	$(CARGO) clippy $(CARGO_FLAGS) -- -D warnings
+	@echo "--- test ---"
+	$(CARGO) test --lib --no-fail-fast $(CARGO_FLAGS)
+	$(CARGO) test --no-fail-fast $(CARGO_FLAGS)
+	@echo "--- frontend ---"
+	cd $(FRONTEND_DIR) && $(NPM) ci $(NPM_CI_FLAGS)
+	cd $(FRONTEND_DIR) && $(NPM) run build
+	@echo ""
+	@echo "All checks passed. Safe to push."
 
 # ══════════════════════════════════════════════════════════════════
 #  Development
