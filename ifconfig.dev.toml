@@ -17,6 +17,7 @@ vpn_ranges = "data/vpn_ranges.txt"
 datacenter_ranges = "data/datacenter_ranges.txt"
 bot_ranges = "data/bot_ranges.jsonl"
 spamhaus_drop = "data/spamhaus_drop.txt"
+cins_army_ips = "data/cins_army_ips.txt"
 asn_patterns = "data/asn_patterns.toml"
 asn_info = "data/as_metadata.jsonl"
 

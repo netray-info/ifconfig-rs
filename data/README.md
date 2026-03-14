@@ -70,10 +70,15 @@ All remaining files are fetched from public URLs — no account required.
 | `datacenter_ranges.txt` | `make datacenter_ranges.txt` | [X4BNet datacenter list](https://github.com/X4BNet/lists_vpn) |
 | `bot_ranges.jsonl` | `make bot_ranges.jsonl` | Googlebot, Bingbot, Applebot, GPTBot (normalized to JSONL) |
 | `spamhaus_drop.txt` | `make spamhaus_drop.txt` | [Spamhaus DROP + EDROP + DROPv6](https://www.spamhaus.org/drop/) (concatenated, comments stripped) |
+| `cins_army_ips.txt` | `make cins_army_ips.txt` | [CINS Army / CI Bad Guys](https://cinsscore.com/list/ci-badguys.txt) (one IPv4 per line, comment lines stripped) |
 
 > **Note on Spamhaus:** The free DROP feeds are rate-limited and intended for
 > non-commercial use. A [data feed license](https://www.spamhaus.com/pricing/) is
 > required for commercial deployments.
+
+> **Note on CINS Army:** The CI Bad Guys list is published by the Collective
+> Intelligence Network Security (CINS) project. It is free for non-commercial use.
+> The list is updated frequently; refresh at least daily.
 
 ---
 
