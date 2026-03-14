@@ -33,6 +33,7 @@ export default function IpLookupForm(props: Props) {
         <input
           class="lookup-input"
           type="text"
+          aria-label="IP address to look up"
           placeholder="Look up an IP address…"
           value={input()}
           onInput={(e) => setInput(e.currentTarget.value)}

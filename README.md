@@ -134,6 +134,7 @@ Every endpoint accepts a format suffix or an `Accept` header — see [Output For
 | `/all` | Everything at once | `curl ip.netray.info/all` |
 | `/headers` | Your raw request headers | `curl ip.netray.info/headers` |
 | `POST /batch` | Bulk IP lookup (JSON array input) | `curl -X POST -d '["8.8.8.8"]' ip.netray.info/batch` |
+| `/meta` | Site metadata (name, version, batch config, rate limit settings, loaded data sources) — JSON only, used by the SPA | `curl ip.netray.info/meta` |
 | `/api-docs/openapi.json` | OpenAPI 3.1 specification | `curl ip.netray.info/api-docs/openapi.json` |
 | `/docs` | Interactive API reference (Scalar UI) | Open in browser |
 | `/health` | Liveness probe | `curl ip.netray.info/health` |
@@ -150,10 +151,10 @@ ifconfig-rs figures out what you want automatically — no flags needed:
 
 ### Error Responses
 
-All error responses are structured JSON with `error` and `status` fields:
+All error responses are structured JSON:
 
 ```json
-{"error": "private/loopback IP not allowed", "status": 400}
+{"error": {"code": "INVALID_IP", "message": "private/loopback IP not allowed"}}
 ```
 
 This applies to 400 Bad Request, 404 Not Found, 429 Too Many Requests, and 500 Internal Server Error.
@@ -351,7 +352,7 @@ cargo run -- ifconfig.toml
 ```sh
 make build        # Build frontend + cargo build
 make dev          # Run dev server on :8080
-make tests        # Unit + Docker integration + Playwright E2E
+make test         # Rust unit + in-process integration + frontend tests
 make integration  # Docker-based integration tests only
 make acceptance   # Playwright E2E tests against ip.netray.info
 make bench        # Run Criterion benchmarks

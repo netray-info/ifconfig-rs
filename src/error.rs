@@ -1,25 +1,12 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use netray_common::error::ApiError;
-use serde::Serialize;
 
-/// OpenAPI schema type — kept local because netray-common types don't derive `ToSchema`.
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-pub struct ErrorInfo {
-    pub code: &'static str,
-    pub message: String,
-}
-
-/// OpenAPI schema type — kept local for utoipa compatibility.
-/// Wire format matches `netray_common::error::ErrorResponse`.
-#[derive(Debug, Serialize, utoipa::ToSchema)]
-pub struct ErrorResponse {
-    pub error: ErrorInfo,
-}
+pub use netray_common::error::{ErrorInfo, ErrorResponse};
 
 pub fn error_response(status: StatusCode, code: &'static str, message: &str) -> Response {
-    let body = netray_common::error::ErrorResponse {
-        error: netray_common::error::ErrorInfo {
+    let body = ErrorResponse {
+        error: ErrorInfo {
             code,
             message: message.to_string(),
         },

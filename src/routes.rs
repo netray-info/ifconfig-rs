@@ -961,18 +961,18 @@ async fn batch_dispatch(
         let ip: IpAddr = match ip_str.parse() {
             Ok(ip) => ip,
             Err(_) => {
-                results[i] = json!({"error": "invalid IP address", "index": i});
+                results[i] = json!({"error": {"code": "INVALID_IP", "message": "invalid IP address"}, "index": i});
                 continue;
             }
         };
 
         if !state.config.internal_mode && !is_global_ip(ip) {
-            results[i] = json!({"error": "private/loopback IP not allowed", "index": i});
+            results[i] = json!({"error": {"code": "INVALID_IP", "message": "private/loopback IP not allowed"}, "index": i});
             continue;
         }
 
         if state.target_rate_limiter.check_key(&ip).is_err() {
-            results[i] = json!({"error": "target rate limit exceeded", "index": i});
+            results[i] = json!({"error": {"code": "RATE_LIMITED", "message": "target rate limit exceeded"}, "index": i});
             continue;
         }
 
@@ -1011,7 +1011,7 @@ async fn batch_dispatch(
             );
             let ifconfig = match tokio::time::timeout(std::time::Duration::from_secs(5), lookup).await {
                 Ok(result) => result,
-                Err(_) => return (i, json!({"error": "lookup timed out", "index": i})),
+                Err(_) => return (i, json!({"error": {"code": "TIMEOUT", "message": "lookup timed out"}, "index": i})),
             };
 
             let mut val = serde_json::to_value(&ifconfig).unwrap_or(json!(null));
@@ -1324,7 +1324,7 @@ async fn health_handler() -> Response {
         (status = 503, description = "One or more core backends not ready"),
     )
 )]
-async fn ready_handler(State(state): State<AppState>) -> Response {
+pub async fn ready_handler(State(state): State<AppState>) -> Response {
     let ctx = state.enrichment.load();
     let has_city_db = ctx.geoip_city_db.is_some();
     let has_asn_db = ctx.geoip_asn_db.is_some();

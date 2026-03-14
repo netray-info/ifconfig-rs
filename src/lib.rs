@@ -19,6 +19,7 @@ use axum::Router;
 use enrichment::EnrichmentContext;
 use state::AppState;
 use std::sync::Arc;
+use subtle::ConstantTimeEq;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -38,7 +39,7 @@ async fn admin_bearer_auth(
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.strip_prefix("Bearer "))
-        .map(|t| t == expected)
+        .map(|t| bool::from(t.as_bytes().ct_eq(expected.as_bytes())))
         .unwrap_or(false);
     if ok {
         next.run(req).await
@@ -67,9 +68,13 @@ pub async fn build_app(config: &Config) -> AppBundle {
 
     // Try to install metrics recorder. May fail in tests where multiple
     // build_app calls run in the same process — that's fine, skip metrics.
-    let metrics_handle = metrics_exporter_prometheus::PrometheusBuilder::new()
-        .install_recorder()
-        .ok();
+    let metrics_handle = match metrics_exporter_prometheus::PrometheusBuilder::new().install_recorder() {
+        Ok(handle) => Some(handle),
+        Err(e) => {
+            tracing::error!("Failed to install Prometheus metrics recorder: {e}");
+            None
+        }
+    };
 
     if metrics_handle.is_some() {
         metrics_process::Collector::default().describe();
@@ -168,10 +173,11 @@ pub async fn build_app(config: &Config) -> AppBundle {
         .layer(axum_mw::from_fn(middleware::record_metrics))
         .layer(axum_mw::from_fn(middleware::request_id))
         .layer(CompressionLayer::new())
-        .with_state(state);
+        .with_state(state.clone());
 
     let admin_app = config.server.admin_bind.as_ref().and_then(|_| {
         let handle = metrics_handle?;
+        let admin_state = state.clone();
         let mut router = Router::new()
             .route(
                 "/metrics",
@@ -183,7 +189,9 @@ pub async fn build_app(config: &Config) -> AppBundle {
                     }
                 }),
             )
-            .route("/health", get(|| async { axum::http::StatusCode::OK.into_response() }));
+            .route("/health", get(|| async { axum::http::StatusCode::OK.into_response() }))
+            .route("/ready", get(routes::ready_handler))
+            .with_state(admin_state);
         if let Some(token) = config.server.admin_token.clone() {
             router = router.layer(axum_mw::from_fn_with_state(token, admin_bearer_auth));
         }

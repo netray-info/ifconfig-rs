@@ -633,6 +633,38 @@ mod tests {
     }
 
     #[test]
+    fn is_global_ip_public_v6_google_dns() {
+        // Well-known public IPv6 address
+        assert!(is_global_ip("2001:4860:4860::8888".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_global_ip_cgnat_treated_as_global() {
+        // CGNAT 100.64.0.0/10 (RFC 6598) is NOT covered by Rust's Ipv4Addr::is_private()
+        // (which only covers RFC 1918), so these are currently treated as globally routable.
+        // This test documents the current behavior; a future enhancement could add explicit
+        // CGNAT detection.
+        assert!(is_global_ip("100.64.0.1".parse().unwrap()));
+        assert!(is_global_ip("100.127.255.255".parse().unwrap()));
+    }
+
+    #[test]
+    fn is_global_ip_ipv4_mapped_private_is_not_global() {
+        // IPv4-mapped ::ffff:x.x.x.x — the embedded v4 address is checked
+        assert!(!is_global_ip("::ffff:192.168.1.1".parse::<IpAddr>().unwrap())); // RFC 1918
+        assert!(!is_global_ip("::ffff:10.0.0.1".parse::<IpAddr>().unwrap())); // RFC 1918
+        assert!(!is_global_ip("::ffff:127.0.0.1".parse::<IpAddr>().unwrap())); // loopback
+        assert!(!is_global_ip("::ffff:169.254.1.1".parse::<IpAddr>().unwrap())); // link-local
+    }
+
+    #[test]
+    fn is_global_ip_ipv4_mapped_public_is_global() {
+        // IPv4-mapped public address should be treated as global
+        assert!(is_global_ip("::ffff:1.1.1.1".parse::<IpAddr>().unwrap()));
+        assert!(is_global_ip("::ffff:8.8.8.8".parse::<IpAddr>().unwrap()));
+    }
+
+    #[test]
     fn tor_exit_nodes_empty_returns_none() {
         let nodes = TorExitNodes::empty();
         let addr: IpAddr = "1.2.3.4".parse().unwrap();

@@ -164,7 +164,7 @@ export default function ApiExplorer(props: Props) {
 
           <div class="response-block">
             <Show when={loading()}>
-              <pre class="response-loading">Loading...</pre>
+              <pre class="response-loading" role="status">Loading...</pre>
             </Show>
             <Show when={error()}>
               <pre class="response-error">{error()}</pre>

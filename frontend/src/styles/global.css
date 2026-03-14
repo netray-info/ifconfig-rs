@@ -1,34 +1,39 @@
+@import '@netray-info/common-frontend/styles/theme.css';
+
 :root {
-  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --radius: 8px;
+  /* ifconfig-rs overrides: darker palette than shared theme defaults */
   --bg-primary: #0f1117;
   --bg-secondary: #161822;
-  --bg-card-hover: #232538;
+  --bg-tertiary: #1e2030;
   --border: #2a2d42;
+  --border-subtle: #222236;
   --text-primary: #e4e4e7;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
-  --accent: #00d4ff;
   --accent-dim: #0099bb;
-  --accent-glow: rgba(0, 212, 255, 0.15);
   --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
   --radius-lg: 12px;
+  /* ifconfig-rs-specific token */
+  --bg-card-hover: #232538;
 }
 
 [data-theme="light"] {
+  /* ifconfig-rs overrides: neutral zinc palette */
   --bg-primary: #fafafa;
   --bg-secondary: #f4f4f5;
-  --bg-card-hover: #f8f8fa;
+  --bg-tertiary: #ececed;
   --border: #e4e4e7;
+  --border-subtle: #f0f0f2;
   --text-primary: #18181b;
   --text-secondary: #52525b;
   --text-muted: #6b6b73;
   --accent: #0891b2;
   --accent-dim: #06b6d4;
   --accent-glow: rgba(8, 145, 178, 0.1);
+  /* ifconfig-rs-specific token */
+  --bg-card-hover: #f8f8fa;
 }
 
 *,

@@ -103,7 +103,7 @@ export default function App() {
         </Show>
 
         <Show when={error()}>
-          <div class="error-msg">
+          <div class="error-msg" role="alert">
             {error()}
             {" "}
             <button class="retry-btn" onClick={() => loadData(lookupIp() ?? undefined)}>Try again</button>

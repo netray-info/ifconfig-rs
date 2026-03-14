@@ -14,7 +14,7 @@ The server requires several data files in a `data/` directory. These are not che
 mkdir -p data
 ```
 
-**Required files** (server won't start without GeoIP databases):
+**Recommended files** (GeoIP and UA data are optional — the service starts without them, but geolocation, ISP, and User-Agent fields return `null`. If a path is configured but the file is missing or corrupt, the service will refuse to start.):
 
 | File | Source |
 |------|--------|
