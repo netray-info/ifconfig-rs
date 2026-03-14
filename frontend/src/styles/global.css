@@ -1,4 +1,6 @@
 @import '@netray-info/common-frontend/styles/theme.css';
+@import '@netray-info/common-frontend/styles/reset.css';
+@import '@netray-info/common-frontend/styles/layout.css';
 
 :root {
   /* ifconfig-rs overrides: darker palette than shared theme defaults */
@@ -36,30 +38,11 @@
   --bg-card-hover: #f8f8fa;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 html {
   font-size: 16px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-
 body {
-  font-family: var(--font-sans);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  line-height: 1.5;
   min-height: 100vh;
 }
 
@@ -77,11 +60,6 @@ a:hover {
 }
 
 /* ---- Focus Visible ---- */
-
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
-}
 
 button:focus-visible {
   outline: 2px solid var(--accent);
@@ -124,8 +102,6 @@ button:focus-visible {
 
 .tagline {
   display: block;
-  font-size: 0.875rem;
-  color: var(--text-muted);
   margin-top: 0.25rem;
 }
 
@@ -702,20 +678,20 @@ button:focus-visible {
 /* ---- Footer ---- */
 
 .footer {
-  margin-top: 2rem;
   padding: 1.5rem 0;
-  border-top: 1px solid var(--border);
-}
-
-.footer a,
-.footer-link {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  text-decoration: none;
 }
 
 .footer a:hover {
   color: var(--accent);
+}
+
+.footer-about {
+  font-size: 0.8rem;
+}
+
+.footer-links {
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .footer-sep {
@@ -727,33 +703,6 @@ button:focus-visible {
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 0.75rem;
-}
-
-.footer-about {
-  text-align: center;
-  font-size: 0.8rem;
-  line-height: 1.6;
-  max-width: 540px;
-  margin: 0 auto 0.75rem;
-  color: var(--text-muted);
-}
-
-.footer-about a {
-  color: var(--text-secondary);
-}
-
-.footer-about em {
-  color: var(--accent);
-  font-style: normal;
-  font-weight: 600;
-}
-
-.footer-links {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 
 /* ---- Theme Toggle ---- */

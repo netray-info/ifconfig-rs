@@ -3,6 +3,8 @@ import type { Ifconfig, SiteMeta } from "./lib/types";
 import { fetchIfconfig, fetchIfconfigForIp, fetchMeta } from "./lib/api";
 import { toastMessage } from "./lib/toast";
 import { createTheme } from "@netray-info/common-frontend/theme";
+import ThemeToggle from "@netray-info/common-frontend/components/ThemeToggle";
+import SiteFooter from "@netray-info/common-frontend/components/SiteFooter";
 import IpDisplay from "./components/IpDisplay";
 import InfoCards from "./components/InfoCards";
 import RequestHeaders from "./components/RequestHeaders";
@@ -11,7 +13,7 @@ import Faq from "./components/Faq";
 import IpLookupForm from "./components/IpLookupForm";
 
 export default function App() {
-  const { theme, toggleTheme } = createTheme('theme', 'dark');
+  const themeResult = createTheme('theme', 'dark');
 
   const [data, setData] = createSignal<Ifconfig | null>(null);
   const [meta, setMeta] = createSignal<SiteMeta | null>(null);
@@ -61,14 +63,7 @@ export default function App() {
 
   return (
     <>
-      <button
-        class="theme-toggle"
-        onClick={toggleTheme}
-        title={`Theme: ${theme() === 'dark' ? 'Dark' : theme() === 'light' ? 'Light' : 'System'}. Click to switch.`}
-        aria-label={`Theme: ${theme() === 'dark' ? 'Dark' : theme() === 'light' ? 'Light' : 'System'}. Click to switch.`}
-      >
-        {theme() === 'system' ? '\u25D1' : theme() === 'dark' ? '\u263E' : '\u2600'}
-      </button>
+      <ThemeToggle theme={themeResult} />
       <div class="container">
         <header class="site-header">
           <h1 class="site-title">{siteName()}</h1>
@@ -125,8 +120,8 @@ export default function App() {
           <Faq siteName={siteName()} />
         </Show>
 
-        <footer class="footer">
-          <div class="footer-about">
+        <SiteFooter
+          aboutText={<>
             <em>{siteName()}</em> is an IP address and network information service.
             Returns geolocation, ASN, and user-agent details via a plain HTTP API.
             Built in <a href="https://www.rust-lang.org/" target="_blank" rel="noopener noreferrer">Rust</a>{" "}
@@ -136,19 +131,14 @@ export default function App() {
             Geolocation data by{" "}
             <a href="https://www.maxmind.com" target="_blank" rel="noopener noreferrer">MaxMind</a> GeoLite2.
             Open to use and self-host — rate limiting applies.
-          </div>
-          <div class="footer-links">
-            <a class="footer-link" href="https://github.com/lukaspustina/ifconfig-rs" target="_blank" rel="noopener noreferrer">GitHub</a>
-            <span class="footer-sep">&middot;</span>
-            <a class="footer-link" href="/docs">API Docs</a>
-            <span class="footer-sep">&middot;</span>
-            <a class="footer-link" href="https://lukas.pustina.de" target="_blank" rel="noopener noreferrer">Author</a>
-            <Show when={meta()?.version}>
-              <span class="footer-sep">&middot;</span>
-              <span class="footer-text">v{meta()!.version}</span>
-            </Show>
-          </div>
-        </footer>
+          </>}
+          links={[
+            { href: "https://github.com/lukaspustina/ifconfig-rs", label: "GitHub", external: true },
+            { href: "/docs", label: "API Docs" },
+            { href: "https://lukas.pustina.de", label: "Author", external: true },
+          ]}
+          version={meta()?.version}
+        />
       </div>
 
       <Show when={toastMessage()}>

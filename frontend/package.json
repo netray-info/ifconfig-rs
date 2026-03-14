@@ -11,7 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@netray-info/common-frontend": "^0.1.0",
+    "@netray-info/common-frontend": "file:../../netray-common-frontend",
     "solid-js": "^1.9.11"
   },
   "devDependencies": {
