@@ -17,6 +17,7 @@ impl UserAgentParser {
         let bytes = tokio::fs::read(path).await.map_err(uaparser::Error::IO)?;
         uaparser::UserAgentParser::from_bytes(&bytes).map(UserAgentParser::from)
     }
+    #[tracing::instrument(name = "ua_parse", skip(self, user_agent_header))]
     pub fn parse(&self, user_agent_header: &'_ str) -> UserAgent {
         use uaparser::Parser;
         let truncated = &user_agent_header[..user_agent_header.len().min(MAX_USER_AGENT_LENGTH)];

@@ -91,6 +91,7 @@ impl GeoIpCityDb {
         maxminddb::Reader::from_source(bytes).ok().map(GeoIpCityDb)
     }
 
+    #[tracing::instrument(name = "geoip_city_lookup", skip(self), fields(ip = %ip))]
     pub fn lookup(&self, ip: IpAddr) -> Option<geoip2::City<'_>> {
         self.0.lookup(ip).ok().and_then(|r| r.decode().ok().flatten())
     }
@@ -112,6 +113,7 @@ impl GeoIpAsnDb {
         maxminddb::Reader::from_source(bytes).ok().map(GeoIpAsnDb)
     }
 
+    #[tracing::instrument(name = "geoip_asn_lookup", skip(self), fields(ip = %ip))]
     pub fn lookup(&self, ip: IpAddr) -> Option<(geoip2::Isp<'_>, Option<String>)> {
         let result = self.0.lookup(ip).ok()?;
         let prefix = result.network().ok().map(|n| n.to_string());
@@ -329,6 +331,7 @@ pub struct IfconfigParam<'a> {
     pub skip_dns: bool,
 }
 
+#[tracing::instrument(name = "get_ifconfig", skip_all, fields(ip = %param.remote.ip()))]
 pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
     let hostname = if param.skip_dns {
         None
@@ -348,22 +351,27 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         if let Some(hostname) = cached {
             hostname
         } else {
-            let result = tokio::time::timeout(std::time::Duration::from_secs(5), async {
-                let resolver = param.dns_resolver.resolvers().first()?;
-                let query = MultiQuery::single(ip, RecordType::PTR).ok()?;
-                let lookups = match resolver.lookup(query).await {
-                    Ok(r) => r,
-                    Err(e) => {
-                        tracing::debug!("PTR lookup error for {ip}: {e}");
-                        return None;
-                    }
+            let result = {
+                let fut = {
+                    let _span = tracing::info_span!("rdns_lookup", ip = %ip).entered();
+                    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                        let resolver = param.dns_resolver.resolvers().first()?;
+                        let query = MultiQuery::single(ip, RecordType::PTR).ok()?;
+                        let lookups = match resolver.lookup(query).await {
+                            Ok(r) => r,
+                            Err(e) => {
+                                tracing::debug!("PTR lookup error for {ip}: {e}");
+                                return None;
+                            }
+                        };
+                        lookups.ptr().into_iter().next().map(|name| {
+                            let s = name.to_string();
+                            s.strip_suffix('.').unwrap_or(&s).to_string()
+                        })
+                    })
                 };
-                lookups.ptr().into_iter().next().map(|name| {
-                    let s = name.to_string();
-                    s.strip_suffix('.').unwrap_or(&s).to_string()
-                })
-            })
-            .await;
+                fut.await
+            };
             let result = result.ok().flatten();
             param
                 .dns_cache
