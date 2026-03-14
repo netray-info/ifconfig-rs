@@ -7,7 +7,22 @@ use crate::backend::{
 use crate::config::Config;
 use mhost::resolver::{ResolverGroup, ResolverGroupBuilder};
 use std::sync::Arc;
+use std::time::SystemTime;
 use tracing::{error, info, warn};
+
+/// Record `data_file_age_seconds{source=<label>}` from the file's mtime.
+/// Silently skips if mtime cannot be read (file may be synthetic or on a
+/// filesystem that doesn't support mtime).
+fn emit_file_age(path: &str, source_label: &'static str) {
+    let age_secs = std::fs::metadata(path)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|mtime| SystemTime::now().duration_since(mtime).ok())
+        .map(|d| d.as_secs_f64());
+    if let Some(age) = age_secs {
+        metrics::gauge!("data_file_age_seconds", "source" => source_label).set(age);
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 #[error("Failed to create DNS resolver: {0}")]
@@ -320,6 +335,48 @@ impl EnrichmentContext {
             .set(f64::from(config.asn_patterns.is_some() as u8));
         metrics::gauge!("enrichment_sources_loaded", "source" => "asn_info")
             .set(f64::from(ctx.asn_info.is_some() as u8));
+
+        // Emit data_file_age_seconds for each successfully loaded optional file.
+        if ctx.feodo_botnet_ips.is_some() {
+            if let Some(path) = config.feodo_botnet_ips.as_deref() {
+                emit_file_age(path, "feodo_botnet");
+            }
+        }
+        if ctx.spamhaus_drop.is_some() {
+            if let Some(path) = config.spamhaus_drop.as_deref() {
+                emit_file_age(path, "spamhaus_drop");
+            }
+        }
+        if ctx.vpn_ranges.is_some() {
+            if let Some(path) = config.vpn_ranges.as_deref() {
+                emit_file_age(path, "vpn_ranges");
+            }
+        }
+        if ctx.cloud_provider_db.is_some() {
+            if let Some(path) = config.cloud_provider_ranges.as_deref() {
+                emit_file_age(path, "cloud_cidrs");
+            }
+        }
+        if ctx.datacenter_ranges.is_some() {
+            if let Some(path) = config.datacenter_ranges.as_deref() {
+                emit_file_age(path, "datacenter_ranges");
+            }
+        }
+        if ctx.bot_db.is_some() {
+            if let Some(path) = config.bot_ranges.as_deref() {
+                emit_file_age(path, "bot_ranges");
+            }
+        }
+        if ctx.tor_exit_nodes.is_loaded() {
+            if let Some(path) = config.tor_exit_nodes.as_deref() {
+                emit_file_age(path, "tor_exit_nodes");
+            }
+        }
+        if ctx.asn_info.is_some() {
+            if let Some(path) = config.asn_info.as_deref() {
+                emit_file_age(path, "asn_info");
+            }
+        }
 
         Ok(ctx)
     }
