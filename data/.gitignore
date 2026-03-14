@@ -7,6 +7,7 @@ cloud_provider_ranges.jsonl
 datacenter_ranges.txt
 bot_ranges.jsonl
 spamhaus_drop.txt
+cins_army_ips.txt
 .aws.json
 .gcp.json
 .cloudflare-v4.txt
