@@ -1,7 +1,7 @@
 all:
 
 get_all: geoip_mmdbs regexes.yaml tor_exit_nodes.txt feodo_botnet_ips.txt vpn_ranges.txt cloud_provider_ranges.jsonl \
-	datacenter_ranges.txt bot_ranges.jsonl spamhaus_drop.txt as_metadata.jsonl
+	datacenter_ranges.txt bot_ranges.jsonl spamhaus_drop.txt cins_army_ips.txt as_metadata.jsonl
 
 geoip_mmdbs: .geoip.conf
 	geoipupdate -f .geoip.conf -d .
@@ -97,6 +97,9 @@ spamhaus_drop.txt:
 	  curl -s https://www.spamhaus.org/drop/dropv6.txt; } \
 	| sed -e 's/ ;.*//' -e '/^;/d' -e '/^$$/d' > $@
 
+cins_army_ips.txt:
+	curl -s https://cinsscore.com/list/ci-badguys.txt | grep -v '^#' | grep -v '^$$' > $@
+
 as_metadata.jsonl: .as_metadata.json
 	jq -c 'to_entries[] | select(.value.asn != null) | {asn: .value.asn, category: (.value.metadata.category // ""), network_role: (.value.metadata.networkRole // ""), registered: ((.value.metadata.registered // "")[:10])}' .as_metadata.json > $@
 	rm -f .as_metadata.json
@@ -120,7 +123,7 @@ push: $(DATA_FILES)
 		--push \
 		.
 
-clean: clean_regexes clean_tor clean_feodo clean_vpn clean_cloud clean_datacenter clean_bot clean_spamhaus clean_asn_info
+clean: clean_regexes clean_tor clean_feodo clean_vpn clean_cloud clean_datacenter clean_bot clean_spamhaus clean_cins clean_asn_info
 	rm -f *.mmdb
 
 clean_regexes:
@@ -147,6 +150,9 @@ clean_bot:
 
 clean_spamhaus:
 	rm -f spamhaus_drop.txt
+
+clean_cins:
+	rm -f cins_army_ips.txt
 
 clean_asn_info:
 	rm -f as_metadata.jsonl .as_metadata.json

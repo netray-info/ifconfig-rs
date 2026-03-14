@@ -62,6 +62,11 @@ base_url = "ip.netray.info"
 # If omitted, threat/hijacked-netblock detection is disabled.
 # spamhaus_drop = "data/spamhaus_drop.txt"
 
+# Path to CINS Army bad-actor IP list (https://cinsscore.com).
+# One IPv4 address per line. Enables is_cins detection.
+# If omitted, CINS Army detection is disabled.
+# cins_army_ips = "data/cins_army_ips.txt"
+
 # Path to TOML file of ASN org-name classification patterns (hosting/VPN).
 # If omitted, compiled-in defaults are used. Reloadable via SIGHUP or filesystem watch.
 # asn_patterns = "data/asn_patterns.toml"
@@ -148,3 +153,16 @@ per_ip_burst = 10
 # Maximum number of IPs per batch request.
 # Default: 100
 # max_size = 100
+
+[cache]
+# Enable in-memory LRU cache for ?ip= lookups.
+# Default: false (disabled)
+# enabled = true
+
+# Time-to-live for cached entries, in seconds.
+# Default: 300
+# ttl_secs = 300
+
+# Maximum number of cached entries.
+# Default: 1024
+# max_entries = 1024
