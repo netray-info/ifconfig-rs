@@ -128,7 +128,11 @@ mod tests {
 
     #[tokio::test]
     async fn app_error_batch_too_many() {
-        let resp = AppError::BatchTooMany { requested: 200, max: 100 }.into_response();
+        let resp = AppError::BatchTooMany {
+            requested: 200,
+            max: 100,
+        }
+        .into_response();
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
         let body = resp.into_body();
         let bytes = Body::new(body).collect().await.unwrap().to_bytes();

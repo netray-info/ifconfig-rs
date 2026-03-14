@@ -111,8 +111,7 @@ impl AppState {
 
         let target_per_minute =
             NonZeroU32::new(config.rate_limit.per_target_per_minute).expect("per_target_per_minute must be > 0");
-        let target_burst =
-            NonZeroU32::new(config.rate_limit.per_target_burst).expect("per_target_burst must be > 0");
+        let target_burst = NonZeroU32::new(config.rate_limit.per_target_burst).expect("per_target_burst must be > 0");
         let target_quota = Quota::per_minute(target_per_minute).allow_burst(target_burst);
         let target_rate_limiter =
             Arc::new(RateLimiter::keyed(target_quota).with_middleware::<StateInformationMiddleware>());

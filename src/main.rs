@@ -196,4 +196,3 @@ fn spawn_file_watcher(
         }
     });
 }
-

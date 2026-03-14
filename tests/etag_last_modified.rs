@@ -41,9 +41,7 @@ async fn send_request(req: Request<Body>) -> (StatusCode, axum::http::HeaderMap,
             .unwrap();
     });
 
-    let client =
-        hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-            .build_http();
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new()).build_http();
 
     let uri = format!(
         "http://{}{}",
@@ -101,10 +99,7 @@ async fn etag_present_on_200() {
     );
 
     let last_modified = headers.get("last-modified");
-    assert!(
-        last_modified.is_some(),
-        "Expected Last-Modified header on 200 response"
-    );
+    assert!(last_modified.is_some(), "Expected Last-Modified header on 200 response");
 }
 
 // 2. Sending If-None-Match with the current ETag value yields 304 Not Modified.
@@ -170,17 +165,10 @@ async fn if_none_match_miss_returns_200() {
 #[tokio::test]
 #[ignore = "requires data/GeoLite2-City.mmdb to be present"]
 async fn if_modified_since_old_date_returns_200() {
-    let req = get_with_headers(
-        "/json",
-        &[("if-modified-since", "Thu, 01 Jan 1970 00:00:00 GMT")],
-    );
+    let req = get_with_headers("/json", &[("if-modified-since", "Thu, 01 Jan 1970 00:00:00 GMT")]);
     let (status, headers, _) = send_request(req).await;
 
-    assert_eq!(
-        status,
-        StatusCode::OK,
-        "Old If-Modified-Since should yield 200"
-    );
+    assert_eq!(status, StatusCode::OK, "Old If-Modified-Since should yield 200");
     assert!(
         headers.get("last-modified").is_some(),
         "200 response must include Last-Modified"
