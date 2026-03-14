@@ -1,17 +1,21 @@
 pub mod asn_heuristic;
 pub mod asn_info;
 pub mod bot;
+pub mod cins;
 pub mod cloud_provider;
 pub mod datacenter;
 pub mod feodo;
+pub mod iana;
 pub mod spamhaus;
 pub mod user_agent;
 pub mod vpn;
 pub use asn_info::AsnInfo;
 pub use bot::{BotDb, BotInfo};
+pub use cins::CinsArmyIps;
 pub use cloud_provider::{CloudProvider, CloudProviderDb};
 pub use datacenter::DatacenterRanges;
 pub use feodo::FeodoBotnetIps;
+pub use iana::lookup_iana_label;
 pub use spamhaus::SpamhausDrop;
 pub use user_agent::*;
 pub use vpn::VpnRanges;
@@ -198,6 +202,14 @@ pub struct Location {
     pub registered_country: Option<String>,
     #[schema(example = "US")]
     pub registered_country_iso: Option<String>,
+    /// Localized city name when `?lang=` is specified and a locale other than `en` was found.
+    #[schema(example = json!(null))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city_localized: Option<String>,
+    /// Localized country name when `?lang=` is specified and a locale other than `en` was found.
+    #[schema(example = json!(null))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_localized: Option<String>,
 }
 
 impl Location {
@@ -218,6 +230,8 @@ impl Location {
             accuracy_radius_km: None,
             registered_country: None,
             registered_country_iso: None,
+            city_localized: None,
+            country_localized: None,
         }
     }
 }
@@ -298,6 +312,13 @@ pub struct Network {
     /// True when the IP belongs to a known anycast network (Cloudflare, Akamai, Fastly, Google DNS).
     #[schema(example = false)]
     pub is_anycast: bool,
+    /// True when the IP appears in the CINS Army bad-actor list.
+    #[schema(example = false)]
+    pub is_cins: bool,
+    /// IANA special-purpose address registry label, if applicable.
+    #[schema(example = json!(null))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub iana_label: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
@@ -320,6 +341,7 @@ pub struct IfconfigParam<'a> {
     pub geoip_asn_db: Option<&'a GeoIpAsnDb>,
     pub tor_exit_nodes: &'a TorExitNodes,
     pub feodo_botnet_ips: Option<&'a FeodoBotnetIps>,
+    pub cins_army_ips: Option<&'a CinsArmyIps>,
     pub vpn_ranges: Option<&'a VpnRanges>,
     pub cloud_provider_db: Option<&'a CloudProviderDb>,
     pub datacenter_ranges: Option<&'a DatacenterRanges>,
@@ -332,9 +354,27 @@ pub struct IfconfigParam<'a> {
     /// When true, skip the reverse DNS (PTR) lookup. Used for `?ip=` lookups
     /// where PTR is slow and usually unwanted.
     pub skip_dns: bool,
+    /// BCP-47 language tag for locale-aware city/country names (e.g. "de", "fr").
+    /// When set, adds `city_localized` and `country_localized` to the response
+    /// if the requested locale is available and differs from the English name.
+    pub lang: Option<String>,
 }
 
-static ANYCAST_ASNS: &[u32] = &[
+fn names_lookup_lang<'a>(names: &maxminddb::geoip2::Names<'a>, lang: &str) -> Option<&'a str> {
+    match lang {
+        "de" => names.german,
+        "en" => names.english,
+        "es" => names.spanish,
+        "fr" => names.french,
+        "ja" => names.japanese,
+        "pt-BR" | "pt-br" => names.brazilian_portuguese,
+        "ru" => names.russian,
+        "zh-CN" | "zh-cn" | "zh" => names.simplified_chinese,
+        _ => None,
+    }
+}
+
+pub static ANYCAST_ASNS: &[u32] = &[
     13335, // Cloudflare
     209242, // Cloudflare
     54113, // Fastly
@@ -432,11 +472,26 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         .and_then(|db| db.lookup(param.remote.ip()))
         .map(|c| {
             let subdivision = c.subdivisions.first();
+            let city_en = c.city.names.english.map(|s| s.to_owned());
+            let country_en = c.country.names.english.map(|s| s.to_owned());
+
+            let (city_localized, country_localized) = if let Some(ref lang) = param.lang {
+                let c_loc = names_lookup_lang(&c.city.names, lang)
+                    .map(|s| s.to_owned())
+                    .filter(|s| Some(s.as_str()) != city_en.as_deref());
+                let co_loc = names_lookup_lang(&c.country.names, lang)
+                    .map(|s| s.to_owned())
+                    .filter(|s| Some(s.as_str()) != country_en.as_deref());
+                (c_loc, co_loc)
+            } else {
+                (None, None)
+            };
+
             Location {
-                city: c.city.names.english.map(|s| s.to_owned()),
+                city: city_en,
                 region: subdivision.and_then(|s| s.names.english.map(|s| s.to_owned())),
                 region_code: subdivision.and_then(|s| s.iso_code.map(|s| s.to_owned())),
-                country: c.country.names.english.map(|s| s.to_owned()),
+                country: country_en,
                 country_iso: c.country.iso_code.map(|s| s.to_owned()),
                 postal_code: c.postal.code.map(|s| s.to_owned()),
                 is_eu: c.country.is_in_european_union,
@@ -448,6 +503,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
                 accuracy_radius_km: c.location.accuracy_radius,
                 registered_country: c.registered_country.names.english.map(|s| s.to_owned()),
                 registered_country_iso: c.registered_country.iso_code.map(|s| s.to_owned()),
+                city_localized,
+                country_localized,
             }
         })
         .unwrap_or(Location::unknown());
@@ -469,6 +526,11 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
 
     let is_botnet_c2 = param
         .feodo_botnet_ips
+        .and_then(|db| db.lookup(&param.remote.ip()))
+        .unwrap_or(false);
+
+    let is_cins = param
+        .cins_army_ips
         .and_then(|db| db.lookup(&param.remote.ip()))
         .unwrap_or(false);
 
@@ -581,6 +643,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         let network_role = asn_meta.and_then(|m| m.network_role.clone());
         let asn_registered = asn_meta.and_then(|m| m.asn_registered.clone());
 
+        let iana_label = lookup_iana_label(param.remote.ip());
+
         Network {
             asn: asn_number,
             org: asn_org,
@@ -601,6 +665,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             vpn: if is_internal { None } else { vpn_info },
             bot: if is_internal { None } else { bot_info },
             is_anycast: if is_internal { false } else { is_anycast },
+            is_cins: if is_internal { false } else { is_cins },
+            iana_label,
         }
     };
 

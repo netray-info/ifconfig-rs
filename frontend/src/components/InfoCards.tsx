@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import type { Ifconfig } from "../lib/types";
 
 interface Props {
@@ -46,6 +46,24 @@ function cloudDisplay(provider: string): string {
     "google-services": "Google",
   };
   return names[provider] ?? provider.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function JsonToggle(innerProps: { label: string; value: unknown }) {
+  const [open, setOpen] = createSignal(false);
+  return (
+    <div class="json-toggle">
+      <button
+        class="json-toggle-btn"
+        title={open() ? "Hide raw JSON" : "Show raw JSON"}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {"{·}"}
+      </button>
+      <Show when={open()}>
+        <pre class="json-toggle-body">{JSON.stringify(innerProps.value, null, 2)}</pre>
+      </Show>
+    </div>
+  );
 }
 
 export default function InfoCards(props: Props) {
@@ -114,7 +132,10 @@ export default function InfoCards(props: Props) {
     <div class="cards">
       {/* Network Card */}
       <div class="card">
-        <div class="card-title">Network</div>
+        <div class="card-title">
+          Network
+          <JsonToggle label="network" value={props.data.network} />
+        </div>
         <div class="card-row">
           <span class="card-label">IP Address</span>
           <span class="card-value mono">{props.data.ip.addr}</span>
@@ -196,7 +217,10 @@ export default function InfoCards(props: Props) {
       {/* User Agent Card */}
       <Show when={props.data.user_agent}>
         <div class="card">
-          <div class="card-title">User Agent</div>
+          <div class="card-title">
+            User Agent
+            <JsonToggle label="user_agent" value={props.data.user_agent} />
+          </div>
           <div class="card-row">
             <span class="card-label">Browser</span>
             <span class="card-value">
@@ -230,7 +254,10 @@ export default function InfoCards(props: Props) {
 
       {/* Location Card */}
       <div class="card">
-        <div class="card-title">Location</div>
+        <div class="card-title">
+          Location
+          <JsonToggle label="location" value={props.data.location} />
+        </div>
         <Show when={known(loc().city)}>
           <div class="card-row">
             <span class="card-label">City</span>

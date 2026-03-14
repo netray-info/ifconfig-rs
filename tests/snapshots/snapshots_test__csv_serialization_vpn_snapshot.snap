@@ -1,6 +1,5 @@
 ---
 source: tests/snapshots_test.rs
-assertion_line: 228
 expression: csv
 ---
 key,value
@@ -28,8 +27,10 @@ network.asn_registered,
 network.bot,
 network.cloud,
 network.infra_type,datacenter
+network.is_anycast,false
 network.is_bot,false
 network.is_c2,false
+network.is_cins,false
 network.is_datacenter,true
 network.is_internal,false
 network.is_spamhaus,false

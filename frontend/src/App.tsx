@@ -1,7 +1,7 @@
 import { createSignal, onMount, Show } from "solid-js";
 import type { Ifconfig, SiteMeta } from "./lib/types";
 import { fetchIfconfig, fetchIfconfigForIp, fetchMeta } from "./lib/api";
-import { toastMessage } from "./lib/toast";
+import { showToast, toastMessage } from "./lib/toast";
 import { createTheme } from "@netray-info/common-frontend/theme";
 import ThemeToggle from "@netray-info/common-frontend/components/ThemeToggle";
 import SiteFooter from "@netray-info/common-frontend/components/SiteFooter";
@@ -107,6 +107,29 @@ export default function App() {
 
         <Show when={data()}>
           <IpDisplay data={data()!} />
+          <div class="share-row">
+            <button
+              class="share-btn"
+              title="Share this IP lookup"
+              onClick={async () => {
+                const url = lookupIp()
+                  ? `${location.origin}/?ip=${lookupIp()}`
+                  : location.href;
+                if (navigator.share) {
+                  try {
+                    await navigator.share({ url });
+                  } catch {
+                    // user cancelled — ignore
+                  }
+                } else {
+                  await navigator.clipboard.writeText(url);
+                  showToast("Link copied to clipboard");
+                }
+              }}
+            >
+              Share
+            </button>
+          </div>
           <InfoCards data={data()!} />
           <IpLookupForm
             onLookup={(ip) => loadData(ip)}

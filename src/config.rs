@@ -23,6 +23,7 @@ pub struct Config {
     pub tor_exit_nodes: Option<String>,
     pub cloud_provider_ranges: Option<String>,
     pub feodo_botnet_ips: Option<String>,
+    pub cins_army_ips: Option<String>,
     pub vpn_ranges: Option<String>,
     pub datacenter_ranges: Option<String>,
     pub bot_ranges: Option<String>,

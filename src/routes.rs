@@ -1,4 +1,4 @@
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
@@ -68,11 +68,14 @@ fn check_target_rate_limit(state: &AppState, target_ip: IpAddr) -> Option<Respon
         meta_handler,
         health_handler,
         ready_handler,
+        asn_param_handler,
+        range_handler,
+        diff_handler,
     ),
     components(schemas(
         Ifconfig, Ip, Tcp, Location, Network, CloudInfo, VpnInfo, NetworkBot,
         UserAgent, Browser, OS, Device, crate::error::ErrorInfo, ErrorResponse,
-        MetaResponse, DataSources,
+        MetaResponse, DataSources, AsnLookupResponse, RangeResponse, DiffRequest,
         crate::state::RateLimitInfo, crate::state::BatchInfo, crate::state::BuildInfo,
     )),
     tags(
@@ -122,7 +125,12 @@ pub fn router() -> Router<AppState> {
         .route("/city", get(city_handler))
         .route("/city/{fmt}", get(city_format_handler))
         .route("/asn", get(asn_handler))
-        .route("/asn/{fmt}", get(asn_format_handler))
+        .route("/asn/{param}", get(asn_param_handler))
+        // ASN lookup by number
+        // Range lookup
+        .route("/range", get(range_handler))
+        // IP diff endpoint
+        .route("/diff", post(diff_handler))
         .route("/timezone", get(timezone_handler))
         .route("/timezone/{fmt}", get(timezone_format_handler))
         .route("/latitude", get(latitude_handler))
@@ -217,6 +225,10 @@ fn parse_dns_param(uri: &str) -> Option<bool> {
     parse_query_param(uri, "dns").map(|v| v.eq_ignore_ascii_case("true") || v == "1")
 }
 
+fn parse_lang_param(uri: &str) -> Option<String> {
+    parse_query_param(uri, "lang").map(|s| s.to_string())
+}
+
 // ---- Compute-once dispatch ----
 
 fn resolve_core_backends(
@@ -296,8 +308,10 @@ where
 
     let ua_opt = req_info.user_agent.as_deref();
 
-    // Check the ?ip= cache when an explicit IP is requested.
-    let ifconfig: std::sync::Arc<crate::backend::Ifconfig> = if ip_param.is_some() && state.config.cache.enabled {
+    let lang = parse_lang_param(&req_info.uri);
+
+    // Check the ?ip= cache when an explicit IP is requested (only when no lang override).
+    let ifconfig: std::sync::Arc<crate::backend::Ifconfig> = if ip_param.is_some() && lang.is_none() && state.config.cache.enabled {
         let cache_key = target_addr.ip();
         if let Some(cached) = state.ip_cache.get(&cache_key).await {
             cached
@@ -310,6 +324,7 @@ where
                 asn,
                 tor,
                 ctx.feodo_botnet_ips.as_deref(),
+                ctx.cins_army_ips.as_deref(),
                 ctx.vpn_ranges.as_deref(),
                 ctx.cloud_provider_db.as_deref(),
                 ctx.datacenter_ranges.as_deref(),
@@ -327,7 +342,7 @@ where
             arc
         }
     } else {
-        let result = handlers::make_ifconfig(
+        let result = handlers::make_ifconfig_lang(
             &target_addr,
             &ua_opt,
             uap,
@@ -335,6 +350,7 @@ where
             asn,
             tor,
             ctx.feodo_botnet_ips.as_deref(),
+            ctx.cins_army_ips.as_deref(),
             ctx.vpn_ranges.as_deref(),
             ctx.cloud_provider_db.as_deref(),
             ctx.datacenter_ranges.as_deref(),
@@ -345,6 +361,7 @@ where
             skip_dns,
             ctx.asn_patterns.as_ref(),
             ctx.asn_info.as_deref(),
+            lang,
         )
         .await;
         std::sync::Arc::new(result)
@@ -1062,6 +1079,7 @@ async fn batch_dispatch(
                 asn,
                 tor,
                 ctx.feodo_botnet_ips.as_deref(),
+                ctx.cins_army_ips.as_deref(),
                 ctx.vpn_ranges.as_deref(),
                 ctx.cloud_provider_db.as_deref(),
                 ctx.datacenter_ranges.as_deref(),
@@ -1256,6 +1274,7 @@ async fn ip_version_dispatch(
         asn,
         tor,
         ctx.feodo_botnet_ips.as_deref(),
+        ctx.cins_army_ips.as_deref(),
         ctx.vpn_ranges.as_deref(),
         ctx.cloud_provider_db.as_deref(),
         ctx.datacenter_ranges.as_deref(),
@@ -1308,6 +1327,7 @@ struct DataSources {
     datacenter: bool,
     bot: bool,
     feodo: bool,
+    cins: bool,
     spamhaus: bool,
     asn_info: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1328,6 +1348,8 @@ struct DataSources {
     bot_updated: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     feodo_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cins_updated: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     spamhaus_updated: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1393,6 +1415,7 @@ async fn meta_handler(State(state): State<AppState>) -> Response {
             datacenter: ctx.datacenter_ranges.is_some(),
             bot: ctx.bot_db.is_some(),
             feodo: ctx.feodo_botnet_ips.is_some(),
+            cins: ctx.cins_army_ips.is_some(),
             spamhaus: ctx.spamhaus_drop.is_some(),
             asn_info: ctx.asn_info.is_some(),
             geoip_city_updated: ctx.data_file_dates.geoip_city.clone(),
@@ -1404,6 +1427,7 @@ async fn meta_handler(State(state): State<AppState>) -> Response {
             datacenter_updated: ctx.data_file_dates.datacenter.clone(),
             bot_updated: ctx.data_file_dates.bot.clone(),
             feodo_updated: ctx.data_file_dates.feodo.clone(),
+            cins_updated: ctx.data_file_dates.cins.clone(),
             spamhaus_updated: ctx.data_file_dates.spamhaus.clone(),
             asn_info_updated: ctx.data_file_dates.asn_info.clone(),
         },
@@ -1475,6 +1499,448 @@ pub async fn ready_handler(State(state): State<AppState>) -> Response {
         )
             .into_response()
     }
+}
+
+// ---- ASN param handler (dispatches to format handler or ASN lookup) ----
+
+#[utoipa::path(
+    get, path = "/asn/{number}",
+    tag = "Network",
+    description = "Look up enrichment data by ASN number. Returns organization, category, network role, and anycast status. Note: org name requires an IP lookup against MaxMind and is null for pure ASN lookups. Passing a format suffix (e.g. 'json') instead returns the caller's ASN in that format.",
+    params(
+        ("number" = String, Path, description = "ASN number (e.g. 15169) or format suffix (json/yaml/toml/csv)"),
+    ),
+    responses(
+        (status = 200, description = "ASN enrichment data", body = AsnLookupResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
+async fn asn_param_handler(
+    State(state): State<AppState>,
+    Path(param): Path<String>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+) -> Response {
+    // If param is a number, treat it as an ASN lookup.
+    if let Ok(asn_num) = param.parse::<u32>() {
+        return asn_lookup_by_number(asn_num, &state);
+    }
+    // Otherwise treat it as a format suffix — delegate to the macro-generated handler.
+    asn_format_handler(State(state), Path(param), headers, extensions).await
+}
+
+// ---- GET /asn/{number} — ASN lookup ----
+
+#[derive(serde::Serialize, utoipa::ToSchema)]
+struct AsnLookupResponse {
+    /// ASN number.
+    #[schema(example = 15169)]
+    asn: u32,
+    /// Organization name from MaxMind ASN database.
+    #[schema(example = "Google LLC")]
+    org: Option<String>,
+    /// ASN category from ipverse/as-metadata.
+    #[schema(example = "hosting")]
+    category: Option<String>,
+    /// Network role from ipverse/as-metadata.
+    #[schema(example = "tier1_transit")]
+    network_role: Option<String>,
+    /// Whether this ASN is known to be anycast.
+    #[schema(example = false)]
+    is_anycast: bool,
+}
+
+fn asn_lookup_by_number(asn_num: u32, state: &AppState) -> Response {
+    let ctx = state.enrichment.load();
+
+    let asn_meta = ctx.asn_info.as_deref().and_then(|db| db.lookup(asn_num));
+
+    let category = asn_meta.and_then(|m| match m.category {
+        crate::backend::asn_info::AsnCategory::Hosting => Some("hosting".to_string()),
+        crate::backend::asn_info::AsnCategory::Isp => Some("isp".to_string()),
+        crate::backend::asn_info::AsnCategory::Business => Some("business".to_string()),
+        crate::backend::asn_info::AsnCategory::EducationResearch => Some("education_research".to_string()),
+        crate::backend::asn_info::AsnCategory::GovernmentAdmin => Some("government_admin".to_string()),
+        crate::backend::asn_info::AsnCategory::Unknown => None,
+    });
+
+    let network_role = asn_meta.and_then(|m| m.network_role.clone());
+
+    // Use an arbitrary IP from the ASN to get org name from MaxMind — not possible without IP.
+    // Instead, check the asn_info for the org; MaxMind ASN DB is IP-keyed not ASN-keyed.
+    // We return the info we have from asn_info only; org from MaxMind requires an IP.
+    // TODO("MaxMind ASN DB is IP-keyed; org name not available for pure ASN lookups without a representative IP")
+    let org: Option<String> = asn_meta.and_then(|_| None); // MaxMind ASN DB is not ASN-keyed
+
+    let is_anycast = crate::backend::ANYCAST_ASNS.contains(&asn_num);
+
+    let response = AsnLookupResponse {
+        asn: asn_num,
+        org,
+        category,
+        network_role,
+        is_anycast,
+    };
+
+    (StatusCode::OK, axum::Json(response)).into_response()
+}
+
+// ---- GET /range?cidr= — CIDR range lookup ----
+
+#[derive(serde::Deserialize)]
+struct RangeQuery {
+    cidr: String,
+}
+
+#[derive(serde::Serialize, utoipa::ToSchema)]
+struct RangeResponse {
+    /// The CIDR prefix as provided.
+    #[schema(example = "8.8.8.0/24")]
+    cidr: String,
+    /// ASN that originates this prefix (from MaxMind lookup on the network address).
+    #[schema(example = 15169)]
+    asn: Option<u32>,
+    /// Organization name for the ASN.
+    #[schema(example = "Google LLC")]
+    org: Option<String>,
+    /// Network type classification of the network address.
+    #[schema(example = "cloud")]
+    network_type: String,
+    /// True if the network address is a cloud CIDR.
+    #[schema(example = false)]
+    is_cloud: bool,
+    /// True if the network address matches VPN ranges.
+    #[schema(example = false)]
+    is_vpn: bool,
+    /// True if the network address is a datacenter.
+    #[schema(example = false)]
+    is_datacenter: bool,
+    /// True if the network address matches Spamhaus DROP.
+    #[schema(example = false)]
+    is_spamhaus: bool,
+    /// True if the network address is a Feodo C2 node.
+    #[schema(example = false)]
+    is_c2: bool,
+}
+
+fn is_special_prefix(ip: std::net::IpAddr) -> bool {
+    if ip.is_loopback() || ip.is_unspecified() {
+        return true;
+    }
+    match ip {
+        std::net::IpAddr::V4(v4) => v4.is_private() || v4.is_link_local(),
+        std::net::IpAddr::V6(v6) => {
+            let segs = v6.segments();
+            // ULA fc00::/7
+            if segs[0] & 0xfe00 == 0xfc00 {
+                return true;
+            }
+            // Link-local fe80::/10
+            if segs[0] & 0xffc0 == 0xfe80 {
+                return true;
+            }
+            false
+        }
+    }
+}
+
+#[utoipa::path(
+    get, path = "/range",
+    tag = "Network",
+    description = "Look up what is known about a CIDR prefix. Validates the CIDR and returns ASN, org, and classification of the network address. Rejects RFC 1918, loopback, and link-local prefixes.",
+    params(
+        ("cidr" = String, Query, description = "CIDR prefix to look up (e.g. 8.8.8.0/24)"),
+    ),
+    responses(
+        (status = 200, description = "CIDR range information", body = RangeResponse),
+        (status = 400, description = "Invalid or private CIDR", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
+async fn range_handler(
+    State(state): State<AppState>,
+    Query(params): Query<RangeQuery>,
+) -> Response {
+    // Parse as IpNetwork (ipnetwork crate via ip_network)
+    let network: ip_network::IpNetwork = match params.cidr.parse() {
+        Ok(n) => n,
+        Err(_) => return error_response(StatusCode::BAD_REQUEST, "INVALID_CIDR", "invalid CIDR notation"),
+    };
+
+    let network_addr = network.network_address();
+
+    if is_special_prefix(network_addr) {
+        return error_response(
+            StatusCode::BAD_REQUEST,
+            "INVALID_CIDR",
+            "private, loopback, or link-local prefixes are not allowed",
+        );
+    }
+
+    let ctx = state.enrichment.load();
+
+    let (asn_number, asn_org) = ctx
+        .geoip_asn_db
+        .as_deref()
+        .and_then(|db| db.lookup(network_addr))
+        .map(|(isp, _prefix)| {
+            (
+                isp.autonomous_system_number,
+                isp.autonomous_system_organization.map(|s| s.to_owned()),
+            )
+        })
+        .unwrap_or((None, None));
+
+    let is_cloud = ctx
+        .cloud_provider_db
+        .as_deref()
+        .and_then(|db| db.lookup(network_addr))
+        .is_some();
+
+    let is_vpn = ctx
+        .vpn_ranges
+        .as_deref()
+        .map(|db| db.lookup(network_addr))
+        .unwrap_or(false);
+
+    let is_botnet_c2 = ctx
+        .feodo_botnet_ips
+        .as_deref()
+        .and_then(|db| db.lookup(&network_addr))
+        .unwrap_or(false);
+
+    let is_threat = ctx
+        .spamhaus_drop
+        .as_deref()
+        .map(|db| db.lookup(network_addr))
+        .unwrap_or(false);
+
+    let asn_class = crate::backend::asn_heuristic::classify_asn(
+        asn_number,
+        asn_org.as_deref(),
+        ctx.asn_patterns.as_ref(),
+    );
+    let is_datacenter = is_cloud
+        || ctx
+            .datacenter_ranges
+            .as_deref()
+            .map(|db| db.lookup(network_addr))
+            .unwrap_or(false)
+        || matches!(asn_class, crate::backend::asn_heuristic::AsnClassification::Hosting { .. });
+
+    let network_type = if is_botnet_c2 {
+        "c2"
+    } else if is_cloud {
+        "cloud"
+    } else if is_vpn || matches!(asn_class, crate::backend::asn_heuristic::AsnClassification::Vpn { .. }) {
+        "vpn"
+    } else if is_threat {
+        "spamhaus"
+    } else if is_datacenter {
+        "datacenter"
+    } else {
+        "residential"
+    }
+    .to_string();
+
+    let response = RangeResponse {
+        cidr: params.cidr,
+        asn: asn_number,
+        org: asn_org,
+        network_type,
+        is_cloud,
+        is_vpn: is_vpn || matches!(asn_class, crate::backend::asn_heuristic::AsnClassification::Vpn { .. }),
+        is_datacenter,
+        is_spamhaus: is_threat,
+        is_c2: is_botnet_c2,
+    };
+
+    (StatusCode::OK, axum::Json(response)).into_response()
+}
+
+// ---- POST /diff — compare two IP enrichments ----
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+struct DiffRequest {
+    /// First IP address to compare.
+    #[schema(example = "8.8.8.8")]
+    a: String,
+    /// Second IP address to compare.
+    #[schema(example = "1.1.1.1")]
+    b: String,
+}
+
+#[utoipa::path(
+    post, path = "/diff",
+    tag = "Network",
+    description = "Compare enrichment data for two IP addresses. Returns a diff object with each top-level field from Ifconfig showing both values and whether they are equal. Both IPs must be globally routable (RFC 1918 etc. rejected). Costs 2 rate-limit tokens.",
+    request_body(content = DiffRequest, description = "Two IP addresses to compare"),
+    responses(
+        (status = 200, description = "Diff object with per-field comparison"),
+        (status = 400, description = "Invalid IP addresses", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+    )
+)]
+async fn diff_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    extensions: axum::http::Extensions,
+    body: axum::body::Bytes,
+) -> Response {
+    let req: DiffRequest = match serde_json::from_slice(&body) {
+        Ok(r) => r,
+        Err(_) => {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "INVALID_FORMAT",
+                "request body must be JSON with fields \"a\" and \"b\"",
+            )
+        }
+    };
+
+    let ip_a: std::net::IpAddr = match req.a.parse() {
+        Ok(ip) => ip,
+        Err(_) => return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "invalid IP address in field \"a\""),
+    };
+    let ip_b: std::net::IpAddr = match req.b.parse() {
+        Ok(ip) => ip,
+        Err(_) => return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "invalid IP address in field \"b\""),
+    };
+
+    if !state.config.internal_mode && !is_global_ip(ip_a) {
+        return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "IP \"a\" is not a globally routable address");
+    }
+    if !state.config.internal_mode && !is_global_ip(ip_b) {
+        return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "IP \"b\" is not a globally routable address");
+    }
+
+    // Rate-limit: consume 2 tokens (two lookups)
+    let req_info = get_requester_info(&headers, &extensions);
+    let caller_ip = req_info.remote.ip();
+    let two = std::num::NonZeroU32::new(2).unwrap();
+    match state.rate_limiter.check_key_n(&caller_ip, two) {
+        Ok(Ok(_)) => {}
+        Ok(Err(not_until)) => {
+            use governor::clock::{Clock, DefaultClock};
+            let wait = not_until.wait_time_from(DefaultClock::default().now());
+            let retry_after = wait.as_secs().saturating_add(1);
+            let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "RATE_LIMITED", "rate limit exceeded");
+            resp.headers_mut()
+                .insert("retry-after", HeaderValue::from(retry_after));
+            return resp;
+        }
+        Err(_) => {
+            let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "RATE_LIMITED", "rate limit exceeded");
+            resp.headers_mut().insert("retry-after", HeaderValue::from(1u64));
+            return resp;
+        }
+    }
+
+    let ctx: std::sync::Arc<EnrichmentContext> = std::sync::Arc::clone(&*state.enrichment.load());
+    let ua_opt: Option<String> = req_info.user_agent.clone();
+    let dns_cache = state.dns_cache.clone();
+
+    let (ifconfig_a, ifconfig_b) = {
+        let ctx_a = std::sync::Arc::clone(&ctx);
+        let ua_a = ua_opt.clone();
+        let dns_cache_a = dns_cache.clone();
+        let addr_a = std::net::SocketAddr::new(ip_a, 0);
+
+        let ctx_b = std::sync::Arc::clone(&ctx);
+        let ua_b = ua_opt.clone();
+        let dns_cache_b = dns_cache.clone();
+        let addr_b = std::net::SocketAddr::new(ip_b, 0);
+
+        let fut_a = {
+            let ctx = ctx_a;
+            let ua = ua_a;
+            let dc = dns_cache_a;
+            async move {
+                let uap = ctx.user_agent_parser.as_deref();
+                let city = ctx.geoip_city_db.as_deref();
+                let asn = ctx.geoip_asn_db.as_deref();
+                let tor = &*ctx.tor_exit_nodes;
+                let ua_ref = ua.as_deref();
+                handlers::make_ifconfig(
+                    &addr_a,
+                    &ua_ref,
+                    uap,
+                    city,
+                    asn,
+                    tor,
+                    ctx.feodo_botnet_ips.as_deref(),
+                    ctx.cins_army_ips.as_deref(),
+                    ctx.vpn_ranges.as_deref(),
+                    ctx.cloud_provider_db.as_deref(),
+                    ctx.datacenter_ranges.as_deref(),
+                    ctx.bot_db.as_deref(),
+                    ctx.spamhaus_drop.as_deref(),
+                    &ctx.dns_resolver,
+                    &dc,
+                    true, // skip_dns for diff lookups
+                    ctx.asn_patterns.as_ref(),
+                    ctx.asn_info.as_deref(),
+                )
+                .await
+            }
+        };
+
+        let fut_b = {
+            let ctx = ctx_b;
+            let ua = ua_b;
+            let dc = dns_cache_b;
+            async move {
+                let uap = ctx.user_agent_parser.as_deref();
+                let city = ctx.geoip_city_db.as_deref();
+                let asn = ctx.geoip_asn_db.as_deref();
+                let tor = &*ctx.tor_exit_nodes;
+                let ua_ref = ua.as_deref();
+                handlers::make_ifconfig(
+                    &addr_b,
+                    &ua_ref,
+                    uap,
+                    city,
+                    asn,
+                    tor,
+                    ctx.feodo_botnet_ips.as_deref(),
+                    ctx.cins_army_ips.as_deref(),
+                    ctx.vpn_ranges.as_deref(),
+                    ctx.cloud_provider_db.as_deref(),
+                    ctx.datacenter_ranges.as_deref(),
+                    ctx.bot_db.as_deref(),
+                    ctx.spamhaus_drop.as_deref(),
+                    &ctx.dns_resolver,
+                    &dc,
+                    true, // skip_dns for diff lookups
+                    ctx.asn_patterns.as_ref(),
+                    ctx.asn_info.as_deref(),
+                )
+                .await
+            }
+        };
+
+        tokio::join!(fut_a, fut_b)
+    };
+
+    let val_a = serde_json::to_value(&ifconfig_a).unwrap_or(serde_json::Value::Null);
+    let val_b = serde_json::to_value(&ifconfig_b).unwrap_or(serde_json::Value::Null);
+
+    // Build diff: for each top-level field, emit { a, b, equal }
+    let mut diff = serde_json::Map::new();
+    if let (serde_json::Value::Object(map_a), serde_json::Value::Object(map_b)) = (&val_a, &val_b) {
+        let all_keys: std::collections::BTreeSet<&String> = map_a.keys().chain(map_b.keys()).collect();
+        for key in all_keys {
+            let a_val = map_a.get(key).unwrap_or(&serde_json::Value::Null).clone();
+            let b_val = map_b.get(key).unwrap_or(&serde_json::Value::Null).clone();
+            let equal = a_val == b_val;
+            diff.insert(
+                key.clone(),
+                serde_json::json!({ "a": a_val, "b": b_val, "equal": equal }),
+            );
+        }
+    }
+
+    respond_json_value(serde_json::Value::Object(diff))
 }
 
 // ---- OpenAPI spec handler ----

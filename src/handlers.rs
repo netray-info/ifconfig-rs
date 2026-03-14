@@ -16,6 +16,7 @@ pub(crate) async fn make_ifconfig(
     geoip_asn_db: Option<&GeoIpAsnDb>,
     tor_exit_nodes: &TorExitNodes,
     feodo_botnet_ips: Option<&FeodoBotnetIps>,
+    cins_army_ips: Option<&CinsArmyIps>,
     vpn_ranges: Option<&VpnRanges>,
     cloud_provider_db: Option<&CloudProviderDb>,
     datacenter_ranges: Option<&DatacenterRanges>,
@@ -27,6 +28,52 @@ pub(crate) async fn make_ifconfig(
     asn_patterns: &AsnPatterns,
     asn_info: Option<&AsnInfo>,
 ) -> Ifconfig {
+    make_ifconfig_lang(
+        remote,
+        user_agent,
+        user_agent_parser,
+        geoip_city_db,
+        geoip_asn_db,
+        tor_exit_nodes,
+        feodo_botnet_ips,
+        cins_army_ips,
+        vpn_ranges,
+        cloud_provider_db,
+        datacenter_ranges,
+        bot_db,
+        spamhaus_drop,
+        dns_resolver,
+        dns_cache,
+        skip_dns,
+        asn_patterns,
+        asn_info,
+        None,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn make_ifconfig_lang(
+    remote: &SocketAddr,
+    user_agent: &Option<&str>,
+    user_agent_parser: Option<&UserAgentParser>,
+    geoip_city_db: Option<&GeoIpCityDb>,
+    geoip_asn_db: Option<&GeoIpAsnDb>,
+    tor_exit_nodes: &TorExitNodes,
+    feodo_botnet_ips: Option<&FeodoBotnetIps>,
+    cins_army_ips: Option<&CinsArmyIps>,
+    vpn_ranges: Option<&VpnRanges>,
+    cloud_provider_db: Option<&CloudProviderDb>,
+    datacenter_ranges: Option<&DatacenterRanges>,
+    bot_db: Option<&BotDb>,
+    spamhaus_drop: Option<&SpamhausDrop>,
+    dns_resolver: &ResolverGroup,
+    dns_cache: &DnsCache,
+    skip_dns: bool,
+    asn_patterns: &AsnPatterns,
+    asn_info: Option<&AsnInfo>,
+    lang: Option<String>,
+) -> Ifconfig {
     let param = IfconfigParam {
         remote,
         user_agent_header: user_agent,
@@ -35,6 +82,7 @@ pub(crate) async fn make_ifconfig(
         geoip_asn_db,
         tor_exit_nodes,
         feodo_botnet_ips,
+        cins_army_ips,
         vpn_ranges,
         cloud_provider_db,
         datacenter_ranges,
@@ -45,6 +93,7 @@ pub(crate) async fn make_ifconfig(
         dns_resolver,
         dns_cache,
         skip_dns,
+        lang,
     };
     get_ifconfig(&param).await
 }
@@ -506,6 +555,8 @@ mod tests {
                 accuracy_radius_km: Some(100),
                 registered_country: None,
                 registered_country_iso: None,
+                city_localized: None,
+                country_localized: None,
             },
             network,
             user_agent: None,
@@ -533,6 +584,8 @@ mod tests {
             vpn: None,
             bot: None,
             is_anycast: false,
+            is_cins: false,
+            iana_label: None,
         }
     }
 
@@ -658,6 +711,8 @@ mod tests {
             vpn: None,
             bot: None,
             is_anycast: false,
+            is_cins: false,
+            iana_label: None,
         };
         let ifc = make_ifconfig(None, None, n);
         let plain = network::to_plain(&ifc);

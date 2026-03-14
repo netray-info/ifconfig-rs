@@ -1,8 +1,8 @@
 use crate::backend::asn_heuristic::AsnPatterns;
 use crate::backend::user_agent::UserAgentParser;
 use crate::backend::{
-    AsnInfo, BotDb, CloudProviderDb, DatacenterRanges, FeodoBotnetIps, GeoIpAsnDb, GeoIpCityDb, SpamhausDrop,
-    TorExitNodes, VpnRanges,
+    AsnInfo, BotDb, CinsArmyIps, CloudProviderDb, DatacenterRanges, FeodoBotnetIps, GeoIpAsnDb, GeoIpCityDb,
+    SpamhausDrop, TorExitNodes, VpnRanges,
 };
 use crate::config::Config;
 use mhost::resolver::{ResolverGroup, ResolverGroupBuilder};
@@ -44,6 +44,7 @@ pub struct DataFileDates {
     pub feodo: Option<String>,
     pub spamhaus: Option<String>,
     pub asn_info: Option<String>,
+    pub cins: Option<String>,
 }
 
 /// Record `data_file_age_seconds{source=<label>}` from the file's mtime.
@@ -73,6 +74,7 @@ pub struct EnrichmentContext {
     pub geoip_asn_db: Option<Arc<GeoIpAsnDb>>,
     pub tor_exit_nodes: Arc<TorExitNodes>,
     pub feodo_botnet_ips: Option<Arc<FeodoBotnetIps>>,
+    pub cins_army_ips: Option<Arc<CinsArmyIps>>,
     pub cloud_provider_db: Option<Arc<CloudProviderDb>>,
     pub vpn_ranges: Option<Arc<VpnRanges>>,
     pub datacenter_ranges: Option<Arc<DatacenterRanges>>,
@@ -164,6 +166,20 @@ impl EnrichmentContext {
             }
         } else {
             warn!("feodo_botnet_ips not configured; botnet C2 detection disabled");
+            None
+        };
+
+        let cins_army_ips = if let Some(path) = config.cins_army_ips.as_deref() {
+            let ips = CinsArmyIps::from_file(path).await;
+            if let Some(count) = ips.len() {
+                info!("Loaded CINS Army IPs from {} ({} IPs)", path, count);
+                Some(Arc::new(ips))
+            } else {
+                warn!("Failed to load CINS Army IPs from {}", path);
+                None
+            }
+        } else {
+            warn!("cins_army_ips not configured; CINS Army bad-actor detection disabled");
             None
         };
 
@@ -306,6 +322,10 @@ impl EnrichmentContext {
                 "feodo_botnet_ips",
             ),
             (
+                config.cins_army_ips.is_some() && cins_army_ips.is_none(),
+                "cins_army_ips",
+            ),
+            (
                 config.cloud_provider_ranges.is_some() && cloud_provider_db.is_none(),
                 "cloud_provider_ranges",
             ),
@@ -373,6 +393,11 @@ impl EnrichmentContext {
             } else {
                 None
             },
+            cins: if cins_army_ips.is_some() {
+                config.cins_army_ips.as_deref().and_then(file_mtime_iso)
+            } else {
+                None
+            },
         };
 
         let ctx = EnrichmentContext {
@@ -381,6 +406,7 @@ impl EnrichmentContext {
             geoip_asn_db,
             tor_exit_nodes: Arc::new(tor_exit_nodes),
             feodo_botnet_ips,
+            cins_army_ips,
             cloud_provider_db,
             vpn_ranges,
             datacenter_ranges,
@@ -413,6 +439,8 @@ impl EnrichmentContext {
             .set(f64::from(ctx.bot_db.is_some() as u8));
         metrics::gauge!("enrichment_sources_loaded", "source" => "feodo_botnet")
             .set(f64::from(ctx.feodo_botnet_ips.is_some() as u8));
+        metrics::gauge!("enrichment_sources_loaded", "source" => "cins_army")
+            .set(f64::from(ctx.cins_army_ips.is_some() as u8));
         metrics::gauge!("enrichment_sources_loaded", "source" => "spamhaus_drop")
             .set(f64::from(ctx.spamhaus_drop.is_some() as u8));
         metrics::gauge!("enrichment_sources_loaded", "source" => "asn_patterns")
@@ -424,6 +452,11 @@ impl EnrichmentContext {
         if ctx.feodo_botnet_ips.is_some() {
             if let Some(path) = config.feodo_botnet_ips.as_deref() {
                 emit_file_age(path, "feodo_botnet");
+            }
+        }
+        if ctx.cins_army_ips.is_some() {
+            if let Some(path) = config.cins_army_ips.as_deref() {
+                emit_file_age(path, "cins_army");
             }
         }
         if ctx.spamhaus_drop.is_some() {

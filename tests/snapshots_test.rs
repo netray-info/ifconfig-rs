@@ -36,6 +36,8 @@ fn make_test_ifconfig() -> Ifconfig {
             accuracy_radius_km: Some(1000),
             registered_country: Some("United States".to_string()),
             registered_country_iso: Some("US".to_string()),
+            city_localized: None,
+            country_localized: None,
         },
         network: Network {
             asn: Some(15169),
@@ -61,6 +63,8 @@ fn make_test_ifconfig() -> Ifconfig {
             vpn: None,
             bot: None,
             is_anycast: true,
+            is_cins: false,
+            iana_label: None,
         },
         user_agent: None,
     }
@@ -90,6 +94,8 @@ fn make_test_ifconfig_with_vpn() -> Ifconfig {
             accuracy_radius_km: Some(500),
             registered_country: Some("Sweden".to_string()),
             registered_country_iso: Some("SE".to_string()),
+            city_localized: None,
+            country_localized: None,
         },
         network: Network {
             asn: Some(39351),
@@ -113,6 +119,8 @@ fn make_test_ifconfig_with_vpn() -> Ifconfig {
             }),
             bot: None,
             is_anycast: false,
+            is_cins: false,
+            iana_label: None,
         },
         user_agent: None,
     }
@@ -149,6 +157,8 @@ fn make_test_ifconfig_with_bot() -> Ifconfig {
                 provider: "googlebot".to_string(),
             }),
             is_anycast: true,
+            is_cins: false,
+            iana_label: None,
         },
         user_agent: None,
     }

@@ -1,6 +1,5 @@
 ---
 source: tests/snapshots_test.rs
-assertion_line: 204
 expression: toml
 ---
 [ip]
@@ -30,8 +29,10 @@ asn = 15169
 asn_category = "hosting"
 asn_registered = "2000-03-30"
 infra_type = "cloud"
+is_anycast = true
 is_bot = false
 is_c2 = false
+is_cins = false
 is_datacenter = true
 is_internal = false
 is_spamhaus = false

@@ -1,6 +1,5 @@
 ---
 source: tests/snapshots_test.rs
-assertion_line: 190
 expression: yaml
 ---
 ip:
@@ -33,8 +32,10 @@ network:
     region: us-central1
     service: DNS
   infra_type: cloud
+  is_anycast: true
   is_bot: false
   is_c2: false
+  is_cins: false
   is_datacenter: true
   is_internal: false
   is_spamhaus: false

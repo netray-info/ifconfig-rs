@@ -1,6 +1,5 @@
 ---
 source: tests/snapshots_test.rs
-assertion_line: 218
 expression: csv
 ---
 key,value
@@ -30,8 +29,10 @@ network.cloud.provider,gcp
 network.cloud.region,us-central1
 network.cloud.service,DNS
 network.infra_type,cloud
+network.is_anycast,true
 network.is_bot,false
 network.is_c2,false
+network.is_cins,false
 network.is_datacenter,true
 network.is_internal,false
 network.is_spamhaus,false
