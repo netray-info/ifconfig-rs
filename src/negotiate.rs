@@ -14,8 +14,9 @@ pub enum NegotiatedFormat {
     Unknown,
 }
 
-static KNOWN_CLI_CLIENTS: LazyLock<RegexSet> =
-    LazyLock::new(|| RegexSet::new([r"curl", r"HTTPie", r"HTTP Library", r"Wget"]).unwrap());
+static KNOWN_CLI_CLIENTS: LazyLock<RegexSet> = LazyLock::new(|| {
+    RegexSet::new([r"curl", r"HTTPie", r"HTTP Library", r"Wget", r"python-httpx", r"python-requests"]).unwrap()
+});
 
 pub fn is_cli_client(ua: Option<&str>, accept: Option<&str>) -> bool {
     matches!((ua, accept), (Some(ua), Some("*/*")) if KNOWN_CLI_CLIENTS.is_match(ua))
@@ -116,6 +117,18 @@ mod tests {
     #[test]
     fn cli_wget() {
         let h = headers_with(&[("user-agent", "Wget/1.19.5 (darwin17.5.0)"), ("accept", "*/*")]);
+        assert_eq!(negotiate(None, &h), NegotiatedFormat::Plain);
+    }
+
+    #[test]
+    fn cli_python_httpx() {
+        let h = headers_with(&[("user-agent", "python-httpx/0.27.0"), ("accept", "*/*")]);
+        assert_eq!(negotiate(None, &h), NegotiatedFormat::Plain);
+    }
+
+    #[test]
+    fn cli_python_requests() {
+        let h = headers_with(&[("user-agent", "python-requests/2.31.0"), ("accept", "*/*")]);
         assert_eq!(negotiate(None, &h), NegotiatedFormat::Plain);
     }
 

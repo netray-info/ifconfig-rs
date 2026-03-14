@@ -10,6 +10,42 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use tracing::{error, info, warn};
 
+fn file_mtime_iso(path: &str) -> Option<String> {
+    let mtime = std::fs::metadata(path).ok()?.modified().ok()?;
+    let secs = mtime.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs();
+    // Decompose epoch seconds into date + time components without external deps.
+    let time_of_day = secs % 86400;
+    let h = time_of_day / 3600;
+    let m = (time_of_day % 3600) / 60;
+    let s = time_of_day % 60;
+    // civil_from_days (Howard Hinnant) for the date portion.
+    let z = (secs / 86400) as i64 + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let mo = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if mo <= 2 { y + 1 } else { y };
+    Some(format!("{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}Z"))
+}
+
+pub struct DataFileDates {
+    pub geoip_city: Option<String>,
+    pub geoip_asn: Option<String>,
+    pub user_agent: Option<String>,
+    pub tor: Option<String>,
+    pub vpn: Option<String>,
+    pub cloud: Option<String>,
+    pub datacenter: Option<String>,
+    pub bot: Option<String>,
+    pub feodo: Option<String>,
+    pub spamhaus: Option<String>,
+    pub asn_info: Option<String>,
+}
+
 /// Record `data_file_age_seconds{source=<label>}` from the file's mtime.
 /// Silently skips if mtime cannot be read (file may be synthetic or on a
 /// filesystem that doesn't support mtime).
@@ -49,6 +85,7 @@ pub struct EnrichmentContext {
     /// Optional sources that were configured (path provided) but failed to load.
     /// Surfaced in `/ready` warnings and emitted as a single startup log line.
     pub missing_optional: Vec<&'static str>,
+    pub data_file_dates: DataFileDates,
 }
 
 impl EnrichmentContext {
@@ -292,6 +329,52 @@ impl EnrichmentContext {
             warn!("Optional data sources not loaded: {}", missing_optional.join(", "));
         }
 
+        let data_file_dates = DataFileDates {
+            geoip_city: config.geoip_city_db.as_deref().and_then(file_mtime_iso),
+            geoip_asn: config.geoip_asn_db.as_deref().and_then(file_mtime_iso),
+            user_agent: config.user_agent_regexes.as_deref().and_then(file_mtime_iso),
+            tor: if tor_exit_nodes.is_loaded() {
+                config.tor_exit_nodes.as_deref().and_then(file_mtime_iso)
+            } else {
+                None
+            },
+            vpn: if vpn_ranges.is_some() {
+                config.vpn_ranges.as_deref().and_then(file_mtime_iso)
+            } else {
+                None
+            },
+            cloud: if cloud_provider_db.is_some() {
+                config.cloud_provider_ranges.as_deref().and_then(file_mtime_iso)
+            } else {
+                None
+            },
+            datacenter: if datacenter_ranges.is_some() {
+                config.datacenter_ranges.as_deref().and_then(file_mtime_iso)
+            } else {
+                None
+            },
+            bot: if bot_db.is_some() {
+                config.bot_ranges.as_deref().and_then(file_mtime_iso)
+            } else {
+                None
+            },
+            feodo: if feodo_botnet_ips.is_some() {
+                config.feodo_botnet_ips.as_deref().and_then(file_mtime_iso)
+            } else {
+                None
+            },
+            spamhaus: if spamhaus_drop.is_some() {
+                config.spamhaus_drop.as_deref().and_then(file_mtime_iso)
+            } else {
+                None
+            },
+            asn_info: if asn_info.is_some() {
+                config.asn_info.as_deref().and_then(file_mtime_iso)
+            } else {
+                None
+            },
+        };
+
         let ctx = EnrichmentContext {
             user_agent_parser,
             geoip_city_db,
@@ -308,6 +391,7 @@ impl EnrichmentContext {
             dns_resolver: Arc::new(dns_resolver),
             geoip_city_build_epoch,
             missing_optional,
+            data_file_dates,
         };
 
         // Report which enrichment sources are loaded (updates on reload too).

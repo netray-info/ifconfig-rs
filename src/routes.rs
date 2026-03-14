@@ -183,6 +183,13 @@ fn serve_spa() -> Response {
 
 // ---- Query parameter helpers ----
 
+fn format_from_query(uri: &axum::http::Uri) -> Option<String> {
+    let query = uri.query()?;
+    query
+        .split('&')
+        .find_map(|p| p.strip_prefix("format=").map(|v| v.to_string()))
+}
+
 fn parse_query_param<'a>(uri: &'a str, key: &str) -> Option<&'a str> {
     let query = uri.split('?').nth(1)?;
     query
@@ -357,11 +364,13 @@ where
 )]
 async fn root_handler(
     State(state): State<AppState>,
+    uri: axum::http::Uri,
     headers: HeaderMap,
     extensions: axum::http::Extensions,
 ) -> Response {
     let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
+    let fmt_query = format_from_query(&uri);
+    let format = negotiate(fmt_query.as_deref(), &headers);
     dispatch_standard(
         format,
         &req_info,
@@ -408,11 +417,13 @@ macro_rules! standard_endpoint {
         $(#[$meta])*
         async fn $handler(
             State(state): State<AppState>,
+            uri: axum::http::Uri,
             headers: HeaderMap,
             extensions: axum::http::Extensions,
         ) -> Response {
             let req_info = get_requester_info(&headers, &extensions);
-            let format = negotiate(None, &headers);
+            let fmt_query = format_from_query(&uri);
+            let format = negotiate(fmt_query.as_deref(), &headers);
             dispatch_standard(format, &req_info, &state, $($module)::+::to_json, $($module)::+::to_plain).await
         }
 
@@ -569,11 +580,13 @@ standard_endpoint! {
 )]
 async fn all_handler(
     State(state): State<AppState>,
+    uri: axum::http::Uri,
     headers: HeaderMap,
     extensions: axum::http::Extensions,
 ) -> Response {
     let req_info = get_requester_info(&headers, &extensions);
-    let format = negotiate(None, &headers);
+    let fmt_query = format_from_query(&uri);
+    let format = negotiate(fmt_query.as_deref(), &headers);
     let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
     dispatch_all(format, &req_info, &state, &req_headers).await
 }
@@ -750,8 +763,9 @@ standard_endpoint! {
         (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
     )
 )]
-async fn headers_handler(State(state): State<AppState>, headers: HeaderMap) -> Response {
-    let format = negotiate(None, &headers);
+async fn headers_handler(State(state): State<AppState>, uri: axum::http::Uri, headers: HeaderMap) -> Response {
+    let fmt_query = format_from_query(&uri);
+    let format = negotiate(fmt_query.as_deref(), &headers);
     let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
     dispatch_headers(format, &req_headers)
 }
@@ -1049,10 +1063,12 @@ async fn batch_dispatch(
 )]
 async fn ipv4_handler(
     State(state): State<AppState>,
+    uri: axum::http::Uri,
     headers: HeaderMap,
     extensions: axum::http::Extensions,
 ) -> Response {
-    ip_version_dispatch("4", None, &state, &headers, &extensions).await
+    let fmt_query = format_from_query(&uri);
+    ip_version_dispatch("4", fmt_query.as_deref(), &state, &headers, &extensions).await
 }
 
 async fn ipv4_format_handler(
@@ -1082,10 +1098,12 @@ async fn ipv4_format_handler(
 )]
 async fn ipv6_handler(
     State(state): State<AppState>,
+    uri: axum::http::Uri,
     headers: HeaderMap,
     extensions: axum::http::Extensions,
 ) -> Response {
-    ip_version_dispatch("6", None, &state, &headers, &extensions).await
+    let fmt_query = format_from_query(&uri);
+    ip_version_dispatch("6", fmt_query.as_deref(), &state, &headers, &extensions).await
 }
 
 async fn ipv6_format_handler(
@@ -1198,6 +1216,28 @@ struct DataSources {
     feodo: bool,
     spamhaus: bool,
     asn_info: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    geoip_city_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    geoip_asn_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_agent_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tor_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vpn_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cloud_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    datacenter_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bot_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    feodo_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    spamhaus_updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    asn_info_updated: Option<String>,
 }
 
 /// Converts a Unix epoch (seconds) to an ISO 8601 date string (`YYYY-MM-DD`).
@@ -1261,6 +1301,17 @@ async fn meta_handler(State(state): State<AppState>) -> Response {
             feodo: ctx.feodo_botnet_ips.is_some(),
             spamhaus: ctx.spamhaus_drop.is_some(),
             asn_info: ctx.asn_info.is_some(),
+            geoip_city_updated: ctx.data_file_dates.geoip_city.clone(),
+            geoip_asn_updated: ctx.data_file_dates.geoip_asn.clone(),
+            user_agent_updated: ctx.data_file_dates.user_agent.clone(),
+            tor_updated: ctx.data_file_dates.tor.clone(),
+            vpn_updated: ctx.data_file_dates.vpn.clone(),
+            cloud_updated: ctx.data_file_dates.cloud.clone(),
+            datacenter_updated: ctx.data_file_dates.datacenter.clone(),
+            bot_updated: ctx.data_file_dates.bot.clone(),
+            feodo_updated: ctx.data_file_dates.feodo.clone(),
+            spamhaus_updated: ctx.data_file_dates.spamhaus.clone(),
+            asn_info_updated: ctx.data_file_dates.asn_info.clone(),
         },
         geoip_database_date: ctx.geoip_city_build_epoch.map(epoch_to_iso_date),
         build: &info.build,
