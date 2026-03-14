@@ -84,6 +84,9 @@ jobs:
   audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: rustsec/audit-check@v2
@@ -118,6 +121,8 @@ jobs:
           file: tests/Dockerfile.tests
           context: .
           push: false
+          secrets: |
+            NODE_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
   e2e-test:
     needs: [test]
@@ -138,6 +143,8 @@ jobs:
           push: false
           load: true
           tags: ifconfig-rs:e2e
+          secrets: |
+            NODE_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
       - name: Start server
         run: docker run -d -p 8000:8000 --name ifconfig-rs ifconfig-rs:e2e
       - name: Wait for server to be ready
