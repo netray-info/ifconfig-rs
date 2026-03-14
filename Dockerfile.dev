@@ -1,0 +1,15 @@
+FROM rust:latest
+WORKDIR /app
+
+# Pre-compile dependencies for layer caching.
+# Source is volume-mounted at runtime, so only the stub binary is baked in.
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs \
+    && cargo build \
+    && rm -rf src
+
+RUN cargo install cargo-watch
+
+EXPOSE 8080
+
+CMD ["cargo", "watch", "-x", "run"]
