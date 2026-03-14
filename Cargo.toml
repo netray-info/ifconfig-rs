@@ -102,5 +102,3 @@ harness = false
 name = "cloud_lookup"
 harness = false
 
-[patch.crates-io]
-netray-common = { path = "../netray-common" }
