@@ -1,0 +1,24 @@
+{
+  "asn": 15169,
+  "org": "Google LLC",
+  "prefix": "8.8.8.0/24",
+  "asn_category": "hosting",
+  "network_role": "tier1_transit",
+  "asn_registered": "2000-03-30",
+  "type": "cloud",
+  "infra_type": "cloud",
+  "is_internal": false,
+  "is_datacenter": true,
+  "is_vpn": false,
+  "is_tor": false,
+  "is_bot": false,
+  "is_c2": false,
+  "is_spamhaus": false,
+  "cloud": {
+    "provider": "gcp",
+    "service": "DNS",
+    "region": "us-central1"
+  },
+  "vpn": null,
+  "bot": null
+}

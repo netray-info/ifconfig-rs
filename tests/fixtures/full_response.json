@@ -1,0 +1,67 @@
+{
+  "ip": {
+    "addr": "8.8.8.8",
+    "version": "4",
+    "hostname": "dns.google"
+  },
+  "tcp": {
+    "port": 54321
+  },
+  "location": {
+    "city": "Mountain View",
+    "region": "California",
+    "region_code": "CA",
+    "country": "United States",
+    "country_iso": "US",
+    "postal_code": "94043",
+    "is_eu": false,
+    "latitude": 37.386,
+    "longitude": -122.0838,
+    "timezone": "America/Los_Angeles",
+    "continent": "North America",
+    "continent_code": "NA",
+    "accuracy_radius_km": 1000,
+    "registered_country": "United States",
+    "registered_country_iso": "US"
+  },
+  "network": {
+    "asn": 15169,
+    "org": "Google LLC",
+    "prefix": "8.8.8.0/24",
+    "asn_category": "hosting",
+    "network_role": "tier1_transit",
+    "asn_registered": "2000-03-30",
+    "type": "cloud",
+    "infra_type": "cloud",
+    "is_internal": false,
+    "is_datacenter": true,
+    "is_vpn": false,
+    "is_tor": false,
+    "is_bot": false,
+    "is_c2": false,
+    "is_spamhaus": false,
+    "cloud": {
+      "provider": "gcp",
+      "service": "DNS",
+      "region": "us-central1"
+    },
+    "vpn": null,
+    "bot": null
+  },
+  "user_agent": {
+    "raw": "curl/8.7.1",
+    "device": {
+      "family": "Other",
+      "brand": null,
+      "model": null
+    },
+    "os": {
+      "family": "Other",
+      "version": ""
+    },
+    "browser": {
+      "family": "curl",
+      "version": "8.7.1"
+    }
+  }
+}
