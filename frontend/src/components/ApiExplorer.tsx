@@ -54,13 +54,17 @@ export default function ApiExplorer(props: Props) {
   const [response, setResponse] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [copied, setCopied] = createSignal(false);
 
   let currentReqId = 0;
+  const responseCache = new Map<string, string>();
 
   const copyCurl = async () => {
     try {
       await navigator.clipboard.writeText(buildCurlCommand(activeEndpoint(), activeFormat(), props.lookupIp));
       showToast("Copied!");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard API not available
     }
@@ -70,11 +74,20 @@ export default function ApiExplorer(props: Props) {
     on([activeEndpoint, activeFormat, open, () => props.lookupIp], ([ep, fmt, isOpen, ip]) => {
       if (!isOpen) return;
       const reqId = ++currentReqId;
-      setLoading(true);
       setError(null);
-      setResponse("");
 
       const url = buildUrl(ep, fmt, ip as string | null);
+      const cacheKey = url;
+      const cached = responseCache.get(cacheKey);
+      if (cached !== undefined) {
+        setResponse(cached);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setResponse("");
+
       const headers: HeadersInit = fmt === "plain"
         ? { Accept: "text/plain" }
         : {};
@@ -87,6 +100,7 @@ export default function ApiExplorer(props: Props) {
         .then((text) => {
           if (reqId !== currentReqId) return;
           const display = fmt === "json" ? prettyJson(text) : text;
+          responseCache.set(cacheKey, display);
           setResponse(display);
         })
         .catch((e: unknown) => {
@@ -155,8 +169,8 @@ export default function ApiExplorer(props: Props) {
             <button
               class="curl-copy"
               onClick={copyCurl}
-              title="Copy command"
-              aria-label="Copy curl command"
+              title={copied() ? "Copied!" : "Copy command"}
+              aria-label={copied() ? "Copied!" : "Copy curl command"}
             >
               <CopySmallIcon />
             </button>

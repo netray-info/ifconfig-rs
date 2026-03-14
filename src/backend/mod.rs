@@ -157,6 +157,10 @@ impl TorExitNodes {
     pub fn len(&self) -> Option<usize> {
         self.0.as_ref().map(|set| set.len())
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len().is_none_or(|l| l == 0)
+    }
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
@@ -654,7 +658,8 @@ mod tests {
         assert!(!is_global_ip("::ffff:192.168.1.1".parse::<IpAddr>().unwrap())); // RFC 1918
         assert!(!is_global_ip("::ffff:10.0.0.1".parse::<IpAddr>().unwrap())); // RFC 1918
         assert!(!is_global_ip("::ffff:127.0.0.1".parse::<IpAddr>().unwrap())); // loopback
-        assert!(!is_global_ip("::ffff:169.254.1.1".parse::<IpAddr>().unwrap())); // link-local
+        assert!(!is_global_ip("::ffff:169.254.1.1".parse::<IpAddr>().unwrap()));
+        // link-local
     }
 
     #[test]

@@ -85,7 +85,7 @@ frontend-dev: ## Start Vite dev server with API proxy
 	cd $(FRONTEND_DIR) && $(NPM) run dev
 
 frontend-test: frontend-install ## Run frontend tests (vitest)
-	cd $(FRONTEND_DIR) && npx vitest run --passWithNoTests --environment node
+	cd $(FRONTEND_DIR) && npx vitest run --passWithNoTests
 
 # ══════════════════════════════════════════════════════════════════
 #  Combined

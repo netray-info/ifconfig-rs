@@ -47,7 +47,10 @@ pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::
                 .map(|d| d.as_secs())
                 .unwrap_or(0)
                 .saturating_add(retry_after);
-            let mut response = AppError::RateLimited { retry_after_secs: retry_after }.into_response();
+            let mut response = AppError::RateLimited {
+                retry_after_secs: retry_after,
+            }
+            .into_response();
             let h = response.headers_mut();
             h.insert("x-ratelimit-limit", HeaderValue::from(per_minute));
             h.insert("x-ratelimit-remaining", HeaderValue::from(0u32));

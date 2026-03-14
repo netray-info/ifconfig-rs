@@ -132,7 +132,6 @@ pub async fn build_app(config: &Config) -> AppBundle {
             state.clone(),
             middleware::etag_last_modified,
         ))
-        .layer(axum_mw::from_fn(middleware::ifconfig_response_headers))
         .layer(axum_mw::from_fn(
             netray_common::security_headers::security_headers_layer(
                 netray_common::security_headers::SecurityHeadersConfig {
@@ -142,6 +141,9 @@ pub async fn build_app(config: &Config) -> AppBundle {
                 },
             ),
         ))
+        // ifconfig_response_headers must be outer (runs last on response) so its HSTS
+        // override (2 years) takes precedence over netray-common's default (1 year).
+        .layer(axum_mw::from_fn(middleware::ifconfig_response_headers))
         .layer(cors)
         .layer(axum_mw::from_fn_with_state(
             state.clone(),

@@ -37,6 +37,10 @@ impl DatacenterRanges {
         let (v4, v6) = self.table.len();
         v4 + v6
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[cfg(test)]

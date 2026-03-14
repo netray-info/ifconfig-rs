@@ -295,7 +295,7 @@ where
         ctx.bot_db.as_deref(),
         ctx.spamhaus_drop.as_deref(),
         &ctx.dns_resolver,
-        &*state.dns_cache,
+        &state.dns_cache,
         skip_dns,
         ctx.asn_patterns.as_ref(),
         ctx.asn_info.as_deref(),
@@ -781,7 +781,11 @@ fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) 
             };
             match handlers::headers::formatted(&output_fmt, req_headers) {
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
-                None => error_response(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "serialization failed"),
+                None => error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "serialization failed",
+                ),
             }
         }
     }
@@ -917,12 +921,14 @@ async fn batch_dispatch(
         };
 
         if !state.config.internal_mode && !is_global_ip(ip) {
-            results[i] = json!({"error": {"code": "INVALID_IP", "message": "private/loopback IP not allowed"}, "index": i});
+            results[i] =
+                json!({"error": {"code": "INVALID_IP", "message": "private/loopback IP not allowed"}, "index": i});
             continue;
         }
 
         if state.target_rate_limiter.check_key(&ip).is_err() {
-            results[i] = json!({"error": {"code": "RATE_LIMITED", "message": "target rate limit exceeded"}, "index": i});
+            results[i] =
+                json!({"error": {"code": "RATE_LIMITED", "message": "target rate limit exceeded"}, "index": i});
             continue;
         }
 
@@ -954,14 +960,19 @@ async fn batch_dispatch(
                 ctx.bot_db.as_deref(),
                 ctx.spamhaus_drop.as_deref(),
                 &ctx.dns_resolver,
-                &*dns_cache,
+                &dns_cache,
                 skip_dns,
                 ctx.asn_patterns.as_ref(),
                 ctx.asn_info.as_deref(),
             );
             let ifconfig = match tokio::time::timeout(std::time::Duration::from_secs(5), lookup).await {
                 Ok(result) => result,
-                Err(_) => return (i, json!({"error": {"code": "TIMEOUT", "message": "lookup timed out"}, "index": i})),
+                Err(_) => {
+                    return (
+                        i,
+                        json!({"error": {"code": "TIMEOUT", "message": "lookup timed out"}, "index": i}),
+                    )
+                }
             };
 
             let mut val = serde_json::to_value(&ifconfig).unwrap_or(json!(null));
@@ -992,7 +1003,11 @@ async fn batch_dispatch(
             let arr = serde_json::Value::Array(results);
             match OutputFormat::Yaml.serialize_body(&arr) {
                 Some(body) => respond_formatted(OutputFormat::Yaml.content_type(), body),
-                None => error_response(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "serialization failed"),
+                None => error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "serialization failed",
+                ),
             }
         }
         NegotiatedFormat::Toml => {
@@ -1000,7 +1015,11 @@ async fn batch_dispatch(
             let wrapped = json!({"results": results});
             match OutputFormat::Toml.serialize_body(&wrapped) {
                 Some(body) => respond_formatted(OutputFormat::Toml.content_type(), body),
-                None => error_response(StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "serialization failed"),
+                None => error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "INTERNAL_ERROR",
+                    "serialization failed",
+                ),
             }
         }
         NegotiatedFormat::Csv => {
@@ -1131,7 +1150,7 @@ async fn ip_version_dispatch(
         ctx.bot_db.as_deref(),
         ctx.spamhaus_drop.as_deref(),
         &ctx.dns_resolver,
-        &*state.dns_cache,
+        &state.dns_cache,
         skip_dns,
         ctx.asn_patterns.as_ref(),
         ctx.asn_info.as_deref(),
@@ -1281,7 +1300,7 @@ pub async fn ready_handler(State(state): State<AppState>) -> Response {
     let has_ua_parser = ctx.user_agent_parser.is_some();
 
     if has_city_db && has_asn_db && has_ua_parser {
-        let warnings: Vec<&str> = ctx.missing_optional.iter().copied().collect();
+        let warnings: Vec<&str> = ctx.missing_optional.to_vec();
         if warnings.is_empty() {
             (StatusCode::OK, axum::Json(json!({ "status": "ready" }))).into_response()
         } else {

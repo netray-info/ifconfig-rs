@@ -1100,12 +1100,12 @@ async fn batch_with_invalid_ip() {
     assert_eq!(arr.len(), 3);
     // First: valid
     assert_eq!(arr[0]["ip"]["addr"], "8.8.8.8");
-    // Second: private IP error
-    assert!(arr[1]["error"].is_string());
-    assert!(arr[1]["error"].as_str().unwrap().contains("private"));
+    // Second: private IP error — error is an object {"code": "...", "message": "..."}
+    assert!(arr[1]["error"].is_object(), "body: {}", body);
+    assert!(arr[1]["error"]["message"].as_str().unwrap().contains("private"));
     // Third: invalid IP error
-    assert!(arr[2]["error"].is_string());
-    assert!(arr[2]["error"].as_str().unwrap().contains("invalid"));
+    assert!(arr[2]["error"].is_object(), "body: {}", body);
+    assert!(arr[2]["error"]["message"].as_str().unwrap().contains("invalid"));
 }
 
 #[tokio::test]
@@ -1183,12 +1183,12 @@ async fn batch_error_has_index_not_input() {
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     let arr = json.as_array().unwrap();
-    // Invalid IP at index 1
-    assert!(arr[1]["error"].is_string());
+    // Invalid IP at index 1 — error is an object {"code": "...", "message": "..."}
+    assert!(arr[1]["error"].is_object(), "body: {}", body);
     assert_eq!(arr[1]["index"], 1, "error should report its index");
     assert!(arr[1].get("input").is_none(), "error must not echo user input");
     // Private IP at index 2
-    assert!(arr[2]["error"].is_string());
+    assert!(arr[2]["error"].is_object(), "body: {}", body);
     assert_eq!(arr[2]["index"], 2);
     assert!(arr[2].get("input").is_none());
 }
@@ -1333,8 +1333,14 @@ async fn request_id_generated() {
     let req = get_with_headers("/ip", &[("accept", "application/json")]);
     let (_, headers, _) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     let id = header_str(&headers, "x-request-id").unwrap();
-    assert_eq!(id.len(), 16, "Generated request ID should be 16 hex chars");
-    assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+    // netray-common generates UUID v7 strings: 8-4-4-4-12 hex groups separated by dashes
+    assert_eq!(id.len(), 36, "Generated request ID should be a UUID v7 (36 chars)");
+    let parts: Vec<&str> = id.split('-').collect();
+    assert_eq!(parts.len(), 5, "UUID must have 5 hyphen-separated groups");
+    assert!(
+        parts.iter().all(|p| p.chars().all(|c| c.is_ascii_hexdigit())),
+        "All UUID groups must be hex: {id}"
+    );
 }
 
 #[tokio::test]

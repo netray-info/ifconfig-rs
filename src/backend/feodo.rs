@@ -34,6 +34,10 @@ impl FeodoBotnetIps {
     pub fn len(&self) -> Option<usize> {
         self.0.as_ref().map(|set| set.len())
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len().is_none_or(|l| l == 0)
+    }
 }
 
 #[cfg(test)]
