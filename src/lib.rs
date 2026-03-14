@@ -132,7 +132,16 @@ pub async fn build_app(config: &Config) -> AppBundle {
             state.clone(),
             middleware::etag_last_modified,
         ))
-        .layer(axum_mw::from_fn(middleware::security_headers))
+        .layer(axum_mw::from_fn(middleware::ifconfig_response_headers))
+        .layer(axum_mw::from_fn(
+            netray_common::security_headers::security_headers_layer(
+                netray_common::security_headers::SecurityHeadersConfig {
+                    // Scalar API docs UI loads its renderer from jsDelivr.
+                    extra_script_src: vec!["https://cdn.jsdelivr.net".to_string()],
+                    ..Default::default()
+                },
+            ),
+        ))
         .layer(cors)
         .layer(axum_mw::from_fn_with_state(
             state.clone(),

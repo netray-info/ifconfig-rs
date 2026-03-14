@@ -58,10 +58,19 @@ pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::
     }
 }
 
-pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Response {
+/// Thin ifconfig-rs-specific response headers layered on top of `netray_common::security_headers_layer`.
+///
+/// Adds or overrides:
+/// - `Vary: Accept, User-Agent` — required for correct content-negotiation caching.
+/// - `Cache-Control` — no-cache for errors/health/HTML; private, max-age=60 otherwise.
+/// - `Strict-Transport-Security: max-age=63072000` — intentionally 2 years (netray-common
+///   sets 1 year); ifconfig-rs is a stable public endpoint that warrants the longer preload
+///   candidate value.
+/// - Appends `font-src 'self' data:` to the CSP set by netray-common, which the SolidJS
+///   build requires for embedded fonts. netray-common does not include font-src by design.
+pub async fn ifconfig_response_headers(req: Request<axum::body::Body>, next: Next) -> Response {
     let path = req.uri().path().to_owned();
     let is_health = path == "/health" || path == "/ready";
-    let is_docs = path == "/docs";
     let mut response = next.run(req).await;
 
     let is_error = !response.status().is_success();
@@ -73,36 +82,34 @@ pub async fn security_headers(req: Request<axum::body::Body>, next: Next) -> Res
         .unwrap_or(false);
 
     let headers = response.headers_mut();
-    headers.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
-    headers.insert("x-frame-options", HeaderValue::from_static("DENY"));
-    headers.insert(
-        "referrer-policy",
-        HeaderValue::from_static("strict-origin-when-cross-origin"),
-    );
-    headers.insert(
-        "strict-transport-security",
-        HeaderValue::from_static("max-age=63072000; includeSubDomains"),
-    );
-    headers.insert("vary", HeaderValue::from_static("Accept, User-Agent"));
 
-    if is_docs {
-        headers.insert(
-            "content-security-policy",
-            HeaderValue::from_static("default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"),
-        );
-    } else {
-        // 'unsafe-inline' in style-src is required by the SolidJS/Vite build: compiled
-        // event handlers and reactive bindings emit inline style attributes at runtime.
-        headers.insert(
-            "content-security-policy",
-            HeaderValue::from_static("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:"),
-        );
-    }
+    // Vary is required so CDNs/proxies cache separate responses per format and UA.
+    headers.insert("vary", HeaderValue::from_static("Accept, User-Agent"));
 
     if is_error || is_health || is_html {
         headers.insert("cache-control", HeaderValue::from_static("no-cache"));
     } else {
         headers.insert("cache-control", HeaderValue::from_static("private, max-age=60"));
+    }
+
+    // Override HSTS: ifconfig-rs uses 2 years (63072000s) rather than netray-common's
+    // 1 year, making it a candidate for HSTS preload.
+    headers.insert(
+        "strict-transport-security",
+        HeaderValue::from_static("max-age=63072000; includeSubDomains"),
+    );
+
+    // Extend the CSP set by netray_common::security_headers_layer to add font-src,
+    // which the SolidJS/Vite build requires for embedded data-URI fonts.
+    // netray-common omits font-src by default; we append it here rather than
+    // duplicating the full CSP string.
+    if let Some(existing_csp) = headers.get("content-security-policy").cloned() {
+        if let Ok(csp_str) = existing_csp.to_str() {
+            let extended = format!("{csp_str}; font-src 'self' data:");
+            if let Ok(val) = HeaderValue::from_str(&extended) {
+                headers.insert("content-security-policy", val);
+            }
+        }
     }
 
     response

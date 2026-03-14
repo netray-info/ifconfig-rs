@@ -33,7 +33,7 @@ metrics-exporter-prometheus = "0.18"
 config = "0.15"
 mhost = { version = "0.11", default-features = false }
 governor = "0.10"
-netray-common = { version = "0.2.1", features = ["schema", "middleware"] }
+netray-common = { version = "0.2.1", features = ["schema", "middleware", "server"] }
 httpdate = "1"
 ip_network = "0.4"
 ip_network_table = "0.2"
@@ -77,6 +77,14 @@ http-body-util = "0.1"
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
 pretty_assertions = "1.4.0"
 tower = { version = "0.5", features = ["util"] }
+
+# Explicit test binary so admin tests always run in their own process.
+# The Prometheus metrics recorder is a global singleton; declaring admin as a
+# separate [[test]] binary guarantees it gets exactly one installation attempt,
+# regardless of how many other test binaries cargo runs in parallel.
+[[test]]
+name = "admin"
+path = "tests/admin.rs"
 
 [[bench]]
 name = "negotiation"

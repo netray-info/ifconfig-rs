@@ -79,7 +79,7 @@ async fn main() {
         info!("Admin server listening on {}", admin_listener.local_addr().unwrap());
         tokio::spawn(async move {
             axum::serve(admin_listener, admin_app)
-                .with_graceful_shutdown(shutdown_signal())
+                .with_graceful_shutdown(netray_common::server::shutdown_signal())
                 .await
                 .expect("Admin server error");
         });
@@ -90,7 +90,7 @@ async fn main() {
     info!("Listening on {}", listener.local_addr().unwrap());
 
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(netray_common::server::shutdown_signal())
         .await
         .expect("Server error");
 }
@@ -197,7 +197,3 @@ fn spawn_file_watcher(
     });
 }
 
-async fn shutdown_signal() {
-    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
-    info!("Shutting down gracefully...");
-}
