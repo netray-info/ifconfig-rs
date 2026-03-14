@@ -229,6 +229,29 @@ async fn dispatch_standard(
     to_json_fn: fn(&Ifconfig) -> Option<serde_json::Value>,
     to_plain_fn: fn(&Ifconfig) -> String,
 ) -> Response {
+    dispatch(format, req_info, state, to_json_fn, to_plain_fn).await
+}
+
+/// Core dispatch: build an `Ifconfig` and render it in the requested format.
+///
+/// Accepts closures for JSON and plain-text building so callers can inject extra
+/// content (e.g. `/all` appends request headers into the JSON and plain output).
+/// `dispatch_standard` is the thin wrapper for the common fn-pointer callers.
+///
+/// Note: `ip_version_dispatch` is intentionally kept separate — it skips
+/// `?fields=` filtering and adds a post-build IP-version check, which would
+/// make a unified implementation more complex than the duplication.
+async fn dispatch<F, G>(
+    format: NegotiatedFormat,
+    req_info: &RequesterInfo,
+    state: &AppState,
+    to_json_fn: F,
+    to_plain_fn: G,
+) -> Response
+where
+    F: Fn(&Ifconfig) -> Option<serde_json::Value>,
+    G: Fn(&Ifconfig) -> String,
+{
     if format == NegotiatedFormat::Html {
         return serve_spa();
     }
@@ -573,99 +596,26 @@ async fn dispatch_all(
     state: &AppState,
     req_headers: &[(String, String)],
 ) -> Response {
-    if format == NegotiatedFormat::Html {
-        return serve_spa();
-    }
-    if format == NegotiatedFormat::Unknown {
-        return error_response(StatusCode::NOT_FOUND, "INVALID_FORMAT", "unknown format suffix");
-    }
-
-    let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
-        Some(ip) => {
-            if !state.config.internal_mode && !is_global_ip(ip) {
-                return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "private/loopback IP not allowed");
+    // /all differs from standard endpoints only in how JSON and plain-text are built:
+    // the request headers are merged into the JSON object and appended to plain output.
+    dispatch(
+        format,
+        req_info,
+        state,
+        |ifconfig| {
+            let mut val = handlers::all::to_json(ifconfig)?;
+            if let serde_json::Value::Object(ref mut map) = val {
+                map.insert("headers".to_string(), handlers::headers::to_json_value(req_headers));
             }
-            let skip_dns = parse_dns_param(&req_info.uri).map(|v| !v).unwrap_or(false);
-            (SocketAddr::new(ip, 0), skip_dns)
-        }
-        None => (req_info.remote, false),
-    };
-
-    if let Some(resp) = check_target_rate_limit(state, target_addr.ip()) {
-        return resp;
-    }
-
-    let ctx = state.enrichment.load();
-    let (uap, city, asn, tor) = resolve_core_backends(&ctx);
-
-    let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(
-        &target_addr,
-        &ua_opt,
-        uap,
-        city,
-        asn,
-        tor,
-        ctx.feodo_botnet_ips.as_deref(),
-        ctx.vpn_ranges.as_deref(),
-        ctx.cloud_provider_db.as_deref(),
-        ctx.datacenter_ranges.as_deref(),
-        ctx.bot_db.as_deref(),
-        ctx.spamhaus_drop.as_deref(),
-        &ctx.dns_resolver,
-        &*state.dns_cache,
-        skip_dns,
-        ctx.asn_patterns.as_ref(),
-        ctx.asn_info.as_deref(),
-    )
-    .await;
-
-    let fields = format::parse_fields_param(&req_info.uri);
-
-    let build_json = |ifconfig: &Ifconfig| -> Option<serde_json::Value> {
-        let mut val = handlers::all::to_json(ifconfig)?;
-        if let serde_json::Value::Object(ref mut map) = val {
-            map.insert("headers".to_string(), handlers::headers::to_json_value(req_headers));
-        }
-        Some(val)
-    };
-
-    match format {
-        NegotiatedFormat::Html => unreachable!(),
-        NegotiatedFormat::Plain => {
-            let mut text = handlers::all::to_plain(&ifconfig);
-            text.push_str(&handlers::headers::to_plain(req_headers));
-            respond_plain(text)
-        }
-        NegotiatedFormat::Json => match build_json(&ifconfig) {
-            Some(val) => {
-                let val = match &fields {
-                    Some(f) => format::filter_fields(val, f),
-                    None => val,
-                };
-                respond_json_value(val)
-            }
-            None => error_response(StatusCode::NOT_FOUND, "NOT_FOUND", "not implemented"),
+            Some(val)
         },
-        fmt => {
-            let output_fmt = match fmt {
-                NegotiatedFormat::Yaml => OutputFormat::Yaml,
-                NegotiatedFormat::Toml => OutputFormat::Toml,
-                NegotiatedFormat::Csv => OutputFormat::Csv,
-                _ => unreachable!(),
-            };
-            match build_json(&ifconfig)
-                .map(|v| match &fields {
-                    Some(f) => format::filter_fields(v, f),
-                    None => v,
-                })
-                .and_then(|v| output_fmt.serialize_body(&v))
-            {
-                Some(body) => respond_formatted(output_fmt.content_type(), body),
-                None => error_response(StatusCode::NOT_FOUND, "NOT_FOUND", "not implemented"),
-            }
-        }
-    }
+        |ifconfig| {
+            let mut text = handlers::all::to_plain(ifconfig);
+            text.push_str(&handlers::headers::to_plain(req_headers));
+            text
+        },
+    )
+    .await
 }
 
 // ---- Sub-field endpoints ----
