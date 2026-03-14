@@ -50,18 +50,16 @@ fn extract_client_ip(peer: SocketAddr, headers: &HeaderMap, trusted_proxies: &[I
     }
 
     // Priority 1: CF-Connecting-IP (set exclusively by Cloudflare; single IP, no chain)
-    if let Some(ip_str) = headers.get("cf-connecting-ip").and_then(|v| v.to_str().ok()) {
-        if let Ok(ip) = IpAddr::from_str(ip_str.trim()) {
+    if let Some(ip_str) = headers.get("cf-connecting-ip").and_then(|v| v.to_str().ok())
+        && let Ok(ip) = IpAddr::from_str(ip_str.trim()) {
             return SocketAddr::new(ip, peer.port());
         }
-    }
 
     // Priority 2: X-Real-IP (set by nginx/similar; single IP, no chain)
-    if let Some(ip_str) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
-        if let Ok(ip) = IpAddr::from_str(ip_str.trim()) {
+    if let Some(ip_str) = headers.get("x-real-ip").and_then(|v| v.to_str().ok())
+        && let Ok(ip) = IpAddr::from_str(ip_str.trim()) {
             return SocketAddr::new(ip, peer.port());
         }
-    }
 
     // Priority 3: X-Forwarded-For chain (right-to-left walk, skip trusted proxies)
     let xff = match headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
@@ -74,19 +72,17 @@ fn extract_client_ip(peer: SocketAddr, headers: &HeaderMap, trusted_proxies: &[I
     // Walk the XFF chain from right to left, skipping trusted proxies
     let ips: Vec<&str> = xff.split(',').map(str::trim).collect();
     for ip_str in ips.iter().rev() {
-        if let Ok(ip) = IpAddr::from_str(ip_str) {
-            if !is_trusted(ip) {
+        if let Ok(ip) = IpAddr::from_str(ip_str)
+            && !is_trusted(ip) {
                 return SocketAddr::new(ip, peer.port());
             }
-        }
     }
 
     // If all are trusted, use the leftmost
-    if let Some(ip_str) = ips.first() {
-        if let Ok(ip) = IpAddr::from_str(ip_str.trim()) {
+    if let Some(ip_str) = ips.first()
+        && let Ok(ip) = IpAddr::from_str(ip_str.trim()) {
             return SocketAddr::new(ip, peer.port());
         }
-    }
 
     peer
 }

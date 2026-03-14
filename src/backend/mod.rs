@@ -386,11 +386,10 @@ pub static ANYCAST_ASNS: &[u32] = &[
 static ANYCAST_ORG_PATTERNS: &[&str] = &["cloudflare", "akamai", "fastly"];
 
 fn is_anycast_asn(asn_number: Option<u32>, asn_org: Option<&str>) -> bool {
-    if let Some(n) = asn_number {
-        if ANYCAST_ASNS.contains(&n) {
+    if let Some(n) = asn_number
+        && ANYCAST_ASNS.contains(&n) {
             return true;
         }
-    }
     if let Some(org) = asn_org {
         let lower = org.to_ascii_lowercase();
         if ANYCAST_ORG_PATTERNS.iter().any(|pat| lower.contains(pat)) {

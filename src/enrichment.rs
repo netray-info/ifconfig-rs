@@ -449,51 +449,42 @@ impl EnrichmentContext {
             .set(f64::from(ctx.asn_info.is_some() as u8));
 
         // Emit data_file_age_seconds for each successfully loaded optional file.
-        if ctx.feodo_botnet_ips.is_some() {
-            if let Some(path) = config.feodo_botnet_ips.as_deref() {
+        if ctx.feodo_botnet_ips.is_some()
+            && let Some(path) = config.feodo_botnet_ips.as_deref() {
                 emit_file_age(path, "feodo_botnet");
             }
-        }
-        if ctx.cins_army_ips.is_some() {
-            if let Some(path) = config.cins_army_ips.as_deref() {
+        if ctx.cins_army_ips.is_some()
+            && let Some(path) = config.cins_army_ips.as_deref() {
                 emit_file_age(path, "cins_army");
             }
-        }
-        if ctx.spamhaus_drop.is_some() {
-            if let Some(path) = config.spamhaus_drop.as_deref() {
+        if ctx.spamhaus_drop.is_some()
+            && let Some(path) = config.spamhaus_drop.as_deref() {
                 emit_file_age(path, "spamhaus_drop");
             }
-        }
-        if ctx.vpn_ranges.is_some() {
-            if let Some(path) = config.vpn_ranges.as_deref() {
+        if ctx.vpn_ranges.is_some()
+            && let Some(path) = config.vpn_ranges.as_deref() {
                 emit_file_age(path, "vpn_ranges");
             }
-        }
-        if ctx.cloud_provider_db.is_some() {
-            if let Some(path) = config.cloud_provider_ranges.as_deref() {
+        if ctx.cloud_provider_db.is_some()
+            && let Some(path) = config.cloud_provider_ranges.as_deref() {
                 emit_file_age(path, "cloud_cidrs");
             }
-        }
-        if ctx.datacenter_ranges.is_some() {
-            if let Some(path) = config.datacenter_ranges.as_deref() {
+        if ctx.datacenter_ranges.is_some()
+            && let Some(path) = config.datacenter_ranges.as_deref() {
                 emit_file_age(path, "datacenter_ranges");
             }
-        }
-        if ctx.bot_db.is_some() {
-            if let Some(path) = config.bot_ranges.as_deref() {
+        if ctx.bot_db.is_some()
+            && let Some(path) = config.bot_ranges.as_deref() {
                 emit_file_age(path, "bot_ranges");
             }
-        }
-        if ctx.tor_exit_nodes.is_loaded() {
-            if let Some(path) = config.tor_exit_nodes.as_deref() {
+        if ctx.tor_exit_nodes.is_loaded()
+            && let Some(path) = config.tor_exit_nodes.as_deref() {
                 emit_file_age(path, "tor_exit_nodes");
             }
-        }
-        if ctx.asn_info.is_some() {
-            if let Some(path) = config.asn_info.as_deref() {
+        if ctx.asn_info.is_some()
+            && let Some(path) = config.asn_info.as_deref() {
                 emit_file_age(path, "asn_info");
             }
-        }
 
         Ok(ctx)
     }

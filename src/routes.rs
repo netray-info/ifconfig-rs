@@ -372,8 +372,8 @@ where
 
     match format {
         NegotiatedFormat::Html => unreachable!(),
-        NegotiatedFormat::Plain => respond_plain(to_plain_fn(&ifconfig)),
-        NegotiatedFormat::Json => match to_json_fn(&ifconfig) {
+        NegotiatedFormat::Plain => respond_plain(to_plain_fn(ifconfig)),
+        NegotiatedFormat::Json => match to_json_fn(ifconfig) {
             Some(val) => {
                 let val = match &fields {
                     Some(f) => format::filter_fields(val, f),
@@ -390,7 +390,7 @@ where
                 NegotiatedFormat::Csv => OutputFormat::Csv,
                 _ => unreachable!(),
             };
-            match to_json_fn(&ifconfig)
+            match to_json_fn(ifconfig)
                 .map(|v| match &fields {
                     Some(f) => format::filter_fields(v, f),
                     None => v,
@@ -1570,7 +1570,7 @@ fn asn_lookup_by_number(asn_num: u32, state: &AppState) -> Response {
     // Instead, check the asn_info for the org; MaxMind ASN DB is IP-keyed not ASN-keyed.
     // We return the info we have from asn_info only; org from MaxMind requires an IP.
     // TODO("MaxMind ASN DB is IP-keyed; org name not available for pure ASN lookups without a representative IP")
-    let org: Option<String> = asn_meta.and_then(|_| None); // MaxMind ASN DB is not ASN-keyed
+    let org: Option<String> = asn_meta.and(None); // MaxMind ASN DB is not ASN-keyed
 
     let is_anycast = crate::backend::ANYCAST_ASNS.contains(&asn_num);
 

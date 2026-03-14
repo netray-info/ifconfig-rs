@@ -201,11 +201,10 @@ pub mod network {
                 .collect();
             lines.push(format!("cloud:      {}", parts.join(" · ")));
         }
-        if let Some(ref v) = n.vpn {
-            if let Some(ref p) = v.provider {
+        if let Some(ref v) = n.vpn
+            && let Some(ref p) = v.provider {
                 lines.push(format!("vpn:        {}", p));
             }
-        }
         if let Some(ref b) = n.bot {
             lines.push(format!("bot:        {}", b.provider));
         }
@@ -300,11 +299,10 @@ pub mod all {
                     .collect();
                 lines.push(format!("cloud:      {}", parts.join(" · ")));
             }
-            if let Some(ref v) = n.vpn {
-                if let Some(ref p) = v.provider {
+            if let Some(ref v) = n.vpn
+                && let Some(ref p) = v.provider {
                     lines.push(format!("vpn:        {}", p));
                 }
-            }
             if let Some(ref b) = n.bot {
                 lines.push(format!("bot:        {}", b.provider));
             }

@@ -32,8 +32,8 @@ impl CloudProviderDb {
             if line.is_empty() {
                 continue;
             }
-            if let Ok(entry) = serde_json::from_str::<JsonlEntry>(line) {
-                if let Ok(network) = entry.cidr.parse::<ip_network::IpNetwork>() {
+            if let Ok(entry) = serde_json::from_str::<JsonlEntry>(line)
+                && let Ok(network) = entry.cidr.parse::<ip_network::IpNetwork>() {
                     table.insert(
                         network,
                         CloudProvider {
@@ -44,7 +44,6 @@ impl CloudProviderDb {
                     );
                     count += 1;
                 }
-            }
         }
 
         if count == 0 {

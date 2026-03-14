@@ -106,14 +106,13 @@ pub async fn ifconfig_response_headers(req: Request<axum::body::Body>, next: Nex
     // which the SolidJS/Vite build requires for embedded data-URI fonts.
     // netray-common omits font-src by default; we append it here rather than
     // duplicating the full CSP string.
-    if let Some(existing_csp) = headers.get("content-security-policy").cloned() {
-        if let Ok(csp_str) = existing_csp.to_str() {
+    if let Some(existing_csp) = headers.get("content-security-policy").cloned()
+        && let Ok(csp_str) = existing_csp.to_str() {
             let extended = format!("{csp_str}; font-src 'self' data:");
             if let Ok(val) = HeaderValue::from_str(&extended) {
                 headers.insert("content-security-policy", val);
             }
         }
-    }
 
     response
 }
