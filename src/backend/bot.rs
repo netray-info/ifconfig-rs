@@ -29,15 +29,16 @@ impl BotDb {
                 continue;
             }
             if let Ok(entry) = serde_json::from_str::<JsonlEntry>(line)
-                && let Ok(network) = entry.cidr.parse::<ip_network::IpNetwork>() {
-                    table.insert(
-                        network,
-                        BotInfo {
-                            provider: entry.provider,
-                        },
-                    );
-                    count += 1;
-                }
+                && let Ok(network) = entry.cidr.parse::<ip_network::IpNetwork>()
+            {
+                table.insert(
+                    network,
+                    BotInfo {
+                        provider: entry.provider,
+                    },
+                );
+                count += 1;
+            }
         }
 
         if count == 0 {

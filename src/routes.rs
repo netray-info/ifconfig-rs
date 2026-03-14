@@ -1,8 +1,8 @@
+use axum::Router;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::Router;
 use governor::clock::{Clock, DefaultClock};
 use serde_json::json;
 use std::net::{IpAddr, SocketAddr};
@@ -12,11 +12,11 @@ use utoipa::OpenApi;
 
 use crate::backend::*;
 use crate::enrichment::EnrichmentContext;
-use crate::error::{error_response, AppError, ErrorResponse};
-use crate::extractors::{extract_headers, filter_headers, RequesterInfo};
+use crate::error::{AppError, ErrorResponse, error_response};
+use crate::extractors::{RequesterInfo, extract_headers, filter_headers};
 use crate::format::{self, OutputFormat};
 use crate::handlers;
-use crate::negotiate::{negotiate, NegotiatedFormat};
+use crate::negotiate::{NegotiatedFormat, negotiate};
 use crate::state::AppState;
 
 fn check_target_rate_limit(state: &AppState, target_ip: IpAddr) -> Option<Response> {
@@ -311,12 +311,39 @@ where
     let lang = parse_lang_param(&req_info.uri);
 
     // Check the ?ip= cache when an explicit IP is requested (only when no lang override).
-    let ifconfig: std::sync::Arc<crate::backend::Ifconfig> = if ip_param.is_some() && lang.is_none() && state.config.cache.enabled {
-        let cache_key = target_addr.ip();
-        if let Some(cached) = state.ip_cache.get(&cache_key).await {
-            cached
+    let ifconfig: std::sync::Arc<crate::backend::Ifconfig> =
+        if ip_param.is_some() && lang.is_none() && state.config.cache.enabled {
+            let cache_key = target_addr.ip();
+            if let Some(cached) = state.ip_cache.get(&cache_key).await {
+                cached
+            } else {
+                let result = handlers::make_ifconfig(
+                    &target_addr,
+                    &ua_opt,
+                    uap,
+                    city,
+                    asn,
+                    tor,
+                    ctx.feodo_botnet_ips.as_deref(),
+                    ctx.cins_army_ips.as_deref(),
+                    ctx.vpn_ranges.as_deref(),
+                    ctx.cloud_provider_db.as_deref(),
+                    ctx.datacenter_ranges.as_deref(),
+                    ctx.bot_db.as_deref(),
+                    ctx.spamhaus_drop.as_deref(),
+                    &ctx.dns_resolver,
+                    &state.dns_cache,
+                    skip_dns,
+                    ctx.asn_patterns.as_ref(),
+                    ctx.asn_info.as_deref(),
+                )
+                .await;
+                let arc = std::sync::Arc::new(result);
+                state.ip_cache.insert(cache_key, arc.clone()).await;
+                arc
+            }
         } else {
-            let result = handlers::make_ifconfig(
+            let result = handlers::make_ifconfig_lang(
                 &target_addr,
                 &ua_opt,
                 uap,
@@ -335,37 +362,11 @@ where
                 skip_dns,
                 ctx.asn_patterns.as_ref(),
                 ctx.asn_info.as_deref(),
+                lang,
             )
             .await;
-            let arc = std::sync::Arc::new(result);
-            state.ip_cache.insert(cache_key, arc.clone()).await;
-            arc
-        }
-    } else {
-        let result = handlers::make_ifconfig_lang(
-            &target_addr,
-            &ua_opt,
-            uap,
-            city,
-            asn,
-            tor,
-            ctx.feodo_botnet_ips.as_deref(),
-            ctx.cins_army_ips.as_deref(),
-            ctx.vpn_ranges.as_deref(),
-            ctx.cloud_provider_db.as_deref(),
-            ctx.datacenter_ranges.as_deref(),
-            ctx.bot_db.as_deref(),
-            ctx.spamhaus_drop.as_deref(),
-            &ctx.dns_resolver,
-            &state.dns_cache,
-            skip_dns,
-            ctx.asn_patterns.as_ref(),
-            ctx.asn_info.as_deref(),
-            lang,
-        )
-        .await;
-        std::sync::Arc::new(result)
-    };
+            std::sync::Arc::new(result)
+        };
     let ifconfig: &crate::backend::Ifconfig = &ifconfig;
 
     let fields = format::parse_fields_param(&req_info.uri);
@@ -1097,7 +1098,7 @@ async fn batch_dispatch(
                     return (
                         i,
                         json!({"error": {"code": "TIMEOUT", "message": "lookup timed out"}, "index": i}),
-                    )
+                    );
                 }
             };
 
@@ -1657,10 +1658,7 @@ fn is_special_prefix(ip: std::net::IpAddr) -> bool {
         (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
     )
 )]
-async fn range_handler(
-    State(state): State<AppState>,
-    Query(params): Query<RangeQuery>,
-) -> Response {
+async fn range_handler(State(state): State<AppState>, Query(params): Query<RangeQuery>) -> Response {
     // Parse as IpNetwork (ipnetwork crate via ip_network)
     let network: ip_network::IpNetwork = match params.cidr.parse() {
         Ok(n) => n,
@@ -1715,18 +1713,18 @@ async fn range_handler(
         .map(|db| db.lookup(network_addr))
         .unwrap_or(false);
 
-    let asn_class = crate::backend::asn_heuristic::classify_asn(
-        asn_number,
-        asn_org.as_deref(),
-        ctx.asn_patterns.as_ref(),
-    );
+    let asn_class =
+        crate::backend::asn_heuristic::classify_asn(asn_number, asn_org.as_deref(), ctx.asn_patterns.as_ref());
     let is_datacenter = is_cloud
         || ctx
             .datacenter_ranges
             .as_deref()
             .map(|db| db.lookup(network_addr))
             .unwrap_or(false)
-        || matches!(asn_class, crate::backend::asn_heuristic::AsnClassification::Hosting { .. });
+        || matches!(
+            asn_class,
+            crate::backend::asn_heuristic::AsnClassification::Hosting { .. }
+        );
 
     let network_type = if is_botnet_c2 {
         "c2"
@@ -1794,24 +1792,44 @@ async fn diff_handler(
                 StatusCode::BAD_REQUEST,
                 "INVALID_FORMAT",
                 "request body must be JSON with fields \"a\" and \"b\"",
-            )
+            );
         }
     };
 
     let ip_a: std::net::IpAddr = match req.a.parse() {
         Ok(ip) => ip,
-        Err(_) => return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "invalid IP address in field \"a\""),
+        Err(_) => {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "INVALID_IP",
+                "invalid IP address in field \"a\"",
+            );
+        }
     };
     let ip_b: std::net::IpAddr = match req.b.parse() {
         Ok(ip) => ip,
-        Err(_) => return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "invalid IP address in field \"b\""),
+        Err(_) => {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "INVALID_IP",
+                "invalid IP address in field \"b\"",
+            );
+        }
     };
 
     if !state.config.internal_mode && !is_global_ip(ip_a) {
-        return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "IP \"a\" is not a globally routable address");
+        return error_response(
+            StatusCode::BAD_REQUEST,
+            "INVALID_IP",
+            "IP \"a\" is not a globally routable address",
+        );
     }
     if !state.config.internal_mode && !is_global_ip(ip_b) {
-        return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "IP \"b\" is not a globally routable address");
+        return error_response(
+            StatusCode::BAD_REQUEST,
+            "INVALID_IP",
+            "IP \"b\" is not a globally routable address",
+        );
     }
 
     // Rate-limit: consume 2 tokens (two lookups)
@@ -1825,8 +1843,7 @@ async fn diff_handler(
             let wait = not_until.wait_time_from(DefaultClock::default().now());
             let retry_after = wait.as_secs().saturating_add(1);
             let mut resp = error_response(StatusCode::TOO_MANY_REQUESTS, "RATE_LIMITED", "rate limit exceeded");
-            resp.headers_mut()
-                .insert("retry-after", HeaderValue::from(retry_after));
+            resp.headers_mut().insert("retry-after", HeaderValue::from(retry_after));
             return resp;
         }
         Err(_) => {

@@ -13,21 +13,69 @@ struct V6Entry {
 }
 
 static V4_TABLE: &[V4Entry] = &[
-    V4Entry { prefix: std::net::Ipv4Addr::new(0, 0, 0, 0), prefix_len: 8, label: "This host on this network" },
-    V4Entry { prefix: std::net::Ipv4Addr::new(100, 64, 0, 0), prefix_len: 10, label: "Shared Address Space" },
-    V4Entry { prefix: std::net::Ipv4Addr::new(192, 0, 0, 0), prefix_len: 24, label: "IETF Protocol Assignments" },
-    V4Entry { prefix: std::net::Ipv4Addr::new(192, 0, 2, 0), prefix_len: 24, label: "Documentation (TEST-NET-1)" },
-    V4Entry { prefix: std::net::Ipv4Addr::new(198, 18, 0, 0), prefix_len: 15, label: "Benchmarking" },
-    V4Entry { prefix: std::net::Ipv4Addr::new(198, 51, 100, 0), prefix_len: 24, label: "Documentation (TEST-NET-2)" },
-    V4Entry { prefix: std::net::Ipv4Addr::new(203, 0, 113, 0), prefix_len: 24, label: "Documentation (TEST-NET-3)" },
-    V4Entry { prefix: std::net::Ipv4Addr::new(240, 0, 0, 0), prefix_len: 4, label: "Reserved" },
+    V4Entry {
+        prefix: std::net::Ipv4Addr::new(0, 0, 0, 0),
+        prefix_len: 8,
+        label: "This host on this network",
+    },
+    V4Entry {
+        prefix: std::net::Ipv4Addr::new(100, 64, 0, 0),
+        prefix_len: 10,
+        label: "Shared Address Space",
+    },
+    V4Entry {
+        prefix: std::net::Ipv4Addr::new(192, 0, 0, 0),
+        prefix_len: 24,
+        label: "IETF Protocol Assignments",
+    },
+    V4Entry {
+        prefix: std::net::Ipv4Addr::new(192, 0, 2, 0),
+        prefix_len: 24,
+        label: "Documentation (TEST-NET-1)",
+    },
+    V4Entry {
+        prefix: std::net::Ipv4Addr::new(198, 18, 0, 0),
+        prefix_len: 15,
+        label: "Benchmarking",
+    },
+    V4Entry {
+        prefix: std::net::Ipv4Addr::new(198, 51, 100, 0),
+        prefix_len: 24,
+        label: "Documentation (TEST-NET-2)",
+    },
+    V4Entry {
+        prefix: std::net::Ipv4Addr::new(203, 0, 113, 0),
+        prefix_len: 24,
+        label: "Documentation (TEST-NET-3)",
+    },
+    V4Entry {
+        prefix: std::net::Ipv4Addr::new(240, 0, 0, 0),
+        prefix_len: 4,
+        label: "Reserved",
+    },
 ];
 
 static V6_TABLE: &[V6Entry] = &[
-    V6Entry { prefix: std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1), prefix_len: 128, label: "Loopback" },
-    V6Entry { prefix: std::net::Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 0), prefix_len: 32, label: "Documentation" },
-    V6Entry { prefix: std::net::Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, 0), prefix_len: 7, label: "Unique Local" },
-    V6Entry { prefix: std::net::Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 0), prefix_len: 10, label: "Link-Local" },
+    V6Entry {
+        prefix: std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1),
+        prefix_len: 128,
+        label: "Loopback",
+    },
+    V6Entry {
+        prefix: std::net::Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 0),
+        prefix_len: 32,
+        label: "Documentation",
+    },
+    V6Entry {
+        prefix: std::net::Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, 0),
+        prefix_len: 7,
+        label: "Unique Local",
+    },
+    V6Entry {
+        prefix: std::net::Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 0),
+        prefix_len: 10,
+        label: "Link-Local",
+    },
 ];
 
 fn v4_matches(addr: std::net::Ipv4Addr, prefix: std::net::Ipv4Addr, prefix_len: u8) -> bool {
@@ -150,10 +198,7 @@ mod tests {
 
     #[test]
     fn ipv6_loopback() {
-        assert_eq!(
-            lookup_iana_label("::1".parse().unwrap()),
-            Some("Loopback".to_string())
-        );
+        assert_eq!(lookup_iana_label("::1".parse().unwrap()), Some("Loopback".to_string()));
     }
 
     #[test]

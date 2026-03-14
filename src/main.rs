@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{info, warn};
 
-use ifconfig_rs::{build_app, Config, enrichment::EnrichmentContext};
+use ifconfig_rs::{Config, build_app, enrichment::EnrichmentContext};
 
 #[tokio::main]
 async fn main() {

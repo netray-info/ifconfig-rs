@@ -22,8 +22,8 @@ pub use vpn::VpnRanges;
 
 use lru::LruCache;
 use maxminddb::{self, geoip2};
-use mhost::resolver::{MultiQuery, ResolverGroup};
 use mhost::RecordType;
+use mhost::resolver::{MultiQuery, ResolverGroup};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
@@ -375,21 +375,22 @@ fn names_lookup_lang<'a>(names: &maxminddb::geoip2::Names<'a>, lang: &str) -> Op
 }
 
 pub static ANYCAST_ASNS: &[u32] = &[
-    13335, // Cloudflare
+    13335,  // Cloudflare
     209242, // Cloudflare
-    54113, // Fastly
-    20940, // Akamai
-    16625, // Akamai
-    15169, // Google
+    54113,  // Fastly
+    20940,  // Akamai
+    16625,  // Akamai
+    15169,  // Google
 ];
 
 static ANYCAST_ORG_PATTERNS: &[&str] = &["cloudflare", "akamai", "fastly"];
 
 fn is_anycast_asn(asn_number: Option<u32>, asn_org: Option<&str>) -> bool {
     if let Some(n) = asn_number
-        && ANYCAST_ASNS.contains(&n) {
-            return true;
-        }
+        && ANYCAST_ASNS.contains(&n)
+    {
+        return true;
+    }
     if let Some(org) = asn_org {
         let lower = org.to_ascii_lowercase();
         if ANYCAST_ORG_PATTERNS.iter().any(|pat| lower.contains(pat)) {

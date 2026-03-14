@@ -202,9 +202,10 @@ pub mod network {
             lines.push(format!("cloud:      {}", parts.join(" · ")));
         }
         if let Some(ref v) = n.vpn
-            && let Some(ref p) = v.provider {
-                lines.push(format!("vpn:        {}", p));
-            }
+            && let Some(ref p) = v.provider
+        {
+            lines.push(format!("vpn:        {}", p));
+        }
         if let Some(ref b) = n.bot {
             lines.push(format!("bot:        {}", b.provider));
         }
@@ -300,9 +301,10 @@ pub mod all {
                 lines.push(format!("cloud:      {}", parts.join(" · ")));
             }
             if let Some(ref v) = n.vpn
-                && let Some(ref p) = v.provider {
-                    lines.push(format!("vpn:        {}", p));
-                }
+                && let Some(ref p) = v.provider
+            {
+                lines.push(format!("vpn:        {}", p));
+            }
             if let Some(ref b) = n.bot {
                 lines.push(format!("bot:        {}", b.provider));
             }
@@ -390,7 +392,11 @@ pub mod headers {
         format.serialize_body(&json_val)
     }
 
-    pub fn formatted_with_xff(format: &OutputFormat, headers: &[(String, String)], xff_chain: &[String]) -> Option<String> {
+    pub fn formatted_with_xff(
+        format: &OutputFormat,
+        headers: &[(String, String)],
+        xff_chain: &[String],
+    ) -> Option<String> {
         let json_val = to_json_value_with_xff(headers, xff_chain);
         format.serialize_body(&json_val)
     }

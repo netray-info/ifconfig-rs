@@ -323,10 +323,16 @@ async fn handle_user_agent_plain_cli() {
 
 #[tokio::test]
 async fn handle_user_agent_json() {
-    let req = get_with_headers("/user_agent", &[
-        ("accept", "application/json"),
-        ("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8"),
-    ]);
+    let req = get_with_headers(
+        "/user_agent",
+        &[
+            ("accept", "application/json"),
+            (
+                "user-agent",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8",
+            ),
+        ],
+    );
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
@@ -337,9 +343,13 @@ async fn handle_user_agent_json() {
 
 #[tokio::test]
 async fn handle_user_agent_json_json() {
-    let req = get_with_headers("/user_agent/json", &[
-        ("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8"),
-    ]);
+    let req = get_with_headers(
+        "/user_agent/json",
+        &[(
+            "user-agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8",
+        )],
+    );
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
@@ -899,9 +909,13 @@ async fn cache_control_404_error() {
 
 #[tokio::test]
 async fn handle_user_agent_yaml_suffix() {
-    let req = get_with_headers("/user_agent/yaml", &[
-        ("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8"),
-    ]);
+    let req = get_with_headers(
+        "/user_agent/yaml",
+        &[(
+            "user-agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8",
+        )],
+    );
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
@@ -911,9 +925,13 @@ async fn handle_user_agent_yaml_suffix() {
 
 #[tokio::test]
 async fn handle_user_agent_toml_suffix() {
-    let req = get_with_headers("/user_agent/toml", &[
-        ("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8"),
-    ]);
+    let req = get_with_headers(
+        "/user_agent/toml",
+        &[(
+            "user-agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8",
+        )],
+    );
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);
@@ -923,9 +941,13 @@ async fn handle_user_agent_toml_suffix() {
 
 #[tokio::test]
 async fn handle_user_agent_csv_suffix() {
-    let req = get_with_headers("/user_agent/csv", &[
-        ("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8"),
-    ]);
+    let req = get_with_headers(
+        "/user_agent/csv",
+        &[(
+            "user-agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8",
+        )],
+    );
     let (status, headers, body) = send_request(req, remote_v4("192.168.0.101", 8000)).await;
     assert_eq!(status, StatusCode::OK);
     let ct = content_type_str(&headers);

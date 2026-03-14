@@ -15,7 +15,15 @@ pub enum NegotiatedFormat {
 }
 
 static KNOWN_CLI_CLIENTS: LazyLock<RegexSet> = LazyLock::new(|| {
-    RegexSet::new([r"curl", r"HTTPie", r"HTTP Library", r"Wget", r"python-httpx", r"python-requests"]).unwrap()
+    RegexSet::new([
+        r"curl",
+        r"HTTPie",
+        r"HTTP Library",
+        r"Wget",
+        r"python-httpx",
+        r"python-requests",
+    ])
+    .unwrap()
 });
 
 pub fn is_cli_client(ua: Option<&str>, accept: Option<&str>) -> bool {

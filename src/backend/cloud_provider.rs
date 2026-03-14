@@ -33,17 +33,18 @@ impl CloudProviderDb {
                 continue;
             }
             if let Ok(entry) = serde_json::from_str::<JsonlEntry>(line)
-                && let Ok(network) = entry.cidr.parse::<ip_network::IpNetwork>() {
-                    table.insert(
-                        network,
-                        CloudProvider {
-                            provider: entry.provider,
-                            service: entry.service,
-                            region: entry.region,
-                        },
-                    );
-                    count += 1;
-                }
+                && let Ok(network) = entry.cidr.parse::<ip_network::IpNetwork>()
+            {
+                table.insert(
+                    network,
+                    CloudProvider {
+                        provider: entry.provider,
+                        service: entry.service,
+                        region: entry.region,
+                    },
+                );
+                count += 1;
+            }
         }
 
         if count == 0 {

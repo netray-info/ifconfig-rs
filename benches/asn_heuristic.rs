@@ -1,6 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
-use ifconfig_rs::backend::asn_heuristic::{classify_asn, AsnPatterns};
+use ifconfig_rs::backend::asn_heuristic::{AsnPatterns, classify_asn};
 
 fn bench_classify_asn(c: &mut Criterion) {
     let patterns = AsnPatterns::builtin();

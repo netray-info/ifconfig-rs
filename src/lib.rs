@@ -11,11 +11,11 @@ pub mod routes;
 pub mod state;
 
 use arc_swap::ArcSwap;
+use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::middleware as axum_mw;
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::Router;
 use enrichment::EnrichmentContext;
 use state::AppState;
 use std::sync::Arc;

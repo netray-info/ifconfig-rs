@@ -1,4 +1,4 @@
-use crate::backend::{new_dns_cache, DnsCache, Ifconfig};
+use crate::backend::{DnsCache, Ifconfig, new_dns_cache};
 use crate::config::Config;
 use crate::enrichment::EnrichmentContext;
 use arc_swap::ArcSwap;

@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 use axum::http::{HeaderMap, HeaderValue};
 use ifconfig_rs::negotiate::negotiate;
