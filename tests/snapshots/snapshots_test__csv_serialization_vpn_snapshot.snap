@@ -1,0 +1,44 @@
+---
+source: tests/snapshots_test.rs
+assertion_line: 228
+expression: csv
+---
+key,value
+ip.addr,198.51.100.1
+ip.hostname,
+ip.version,4
+location.accuracy_radius_km,500
+location.city,Stockholm
+location.continent,Europe
+location.continent_code,EU
+location.country,Sweden
+location.country_iso,SE
+location.is_eu,true
+location.latitude,59.3293
+location.longitude,18.0686
+location.postal_code,
+location.region,Stockholm County
+location.region_code,AB
+location.registered_country,Sweden
+location.registered_country_iso,SE
+location.timezone,Europe/Stockholm
+network.asn,39351
+network.asn_category,
+network.asn_registered,
+network.bot,
+network.cloud,
+network.infra_type,datacenter
+network.is_bot,false
+network.is_c2,false
+network.is_datacenter,true
+network.is_internal,false
+network.is_spamhaus,false
+network.is_tor,false
+network.is_vpn,true
+network.network_role,
+network.org,31173 Services AB
+network.prefix,198.51.100.0/24
+network.type,vpn
+network.vpn.provider,Mullvad
+tcp,
+user_agent,

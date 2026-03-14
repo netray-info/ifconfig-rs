@@ -1,0 +1,50 @@
+---
+source: tests/snapshots_test.rs
+assertion_line: 190
+expression: yaml
+---
+ip:
+  addr: 8.8.8.8
+  hostname: dns.google
+  version: '4'
+location:
+  accuracy_radius_km: 1000
+  city: Mountain View
+  continent: North America
+  continent_code: NA
+  country: United States
+  country_iso: US
+  is_eu: false
+  latitude: 37.386
+  longitude: -122.0838
+  postal_code: '94043'
+  region: California
+  region_code: CA
+  registered_country: United States
+  registered_country_iso: US
+  timezone: America/Los_Angeles
+network:
+  asn: 15169
+  asn_category: hosting
+  asn_registered: 2000-03-30
+  bot: null
+  cloud:
+    provider: gcp
+    region: us-central1
+    service: DNS
+  infra_type: cloud
+  is_bot: false
+  is_c2: false
+  is_datacenter: true
+  is_internal: false
+  is_spamhaus: false
+  is_tor: false
+  is_vpn: false
+  network_role: tier1_transit
+  org: Google LLC
+  prefix: 8.8.8.0/24
+  type: cloud
+  vpn: null
+tcp:
+  port: 54321
+user_agent: null

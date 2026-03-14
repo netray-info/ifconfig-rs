@@ -1,0 +1,53 @@
+---
+source: tests/snapshots_test.rs
+assertion_line: 169
+expression: value
+---
+{
+  "ip": {
+    "addr": "198.51.100.1",
+    "hostname": null,
+    "version": "4"
+  },
+  "location": {
+    "accuracy_radius_km": 500,
+    "city": "Stockholm",
+    "continent": "Europe",
+    "continent_code": "EU",
+    "country": "Sweden",
+    "country_iso": "SE",
+    "is_eu": true,
+    "latitude": 59.3293,
+    "longitude": 18.0686,
+    "postal_code": null,
+    "region": "Stockholm County",
+    "region_code": "AB",
+    "registered_country": "Sweden",
+    "registered_country_iso": "SE",
+    "timezone": "Europe/Stockholm"
+  },
+  "network": {
+    "asn": 39351,
+    "asn_category": null,
+    "asn_registered": null,
+    "bot": null,
+    "cloud": null,
+    "infra_type": "datacenter",
+    "is_bot": false,
+    "is_c2": false,
+    "is_datacenter": true,
+    "is_internal": false,
+    "is_spamhaus": false,
+    "is_tor": false,
+    "is_vpn": true,
+    "network_role": null,
+    "org": "31173 Services AB",
+    "prefix": "198.51.100.0/24",
+    "type": "vpn",
+    "vpn": {
+      "provider": "Mullvad"
+    }
+  },
+  "tcp": null,
+  "user_agent": null
+}
