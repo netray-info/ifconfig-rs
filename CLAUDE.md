@@ -84,6 +84,8 @@ Key modules:
 - `src/backend/datacenter.rs` — Datacenter IP range matching
 - `src/backend/feodo.rs` — Feodo C2 botnet IP matching; `is_loaded()` reports whether the IP list was successfully loaded
 - `src/backend/spamhaus.rs` — Spamhaus DROP/EDROP threat list matching
+- `src/backend/cins.rs` — CINS Army bad-actor IP list matching; enables `is_cins` detection
+- `src/backend/iana.rs` — IANA special-purpose registry label lookup; returns `iana_label` string for reserved/special address ranges (e.g. "Shared Address Space")
 - `src/enrichment.rs` — `EnrichmentContext` struct with `ArcSwap` hot-reload via SIGHUP; emits `enrichment_sources_loaded` gauges on load/reload. Mandatory sources (`geoip_city_db`, `geoip_asn_db`, `user_agent_regexes`): if configured but fails to load, logs `error!()` and returns `Err(LoadError)` (process exits via `.expect()` in `AppState::new()`). All not-configured optional sources emit `warn!()` at startup. Populates `missing_optional: Vec<&'static str>` (8 sources) for the `/ready` endpoint `warnings` array.
 - `src/routes.rs` — Axum router with explicit handler functions, `dispatch_standard()` compute-once dispatch, batch handler, OpenAPI spec via utoipa, Scalar API docs UI at `/docs`, static file serving via rust-embed
 - `src/scalar_docs.html` — Lightweight HTML page for Scalar API reference UI (loaded via `include_str!()`; CDN dependency is client-side only)
@@ -94,13 +96,13 @@ Key modules:
 - `src/error.rs` — `AppError` enum with `IntoResponse` impl; `ErrorResponse` struct (JSON `{error, status}` body) and `error_response()` helper used by all error paths
 - `src/format.rs` — `OutputFormat` enum with serialization to JSON/YAML/TOML/CSV/plain
 
-**Content negotiation priority**: Format suffix (`/ip/json`) → CLI detection (curl/wget/httpie + Accept: */*) → Accept header → HTML (serve SPA).
+**Content negotiation priority**: Format suffix (`/ip/json`) → `?format=` parameter → CLI detection (curl/wget/httpie/python-httpx/python-requests + Accept: */*) → Accept header → HTML (serve SPA).
 
-**API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/meta`, `/health`, `/ready` — all (except probes, `/ip/cidr`, and `/meta`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/meta` returns JSON site metadata (site name, version) used by the SPA. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability and returns a `warnings` array for any configured-but-failed optional sources. `/docs` serves the Scalar API reference UI. `/api-docs/openapi.json` serves the OpenAPI spec.
+**API endpoints**: `/`, `/ip`, `/ip/cidr`, `/tcp`, `/host`, `/location`, `/isp`, `/network`, `/user_agent`, `/all`, `/headers`, `/ipv4`, `/ipv6`, `/meta`, `/health`, `/ready`, `GET /asn/{number}`, `GET /range?cidr=`, `POST /diff` — all (except probes, `/ip/cidr`, and `/meta`) support format suffixes (`/json`, `/yaml`, `/toml`, `/csv`) and Accept header negotiation. `/ip/cidr` returns plain text only (`{ip}/32` or `{ip}/128`). `/meta` returns JSON site metadata (site name, version) used by the SPA. `/health` is a liveness probe; `/ready` is a readiness probe that checks GeoIP database availability and returns a `warnings` array for any configured-but-failed optional sources. `/docs` serves the Scalar API reference UI. `/api-docs/openapi.json` serves the OpenAPI spec. `GET /asn/{number}` returns org, category, network_role, and is_anycast for an ASN. `GET /range?cidr=<prefix>` returns classification of a CIDR network address. `POST /diff` accepts `{"a":"<ip>","b":"<ip>"}` and returns a side-by-side enrichment comparison.
 
 **Batch endpoint**: `POST /batch` (and `/batch/{format}`) accepts a JSON array of IP addresses and returns enrichment results for each. Disabled by default (`batch.enabled = true` in config). N IPs consume N rate-limit tokens. Supports `?fields=` and `?dns=true` (PTR skipped by default in batch for performance; opt in via `?dns=true`).
 
-**Query parameters**: Most endpoints support `?ip=` (look up an arbitrary global IP instead of the caller's), `?fields=` (comma-separated top-level field names to include in response), and `?dns=false` (opt-out PTR lookup for `?ip=` queries; PTR is performed by default for `?ip=` queries). For `?ip=` queries, `tcp` is omitted (source port is synthetic). PTR lookup behavior is controlled by `parse_dns_param()` returning `Option<bool>`: `None` = absent (use per-context default), `Some(true/false)` = explicit override.
+**Query parameters**: Most endpoints support `?ip=` (look up an arbitrary global IP instead of the caller's), `?fields=` (comma-separated top-level field names to include in response), `?dns=false` (opt-out PTR lookup for `?ip=` queries; PTR is performed by default for `?ip=` queries), `?format=<json|yaml|toml|csv>` (alias for path suffix), and `?lang=<BCP-47>` (locale-aware city/country names, e.g. `?lang=de`). For `?ip=` queries, `tcp` is omitted (source port is synthetic). PTR lookup behavior is controlled by `parse_dns_param()` returning `Option<bool>`: `None` = absent (use per-context default), `Some(true/false)` = explicit override.
 
 **OpenAPI**: Spec served at `GET /api-docs/openapi.json` via utoipa. All public endpoints are annotated with `#[utoipa::path]` with descriptions, `?ip=`/`?fields=`/`?dns=` params, and error responses (`body = ErrorResponse`). Response types derive `ToSchema` with `#[schema(example = ...)]` on all fields. The spec version is patched at runtime from `CARGO_PKG_VERSION` (no manual sync needed). Interactive docs via Scalar UI at `GET /docs`.
 
@@ -155,6 +157,7 @@ vpn_ranges = "data/vpn_ranges.txt"
 datacenter_ranges = "data/datacenter_ranges.txt"
 bot_ranges = "data/bot_ranges.jsonl"
 spamhaus_drop = "data/spamhaus_drop.txt"
+cins_army_ips = "data/cins_army_ips.txt"
 # filtered_headers = ["^x-koyeb-", "^cf-"]
 # watch_data_files = false
 
@@ -172,6 +175,11 @@ per_ip_burst = 10
 [batch]
 enabled = true     # disabled by default
 max_size = 100     # max IPs per batch request
+
+[cache]
+enabled = true
+ttl_secs = 300
+max_entries = 1024
 ```
 
 `watch_data_files = true` enables filesystem watcher for auto-reload of data files (alternative to SIGHUP).
@@ -179,6 +187,7 @@ max_size = 100     # max IPs per batch request
 Env var examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.netray.info`, `IFCONFIG_SERVER__ADMIN_TOKEN=secret`.
 Structured JSON logging: `IFCONFIG_LOG_FORMAT=json`.
 Print effective config and exit: `--print-config` flag.
+Validate all configured data files and exit: `--check` flag (exit 0 = all files ok, exit 1 = one or more failed). Useful in deploy scripts and container startup checks.
 
 Config is validated at load time (`Config::validate()`) — zero rate-limit values are rejected with a descriptive error before the server starts.
 
@@ -191,7 +200,7 @@ GitHub Actions: check → clippy → fmt → build/test → Docker integration t
 ## Common Patterns
 
 - Routes use explicit handler functions with `dispatch_standard()` for compute-once dispatch. Each handler module in `handlers.rs` exposes `to_json(&Ifconfig) -> Option<Value>` and `to_plain(&Ifconfig) -> String` fn pointers.
-- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `tcp` is `Option<Tcp>` (null for `?ip=` queries where the port is synthetic). `Location` includes `region`, `region_code`, `postal_code`, `is_eu`, and `accuracy_radius_km` from GeoIP. `Network` struct holds IP classification: flat boolean flags (`is_vpn`, `is_tor`, `is_bot`, `is_c2`, `is_spamhaus`, `is_datacenter`, `is_internal`), two-dimension output (`type` = priority summary, `infra_type` = infrastructure), typed identity objects (`cloud: CloudInfo`, `vpn: VpnInfo`, `bot: NetworkBot`), and ASN metadata (`asn_category`, `network_role` from ipverse/as-metadata).
+- `Ifconfig` struct in `backend/mod.rs` is the central data model — all endpoint responses derive from it. `tcp` is `Option<Tcp>` (null for `?ip=` queries where the port is synthetic). `Location` includes `region`, `region_code`, `postal_code`, `is_eu`, and `accuracy_radius_km` from GeoIP. `Network` struct holds IP classification: flat boolean flags (`is_vpn`, `is_tor`, `is_bot`, `is_c2`, `is_spamhaus`, `is_datacenter`, `is_internal`, `is_anycast`, `is_cins`), two-dimension output (`type` = priority summary, `infra_type` = infrastructure), typed identity objects (`cloud: CloudInfo`, `vpn: VpnInfo`, `bot: NetworkBot`), ASN metadata (`asn_category`, `network_role` from ipverse/as-metadata), and `iana_label: Option<String>` (IANA special-purpose registry label, e.g. "Shared Address Space").
 - CLI client detection in `negotiate.rs` checks User-Agent patterns and `Accept: */*` header.
 - Config values are loaded from a TOML file (`ifconfig.dev.toml` for local dev) via the `config` crate with env var overrides.
 - `AppState` is shared via Axum's `State` extractor; all backends are `Arc`-wrapped.

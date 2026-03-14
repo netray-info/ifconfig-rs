@@ -132,7 +132,10 @@ Every endpoint accepts a format suffix or an `Accept` header — see [Output For
 | `/network` | Network classification (type, provider, flags) | `curl ip.netray.info/network` |
 | `/user_agent` | Parsed browser / OS / device info | `curl ip.netray.info/user_agent` |
 | `/all` | Everything at once | `curl ip.netray.info/all` |
-| `/headers` | Your raw request headers | `curl ip.netray.info/headers` |
+| `/headers` | Your raw request headers (includes `x_forwarded_for_chain`) | `curl ip.netray.info/headers` |
+| `GET /asn/{number}` | ASN lookup by number (org, category, network_role, is_anycast) | `curl ip.netray.info/asn/15169` |
+| `GET /range?cidr=<prefix>` | Classification of the given CIDR network address | `curl 'ip.netray.info/range?cidr=8.8.8.0/24'` |
+| `POST /diff` | Compare enrichment between two IPs (body: `{"a":"<ip>","b":"<ip>"}`) | `curl -X POST -d '{"a":"8.8.8.8","b":"1.1.1.1"}' ip.netray.info/diff` |
 | `POST /batch` | Bulk IP lookup (JSON array input) | `curl -X POST -d '["8.8.8.8"]' ip.netray.info/batch` |
 | `/meta` | Site metadata (name, version, batch config, rate limit settings, loaded data sources) — JSON only, used by the SPA | `curl ip.netray.info/meta` |
 | `/api-docs/openapi.json` | OpenAPI 3.1 specification | `curl ip.netray.info/api-docs/openapi.json` |
@@ -145,9 +148,19 @@ Every endpoint accepts a format suffix or an `Accept` header — see [Output For
 ifconfig-rs figures out what you want automatically — no flags needed:
 
 1. **Format suffix** — `/ip/json`, `/location/yaml`, `/all/csv` — highest priority
-2. **CLI detection** — `curl`, `wget`, `httpie` with `Accept: */*` get plain text
-3. **`Accept` header** — standard content negotiation
-4. **Default** — browsers get the SPA
+2. **`?format=` parameter** — `?format=json`, `?format=yaml`, etc. — alias for suffix, same priority
+3. **CLI detection** — `curl`, `wget`, `httpie`, `python-httpx`, `python-requests` with `Accept: */*` get plain text
+4. **`Accept` header** — standard content negotiation
+5. **Default** — browsers get the SPA
+
+### Locale-Aware Names (`?lang=`)
+
+Pass a BCP-47 language tag to receive city and country names in your preferred language (when available in the GeoIP database):
+
+```sh
+curl 'ip.netray.info/location/json?lang=de'
+curl 'ip.netray.info/all/json?ip=8.8.8.8&lang=ja'
+```
 
 ### Error Responses
 
@@ -286,6 +299,9 @@ curl -H "Accept: text/csv"         ip.netray.info/all
     "is_bot": false,
     "is_c2": false,
     "is_spamhaus": false,
+    "is_anycast": false,
+    "is_cins": false,
+    "iana_label": null,
     "cloud": null,
     "vpn": null,
     "bot": null
@@ -392,6 +408,7 @@ All data file paths are optional. When omitted, the corresponding feature is dis
 | `datacenter_ranges` | string | Text, one CIDR/line | Path to datacenter CIDR ranges. Enables CIDR-based datacenter detection. ASN name heuristic still works without this. |
 | `bot_ranges` | string | JSONL | Path to bot CIDR file. Each line: `{"cidr":"...","provider":"..."}`. Sources: Googlebot, Bingbot, Applebot, GPTBot. Enables bot detection. |
 | `spamhaus_drop` | string | Text, one CIDR/line | Path to Spamhaus DROP+EDROP+DROPv6 combined list. Enables threat/hijacked-netblock detection (`is_threat`). |
+| `cins_army_ips` | string | Text, one IP/line | Path to [CINS Army](https://cinsscore.com/) bad-actor IP list. Enables `is_cins` detection in the `network` object. |
 
 A typical `data/` directory:
 
@@ -406,7 +423,8 @@ data/
 ├── vpn_ranges.txt                  # X4BNet (v4+v6 merged)
 ├── datacenter_ranges.txt           # X4BNet datacenter list
 ├── bot_ranges.jsonl                # Googlebot+Bingbot+Applebot+GPTBot
-└── spamhaus_drop.txt               # Spamhaus DROP+EDROP+DROPv6
+├── spamhaus_drop.txt               # Spamhaus DROP+EDROP+DROPv6
+└── cins_army_ips.txt               # CINS Army bad-actor list
 ```
 
 See [`data/README.md`](data/README.md) for download instructions, sources, and how to keep files current.
@@ -438,6 +456,16 @@ All rate-limited responses include `X-RateLimit-Limit` and `X-RateLimit-Remainin
 | `batch.enabled` | boolean | `false` | Enable the `POST /batch` endpoint for bulk IP lookups. |
 | `batch.max_size` | integer | `100` | Maximum number of IPs per batch request. Each IP consumes one rate-limit token. |
 
+### Cache
+
+The `?ip=` response cache stores enrichment results in memory to reduce repeated lookups.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `cache.enabled` | boolean | `true` | Enable the in-memory LRU response cache for `?ip=` lookups. |
+| `cache.ttl_secs` | integer | `300` | Time-to-live in seconds for each cached entry. |
+| `cache.max_entries` | integer | `1024` | Maximum number of entries to hold in the cache. |
+
 ### Operational Features
 
 | Feature | Description |
@@ -465,6 +493,7 @@ vpn_ranges = "data/vpn_ranges.txt"
 datacenter_ranges = "data/datacenter_ranges.txt"
 bot_ranges = "data/bot_ranges.jsonl"
 spamhaus_drop = "data/spamhaus_drop.txt"
+cins_army_ips = "data/cins_army_ips.txt"
 
 # filtered_headers = ["^x-koyeb-", "^cf-"]
 # watch_data_files = true
@@ -483,6 +512,11 @@ per_ip_burst = 10
 [batch]
 enabled = true
 max_size = 100
+
+[cache]
+enabled = true
+ttl_secs = 300
+max_entries = 1024
 ```
 
 ### Environment Variable Overrides
@@ -509,7 +543,20 @@ IFCONFIG_LOG_FORMAT=json   # structured JSON logging (default: human-readable)
 ```sh
 ifconfig-rs ifconfig.toml                  # start server with config file
 ifconfig-rs --print-config ifconfig.toml   # print effective config (file + env) and exit
+ifconfig-rs --check ifconfig.toml          # validate all configured data files and exit (0 = ok, 1 = error)
 ```
+
+The `--check` flag is useful in deploy scripts and container health checks to verify that all data files are readable and parse correctly before starting the server.
+
+---
+
+## Frontend
+
+The SolidJS SPA at `/` provides a browser interface with a few convenience features:
+
+- **Share button** — generates a shareable `?ip=` URL using `navigator.share` when available, falling back to clipboard copy.
+- **Collapsible raw JSON** — each info card (Network, Location, User Agent) has a `{·}` toggle to reveal the raw JSON for that section.
+- **`?ip=` response cache** — repeated lookups for the same IP are served from an in-memory LRU cache (default: 5 min TTL, 1024 entries) to reduce latency and data-file load. Configurable via `[cache]` in the config file.
 
 ---
 
