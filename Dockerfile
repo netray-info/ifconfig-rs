@@ -19,7 +19,7 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates wget \
  && addgroup -S ifconfig && adduser -S ifconfig -G ifconfig
 WORKDIR /ifconfig-rs
-COPY ifconfig.prod.toml ifconfig.toml
+COPY ifconfig.example.toml ifconfig.toml
 COPY --from=builder /ifconfig-rs .
 COPY --from=data /data data/
 RUN chown -R ifconfig:ifconfig /ifconfig-rs
