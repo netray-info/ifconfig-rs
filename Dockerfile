@@ -20,6 +20,7 @@ RUN apk add --no-cache ca-certificates wget \
  && addgroup -S ifconfig && adduser -S ifconfig -G ifconfig
 WORKDIR /ifconfig-rs
 COPY ifconfig.example.toml ifconfig.toml
+ENV IFCONFIG_SERVER__BIND=0.0.0.0:8000
 COPY --from=builder /ifconfig-rs .
 COPY --from=data /data data/
 RUN chown -R ifconfig:ifconfig /ifconfig-rs
