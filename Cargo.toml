@@ -18,7 +18,7 @@ include = [
   "ifconfig.dev.toml",
   "frontend/dist/**",
 ]
-edition = "2021"
+edition = "2024"
 
 [[bin]]
 name = "ifconfig-rs"
@@ -33,7 +33,7 @@ metrics-exporter-prometheus = "0.18"
 config = "0.15"
 mhost = { version = "0.11", default-features = false }
 governor = "0.10"
-netray-common = { version = "0.3.0", features = ["schema", "middleware", "server"] }
+netray-common = { version = "0.4.1", features = ["schema", "middleware", "server", "spa", "otel"] }
 httpdate = "1"
 ip_network = "0.4"
 ip_network_table = "0.2"
@@ -67,7 +67,6 @@ tower-http = { version = "0.6", features = [
   "compression-gzip",
 ] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uaparser = "0.6"
 utoipa = { version = "5", features = ["axum_extras"] }
 
@@ -75,6 +74,7 @@ utoipa = { version = "5", features = ["axum_extras"] }
 criterion = { version = "0.8", features = ["html_reports"] }
 http-body-util = "0.1"
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+insta = { version = "1", features = ["json", "yaml", "toml"] }
 pretty_assertions = "1.4.0"
 tower = { version = "0.5", features = ["util"] }
 
