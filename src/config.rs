@@ -48,6 +48,8 @@ pub struct Config {
     pub rate_limit: RateLimitConfig,
     #[serde(default)]
     pub batch: BatchConfig,
+    #[serde(default)]
+    pub cache: CacheConfig,
     #[serde(default, skip_serializing)]
     pub telemetry: TelemetryConfig,
 }
@@ -157,6 +159,38 @@ impl Default for BatchConfig {
 impl BatchConfig {
     fn default_max_size() -> usize {
         100
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CacheConfig {
+    #[serde(default = "CacheConfig::default_enabled")]
+    pub enabled: bool,
+    #[serde(default = "CacheConfig::default_ttl_secs")]
+    pub ttl_secs: u64,
+    #[serde(default = "CacheConfig::default_max_entries")]
+    pub max_entries: u64,
+}
+
+impl Default for CacheConfig {
+    fn default() -> Self {
+        Self {
+            enabled: CacheConfig::default_enabled(),
+            ttl_secs: CacheConfig::default_ttl_secs(),
+            max_entries: CacheConfig::default_max_entries(),
+        }
+    }
+}
+
+impl CacheConfig {
+    fn default_enabled() -> bool {
+        true
+    }
+    fn default_ttl_secs() -> u64 {
+        300
+    }
+    fn default_max_entries() -> u64 {
+        1024
     }
 }
 

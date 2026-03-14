@@ -295,6 +295,9 @@ pub struct Network {
     /// Bot identity when the IP is a known crawler range.
     #[schema(example = json!(null))]
     pub bot: Option<NetworkBot>,
+    /// True when the IP belongs to a known anycast network (Cloudflare, Akamai, Fastly, Google DNS).
+    #[schema(example = false)]
+    pub is_anycast: bool,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
@@ -329,6 +332,32 @@ pub struct IfconfigParam<'a> {
     /// When true, skip the reverse DNS (PTR) lookup. Used for `?ip=` lookups
     /// where PTR is slow and usually unwanted.
     pub skip_dns: bool,
+}
+
+static ANYCAST_ASNS: &[u32] = &[
+    13335, // Cloudflare
+    209242, // Cloudflare
+    54113, // Fastly
+    20940, // Akamai
+    16625, // Akamai
+    15169, // Google
+];
+
+static ANYCAST_ORG_PATTERNS: &[&str] = &["cloudflare", "akamai", "fastly"];
+
+fn is_anycast_asn(asn_number: Option<u32>, asn_org: Option<&str>) -> bool {
+    if let Some(n) = asn_number {
+        if ANYCAST_ASNS.contains(&n) {
+            return true;
+        }
+    }
+    if let Some(org) = asn_org {
+        let lower = org.to_ascii_lowercase();
+        if ANYCAST_ORG_PATTERNS.iter().any(|pat| lower.contains(pat)) {
+            return true;
+        }
+    }
+    false
 }
 
 #[tracing::instrument(name = "get_ifconfig", skip_all, fields(ip = %param.remote.ip()))]
@@ -505,6 +534,8 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
         provider: b.provider.clone(),
     });
 
+    let is_anycast = is_anycast_asn(asn_number, asn_org.as_deref());
+
     // Build network object — primary type uses priority order:
     // internal > c2 > bot > cloud > vpn > tor > spamhaus > datacenter > residential
     let network = {
@@ -569,6 +600,7 @@ pub async fn get_ifconfig(param: &IfconfigParam<'_>) -> Ifconfig {
             cloud: if is_internal { None } else { cloud_info },
             vpn: if is_internal { None } else { vpn_info },
             bot: if is_internal { None } else { bot_info },
+            is_anycast: if is_internal { false } else { is_anycast },
         }
     };
 

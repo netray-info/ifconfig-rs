@@ -60,6 +60,7 @@ fn make_test_ifconfig() -> Ifconfig {
             }),
             vpn: None,
             bot: None,
+            is_anycast: true,
         },
         user_agent: None,
     }
@@ -111,6 +112,7 @@ fn make_test_ifconfig_with_vpn() -> Ifconfig {
                 provider: Some("Mullvad".to_string()),
             }),
             bot: None,
+            is_anycast: false,
         },
         user_agent: None,
     }
@@ -146,6 +148,7 @@ fn make_test_ifconfig_with_bot() -> Ifconfig {
             bot: Some(NetworkBot {
                 provider: "googlebot".to_string(),
             }),
+            is_anycast: true,
         },
         user_agent: None,
     }

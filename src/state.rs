@@ -1,4 +1,4 @@
-use crate::backend::{new_dns_cache, DnsCache};
+use crate::backend::{new_dns_cache, DnsCache, Ifconfig};
 use crate::config::Config;
 use crate::enrichment::EnrichmentContext;
 use arc_swap::ArcSwap;
@@ -7,12 +7,16 @@ use governor::middleware::StateInformationMiddleware;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
 use ip_network::IpNetwork;
+use moka::future::Cache;
 use regex::RegexSet;
 use serde::Serialize;
 use std::net::IpAddr;
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{info, warn};
+
+pub type IpCache = Cache<IpAddr, Arc<Ifconfig>>;
 
 pub type KeyedRateLimiter =
     RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock, StateInformationMiddleware>;
@@ -27,6 +31,7 @@ pub struct AppState {
     pub header_filters: Arc<RegexSet>,
     pub trusted_proxies: Arc<Vec<IpNetwork>>,
     pub dns_cache: Arc<DnsCache>,
+    pub ip_cache: IpCache,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -159,6 +164,11 @@ impl AppState {
             info!("Trusted proxies loaded: {} entries", trusted_proxies.len());
         }
 
+        let ip_cache = Cache::builder()
+            .max_capacity(config.cache.max_entries)
+            .time_to_live(Duration::from_secs(config.cache.ttl_secs))
+            .build();
+
         AppState {
             config: Arc::new(config.clone()),
             project_info: Arc::new(project_info),
@@ -168,6 +178,7 @@ impl AppState {
             header_filters: Arc::new(header_filters),
             trusted_proxies: Arc::new(trusted_proxies),
             dns_cache: Arc::new(new_dns_cache()),
+            ip_cache,
         }
     }
 }

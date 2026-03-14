@@ -167,6 +167,7 @@ pub mod network {
         lines.push(format!("is_spamhaus: {}", n.is_spamhaus));
         lines.push(format!("is_datacenter: {}", n.is_datacenter));
         lines.push(format!("is_internal: {}", n.is_internal));
+        lines.push(format!("is_anycast: {}", n.is_anycast));
         lines.join("\n") + "\n"
     }
 }
@@ -265,6 +266,7 @@ pub mod all {
             lines.push(format!("is_spamhaus: {}", n.is_spamhaus));
             lines.push(format!("is_datacenter: {}", n.is_datacenter));
             lines.push(format!("is_internal: {}", n.is_internal));
+            lines.push(format!("is_anycast: {}", n.is_anycast));
         }
         if let Some(ref t) = ifconfig.tcp {
             lines.push(format!("port:       {}", t.port));
@@ -321,8 +323,28 @@ pub mod headers {
         serde_json::to_value(map).unwrap_or(JsonValue::Null)
     }
 
+    pub fn to_json_value_with_xff(headers: &[(String, String)], xff_chain: &[String]) -> JsonValue {
+        let map: BTreeMap<&str, &str> = headers
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_str()))
+            .collect();
+        let mut obj = serde_json::to_value(map).unwrap_or(JsonValue::Null);
+        if let JsonValue::Object(ref mut m) = obj {
+            m.insert(
+                "x_forwarded_for_chain".to_string(),
+                serde_json::to_value(xff_chain).unwrap_or(JsonValue::Array(vec![])),
+            );
+        }
+        obj
+    }
+
     pub fn formatted(format: &OutputFormat, headers: &[(String, String)]) -> Option<String> {
         let json_val = to_json_value(headers);
+        format.serialize_body(&json_val)
+    }
+
+    pub fn formatted_with_xff(format: &OutputFormat, headers: &[(String, String)], xff_chain: &[String]) -> Option<String> {
+        let json_val = to_json_value_with_xff(headers, xff_chain);
         format.serialize_body(&json_val)
     }
 }
@@ -432,6 +454,30 @@ pub mod region {
     }
 }
 
+pub mod host {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(serde_json::json!({ "hostname": ifconfig.ip.hostname })).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        format!("{}\n", ifconfig.ip.hostname.as_deref().unwrap_or(UNKNOWN_STR))
+    }
+}
+
+pub mod isp {
+    use super::*;
+
+    pub fn to_json(ifconfig: &Ifconfig) -> Option<serde_json::Value> {
+        serde_json::to_value(&ifconfig.network).ok()
+    }
+
+    pub fn to_plain(ifconfig: &Ifconfig) -> String {
+        network::to_plain(ifconfig)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -486,6 +532,7 @@ mod tests {
             cloud: None,
             vpn: None,
             bot: None,
+            is_anycast: false,
         }
     }
 
@@ -610,6 +657,7 @@ mod tests {
             }),
             vpn: None,
             bot: None,
+            is_anycast: false,
         };
         let ifc = make_ifconfig(None, None, n);
         let plain = network::to_plain(&ifc);

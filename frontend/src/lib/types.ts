@@ -46,6 +46,7 @@ export interface Network {
   cloud: CloudInfo | null;
   vpn: VpnInfo | null;
   bot: NetworkBot | null;
+  is_anycast: boolean;
 }
 
 export interface Ip {

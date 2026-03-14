@@ -53,6 +53,8 @@ fn check_target_rate_limit(state: &AppState, target_ip: IpAddr) -> Option<Respon
         network_handler,
         all_handler,
         headers_handler,
+        host_handler,
+        isp_handler,
         ipv4_handler,
         ipv6_handler,
         country_handler,
@@ -108,6 +110,10 @@ pub fn router() -> Router<AppState> {
         .route("/user_agent/{fmt}", get(user_agent_format_handler))
         .route("/network", get(network_handler))
         .route("/network/{fmt}", get(network_format_handler))
+        .route("/host", get(host_handler))
+        .route("/host/{fmt}", get(host_format_handler))
+        .route("/isp", get(isp_handler))
+        .route("/isp/{fmt}", get(isp_format_handler))
         .route("/all", get(all_handler))
         .route("/all/{fmt}", get(all_format_handler))
         // Sub-field endpoints
@@ -268,7 +274,8 @@ where
     }
 
     // Parse ?ip= to override target IP
-    let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
+    let ip_param = parse_ip_param(&req_info.uri);
+    let (target_addr, skip_dns) = match ip_param {
         Some(ip) => {
             if !state.config.internal_mode && !is_global_ip(ip) {
                 return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "private/loopback IP not allowed");
@@ -288,26 +295,61 @@ where
     let (uap, city, asn, tor) = resolve_core_backends(&ctx);
 
     let ua_opt = req_info.user_agent.as_deref();
-    let ifconfig = handlers::make_ifconfig(
-        &target_addr,
-        &ua_opt,
-        uap,
-        city,
-        asn,
-        tor,
-        ctx.feodo_botnet_ips.as_deref(),
-        ctx.vpn_ranges.as_deref(),
-        ctx.cloud_provider_db.as_deref(),
-        ctx.datacenter_ranges.as_deref(),
-        ctx.bot_db.as_deref(),
-        ctx.spamhaus_drop.as_deref(),
-        &ctx.dns_resolver,
-        &state.dns_cache,
-        skip_dns,
-        ctx.asn_patterns.as_ref(),
-        ctx.asn_info.as_deref(),
-    )
-    .await;
+
+    // Check the ?ip= cache when an explicit IP is requested.
+    let ifconfig: std::sync::Arc<crate::backend::Ifconfig> = if ip_param.is_some() && state.config.cache.enabled {
+        let cache_key = target_addr.ip();
+        if let Some(cached) = state.ip_cache.get(&cache_key).await {
+            cached
+        } else {
+            let result = handlers::make_ifconfig(
+                &target_addr,
+                &ua_opt,
+                uap,
+                city,
+                asn,
+                tor,
+                ctx.feodo_botnet_ips.as_deref(),
+                ctx.vpn_ranges.as_deref(),
+                ctx.cloud_provider_db.as_deref(),
+                ctx.datacenter_ranges.as_deref(),
+                ctx.bot_db.as_deref(),
+                ctx.spamhaus_drop.as_deref(),
+                &ctx.dns_resolver,
+                &state.dns_cache,
+                skip_dns,
+                ctx.asn_patterns.as_ref(),
+                ctx.asn_info.as_deref(),
+            )
+            .await;
+            let arc = std::sync::Arc::new(result);
+            state.ip_cache.insert(cache_key, arc.clone()).await;
+            arc
+        }
+    } else {
+        let result = handlers::make_ifconfig(
+            &target_addr,
+            &ua_opt,
+            uap,
+            city,
+            asn,
+            tor,
+            ctx.feodo_botnet_ips.as_deref(),
+            ctx.vpn_ranges.as_deref(),
+            ctx.cloud_provider_db.as_deref(),
+            ctx.datacenter_ranges.as_deref(),
+            ctx.bot_db.as_deref(),
+            ctx.spamhaus_drop.as_deref(),
+            &ctx.dns_resolver,
+            &state.dns_cache,
+            skip_dns,
+            ctx.asn_patterns.as_ref(),
+            ctx.asn_info.as_deref(),
+        )
+        .await;
+        std::sync::Arc::new(result)
+    };
+    let ifconfig: &crate::backend::Ifconfig = &ifconfig;
 
     let fields = format::parse_fields_param(&req_info.uri);
 
@@ -561,6 +603,48 @@ standard_endpoint! {
     module = handlers::network,
 }
 
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/host",
+        tag = "IP",
+        description = "Returns the reverse DNS hostname of the caller's IP, or null if not available.",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
+        ),
+        responses(
+            (status = 200, description = "Hostname or null", body = Ip),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = host_handler,
+    format_handler = host_format_handler,
+    module = handlers::host,
+}
+
+standard_endpoint! {
+    #[utoipa::path(
+        get, path = "/isp",
+        tag = "Network",
+        description = "Returns the network/ISP object for the caller's IP (ASN, org, prefix, classification).",
+        params(
+            ("ip" = Option<String>, Query, description = "Look up this IP instead of caller's"),
+            ("fields" = Option<String>, Query, description = "Comma-separated field names to include"),
+            ("dns" = Option<String>, Query, description = "Set to 'true' to enable PTR lookup for ?ip= queries"),
+        ),
+        responses(
+            (status = 200, description = "Network/ISP info", body = Network),
+            (status = 400, description = "Invalid IP parameter", body = ErrorResponse),
+            (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        )
+    )]
+    handler = isp_handler,
+    format_handler = isp_format_handler,
+    module = handlers::isp,
+}
+
 // ---- /all handler (custom: includes request headers in response) ----
 
 #[utoipa::path(
@@ -767,7 +851,8 @@ async fn headers_handler(State(state): State<AppState>, uri: axum::http::Uri, he
     let fmt_query = format_from_query(&uri);
     let format = negotiate(fmt_query.as_deref(), &headers);
     let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
-    dispatch_headers(format, &req_headers)
+    let xff_chain = extract_xff_chain(&headers);
+    dispatch_headers(format, &req_headers, &xff_chain)
 }
 
 async fn headers_format_handler(
@@ -777,15 +862,24 @@ async fn headers_format_handler(
 ) -> Response {
     let format = negotiate(Some(&fmt), &headers);
     let req_headers = filter_headers(extract_headers(&headers), &state.header_filters);
-    dispatch_headers(format, &req_headers)
+    let xff_chain = extract_xff_chain(&headers);
+    dispatch_headers(format, &req_headers, &xff_chain)
 }
 
-fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) -> Response {
+fn extract_xff_chain(headers: &HeaderMap) -> Vec<String> {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.split(',').map(|s| s.trim().to_string()).collect())
+        .unwrap_or_default()
+}
+
+fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)], xff_chain: &[String]) -> Response {
     match format {
         NegotiatedFormat::Html => serve_spa(),
         NegotiatedFormat::Unknown => error_response(StatusCode::NOT_FOUND, "INVALID_FORMAT", "unknown format suffix"),
         NegotiatedFormat::Plain => respond_plain(handlers::headers::to_plain(req_headers)),
-        NegotiatedFormat::Json => respond_json_value(handlers::headers::to_json_value(req_headers)),
+        NegotiatedFormat::Json => respond_json_value(handlers::headers::to_json_value_with_xff(req_headers, xff_chain)),
         fmt => {
             let output_fmt = match fmt {
                 NegotiatedFormat::Yaml => OutputFormat::Yaml,
@@ -793,7 +887,7 @@ fn dispatch_headers(format: NegotiatedFormat, req_headers: &[(String, String)]) 
                 NegotiatedFormat::Csv => OutputFormat::Csv,
                 _ => unreachable!(),
             };
-            match handlers::headers::formatted(&output_fmt, req_headers) {
+            match handlers::headers::formatted_with_xff(&output_fmt, req_headers, xff_chain) {
                 Some(body) => respond_formatted(output_fmt.content_type(), body),
                 None => error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,

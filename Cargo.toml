@@ -38,6 +38,7 @@ httpdate = "1"
 ip_network = "0.4"
 ip_network_table = "0.2"
 lru = "0.16"
+moka = { version = "0.12", features = ["future"] }
 maxminddb = "0.27"
 notify = "8"
 metrics-process = "2.3"
