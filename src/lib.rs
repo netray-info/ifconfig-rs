@@ -126,7 +126,7 @@ pub async fn build_app(config: &Config) -> AppBundle {
 
     let app = Router::new()
         .merge(api_routes)
-        .fallback(routes::static_handler)
+        .fallback(netray_common::server::static_handler::<routes::Assets>())
         .layer(DefaultBodyLimit::max(1_048_576))
         .layer(axum_mw::from_fn_with_state(
             state.clone(),

@@ -1351,57 +1351,7 @@ async fn docs_handler() -> Response {
 
 #[derive(rust_embed::RustEmbed)]
 #[folder = "frontend/dist"]
-struct Assets;
-
-pub async fn static_handler(uri: axum::http::Uri) -> Response {
-    let path = uri.path().trim_start_matches('/');
-
-    if path.is_empty() || path == "index.html" {
-        return serve_spa_with_no_cache();
-    }
-
-    match Assets::get(path) {
-        Some(content) => {
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            let cache = if path.contains('.') && (path.contains("-") || path.contains("assets/")) {
-                "public, max-age=31536000, immutable"
-            } else {
-                "no-cache"
-            };
-            (
-                StatusCode::OK,
-                [
-                    (axum::http::header::CONTENT_TYPE, mime.as_ref().to_string()),
-                    (axum::http::header::CACHE_CONTROL, cache.to_string()),
-                ],
-                content.data.to_vec(),
-            )
-                .into_response()
-        }
-        None => {
-            // SPA fallback: serve index.html for unknown paths
-            serve_spa_with_no_cache()
-        }
-    }
-}
-
-fn serve_spa_with_no_cache() -> Response {
-    match Assets::get("index.html") {
-        Some(content) => {
-            let body = content.data.to_vec();
-            (
-                StatusCode::OK,
-                [
-                    (axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8".to_string()),
-                    (axum::http::header::CACHE_CONTROL, "no-cache".to_string()),
-                ],
-                body,
-            )
-                .into_response()
-        }
-        None => (StatusCode::INTERNAL_SERVER_ERROR, "SPA not found").into_response(),
-    }
-}
+pub struct Assets;
 
 #[cfg(test)]
 mod tests {

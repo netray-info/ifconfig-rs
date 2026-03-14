@@ -5,30 +5,24 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{info, warn};
-use tracing_subscriber::EnvFilter;
 
 use ifconfig_rs::{build_app, Config};
 
 #[tokio::main]
 async fn main() {
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,mhost=warn"));
-    let log_format = std::env::var("IFCONFIG_LOG_FORMAT").unwrap_or_default();
-    if log_format.eq_ignore_ascii_case("json") {
-        tracing_subscriber::fmt().json().with_env_filter(env_filter).init();
-    } else {
-        tracing_subscriber::fmt().with_env_filter(env_filter).init();
-    }
-
     let args: Vec<String> = std::env::args().skip(1).collect();
     let print_config = args.iter().any(|a| a == "--print-config");
     let config_path = args.iter().find(|a| !a.starts_with("--")).cloned();
     let config = Config::load(config_path.as_deref()).expect("Failed to load config");
+
+    netray_common::telemetry::init_subscriber(&config.telemetry, "info,mhost=warn");
 
     if print_config {
         println!(
             "{}",
             toml::to_string_pretty(&config).expect("Failed to serialize config")
         );
+        netray_common::telemetry::shutdown();
         return;
     }
 
@@ -93,6 +87,8 @@ async fn main() {
         .with_graceful_shutdown(netray_common::server::shutdown_signal())
         .await
         .expect("Server error");
+
+    netray_common::telemetry::shutdown();
 }
 
 async fn reload_enrichment(

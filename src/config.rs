@@ -1,3 +1,4 @@
+use netray_common::telemetry::TelemetryConfig;
 use serde::{Deserialize, Serialize};
 
 pub const HARD_CAP_RATE_LIMIT_PER_MINUTE: u32 = 600;
@@ -47,6 +48,8 @@ pub struct Config {
     pub rate_limit: RateLimitConfig,
     #[serde(default)]
     pub batch: BatchConfig,
+    #[serde(default, skip_serializing)]
+    pub telemetry: TelemetryConfig,
 }
 
 impl Config {
@@ -282,9 +285,11 @@ mod tests {
     #[test]
     fn env_var_overrides_top_level_field() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        std::env::set_var("IFCONFIG_BASE_URL", "env-test.example.com");
+        // SAFETY: single-threaded test context, guarded by ENV_LOCK mutex
+        unsafe { std::env::set_var("IFCONFIG_BASE_URL", "env-test.example.com") };
         let result = Config::load(None);
-        std::env::remove_var("IFCONFIG_BASE_URL");
+        // SAFETY: single-threaded test context, guarded by ENV_LOCK mutex
+        unsafe { std::env::remove_var("IFCONFIG_BASE_URL") };
         let config = result.unwrap();
         assert_eq!(config.base_url, "env-test.example.com");
     }
@@ -292,9 +297,11 @@ mod tests {
     #[test]
     fn env_var_overrides_nested_field_with_double_underscore() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        std::env::set_var("IFCONFIG_SERVER__BIND", "0.0.0.0:9191");
+        // SAFETY: single-threaded test context, guarded by ENV_LOCK mutex
+        unsafe { std::env::set_var("IFCONFIG_SERVER__BIND", "0.0.0.0:9191") };
         let result = Config::load(None);
-        std::env::remove_var("IFCONFIG_SERVER__BIND");
+        // SAFETY: single-threaded test context, guarded by ENV_LOCK mutex
+        unsafe { std::env::remove_var("IFCONFIG_SERVER__BIND") };
         let config = result.unwrap();
         assert_eq!(config.server.bind, "0.0.0.0:9191");
     }
