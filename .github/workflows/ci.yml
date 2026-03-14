@@ -38,6 +38,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Build frontend
         run: cd frontend && npm ci && npm run build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo clippy
         run: cargo clippy --locked -- -D warnings
 
@@ -55,6 +57,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Build frontend
         run: cd frontend && npm ci && npm run build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo test
         run: cargo test --locked --no-fail-fast
 
@@ -71,6 +75,8 @@ jobs:
       - name: frontend build
         run: npm ci && npm run build
         working-directory: frontend
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: frontend test
         run: npm test
         working-directory: frontend

@@ -197,6 +197,15 @@ Data files live in `data/`. See `data/README.md` for sources and acquisition ins
 
 GitHub Actions: check → clippy → fmt → build/test → Docker integration tests. All CI jobs (except fmt) build the frontend before cargo operations. Pushing to `prod` branch auto-builds and pushes Docker image to GHCR (`ghcr.io/lukaspustina/ifconfig-rs:latest`).
 
+**GitHub Packages auth**: Any CI step that runs `npm ci` for the frontend must set `NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` as an env var on that step. The project `.npmrc` uses `${NODE_AUTH_TOKEN}` as a placeholder (not a hardcoded token) so the token must be injected at runtime. This applies to the `clippy`, `test`, and `frontend` jobs. Missing this env var causes E401 from `https://npm.pkg.github.com`.
+
+```yaml
+- name: Build frontend
+  run: cd frontend && npm ci && npm run build
+  env:
+    NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
 ## Common Patterns
 
 - Routes use explicit handler functions with `dispatch_standard()` for compute-once dispatch. Each handler module in `handlers.rs` exposes `to_json(&Ifconfig) -> Option<Value>` and `to_plain(&Ifconfig) -> String` fn pointers.
