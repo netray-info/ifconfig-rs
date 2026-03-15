@@ -66,7 +66,30 @@ export default function App() {
       <ThemeToggle theme={themeResult} />
       <div class="container">
         <header class="site-header">
-          <h1 class="site-title">{siteName()}</h1>
+          <h1 class="site-title">
+            {siteName()}
+            <button
+              class="share-icon"
+              title="Share this IP lookup"
+              onClick={async () => {
+                const url = lookupIp()
+                  ? `${location.origin}/?ip=${lookupIp()}`
+                  : location.href;
+                if (navigator.share) {
+                  try {
+                    await navigator.share({ url });
+                  } catch {
+                    // user cancelled — ignore
+                  }
+                } else {
+                  await navigator.clipboard.writeText(url);
+                  showToast("Link copied to clipboard");
+                }
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            </button>
+          </h1>
           <span class="tagline">IP, decoded</span>
         </header>
 
@@ -107,29 +130,6 @@ export default function App() {
 
         <Show when={data()}>
           <IpDisplay data={data()!} />
-          <div class="share-row">
-            <button
-              class="share-btn"
-              title="Share this IP lookup"
-              onClick={async () => {
-                const url = lookupIp()
-                  ? `${location.origin}/?ip=${lookupIp()}`
-                  : location.href;
-                if (navigator.share) {
-                  try {
-                    await navigator.share({ url });
-                  } catch {
-                    // user cancelled — ignore
-                  }
-                } else {
-                  await navigator.clipboard.writeText(url);
-                  showToast("Link copied to clipboard");
-                }
-              }}
-            >
-              Share
-            </button>
-          </div>
           <InfoCards data={data()!} />
           <IpLookupForm
             onLookup={(ip) => loadData(ip)}
