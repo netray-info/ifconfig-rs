@@ -128,3 +128,20 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+
+  deploy:
+    name: Deploy
+    needs: [merge]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy webhook
+        env:
+          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+        run: |
+          PAYLOAD='{"ref":"${{ github.ref_name }}"}'
+          SIG=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$DEPLOY_WEBHOOK_SECRET" | awk '{print $NF}')
+          curl -fsS -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Hub-Signature-256: sha256=${SIG}" \
+            -d "$PAYLOAD" \
+            "https://deploy.netray.info/hooks/deploy-ifconfig-rs"
