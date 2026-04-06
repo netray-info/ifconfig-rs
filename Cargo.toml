@@ -1,6 +1,6 @@
 [package]
 name = "ifconfig-rs"
-version = "0.17.4"
+version = "0.17.5"
 authors = ["Lukas Pustina <lukas@pustina.net>"]
 
 description = "IP address and network information service"

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.5] - 2026-04-07
+
+### Fixed
+- Update Cargo.lock to v0.17.4 (689a9b6)
+- Relax common-frontend version to ^0.2.1 (a4de9a0)
+- Upgrade vite 7.3.1 → 7.3.2 (CVE dev-server vulns) (be5e52a)
+
 ## [0.17.4] - 2026-04-06
 
 ### Added
