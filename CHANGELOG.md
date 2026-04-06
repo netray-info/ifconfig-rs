@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.3] - 2026-04-06
+
+### Changed
+- Suite branding — SuiteNav, meta tags, aligned palette, robots.txt (cce94f9)
+
+### Fixed
+- Increase e2e expect timeout to 15s to reduce flakiness (641af67)
+- Fix picomatch and brace-expansion vulnerabilities in frontend (94e4e94)
+
 ## [0.17.0] - 2026-03-14
 
 ### Added
