@@ -3,39 +3,10 @@
 @import '@netray-info/common-frontend/styles/layout.css';
 
 :root {
-  /* ifconfig-rs overrides: align with suite palette */
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-tertiary: #0f3460;
-  --border: #2a2a4a;
-  --border-subtle: #222236;
-  --text-primary: #e4e4e7;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
+  /* ifconfig-rs-specific tokens */
   --accent-dim: #0099bb;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --error: #ef4444;
   --radius-lg: 12px;
-  /* ifconfig-rs-specific token */
   --bg-card-hover: #232350;
-}
-
-[data-theme="light"] {
-  /* ifconfig-rs overrides: neutral zinc palette */
-  --bg-primary: #fafafa;
-  --bg-secondary: #f4f4f5;
-  --bg-tertiary: #ececed;
-  --border: #e4e4e7;
-  --border-subtle: #f0f0f2;
-  --text-primary: #18181b;
-  --text-secondary: #52525b;
-  --text-muted: #6b6b73;
-  --accent: #0891b2;
-  --accent-dim: #06b6d4;
-  --accent-glow: rgba(8, 145, 178, 0.1);
-  /* ifconfig-rs-specific token */
-  --bg-card-hover: #f8f8fa;
 }
 
 html {
