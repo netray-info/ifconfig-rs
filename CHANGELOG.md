@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.4] - 2026-04-06
+
+### Added
+- Default theme to system preference (2cc46e6)
+
+### Changed
+- Align global.css with shared suite theme (079423f)
+- Bump @netray-info/common-frontend to 0.2.2 (3846a7b)
+- Omit dev deps from npm audit (7318299)
+
 ## [0.17.3] - 2026-04-06
 
 ### Changed
