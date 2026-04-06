@@ -14,7 +14,7 @@ import IpLookupForm from "./components/IpLookupForm";
 import SuiteNav from "./components/SuiteNav";
 
 export default function App() {
-  const themeResult = createTheme('theme', 'dark');
+  const themeResult = createTheme('theme', 'system');
 
   const [data, setData] = createSignal<Ifconfig | null>(null);
   const [meta, setMeta] = createSignal<SiteMeta | null>(null);
