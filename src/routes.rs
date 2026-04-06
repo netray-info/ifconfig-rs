@@ -39,7 +39,9 @@ fn check_target_rate_limit(state: &AppState, target_ip: IpAddr) -> Option<Respon
             - `X-RateLimit-Remaining` — tokens left in the current window\n\n\
             When the limit is exceeded (HTTP 429):\n\
             - `Retry-After` — seconds until a new token is available\n\
-            - `X-RateLimit-Reset` — Unix timestamp when the limit resets",
+            - `X-RateLimit-Reset` — Unix timestamp when the limit resets\n\n\
+            ## Cross-Origin Requests\n\
+            Cross-origin requests from browsers are not supported. Use server-side calls or curl for API integration.",
         version = "0.8.0",
         license(name = "MIT"),
     ),
@@ -156,6 +158,8 @@ pub fn router() -> Router<AppState> {
         // OpenAPI spec + docs UI
         .route("/api-docs/openapi.json", get(openapi_handler))
         .route("/docs", get(docs_handler))
+        // robots.txt — explicit route so crawlers get text/plain, not the SPA fallback
+        .route("/robots.txt", get(robots_txt))
 }
 
 fn get_requester_info(headers: &HeaderMap, extensions: &axum::http::Extensions) -> RequesterInfo {
@@ -170,6 +174,13 @@ fn get_requester_info(headers: &HeaderMap, extensions: &axum::http::Extensions) 
                 .map(|s| s.to_string()),
             uri: "/".to_string(),
         })
+}
+
+async fn robots_txt() -> impl IntoResponse {
+    (
+        [(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+        "User-agent: *\nAllow: /\n",
+    )
 }
 
 /// Build a formatted response with proper content-type.

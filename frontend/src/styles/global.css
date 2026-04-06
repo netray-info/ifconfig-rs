@@ -3,11 +3,11 @@
 @import '@netray-info/common-frontend/styles/layout.css';
 
 :root {
-  /* ifconfig-rs overrides: darker palette than shared theme defaults */
-  --bg-primary: #0f1117;
-  --bg-secondary: #161822;
-  --bg-tertiary: #1e2030;
-  --border: #2a2d42;
+  /* ifconfig-rs overrides: align with suite palette */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;
+  --border: #2a2a4a;
   --border-subtle: #222236;
   --text-primary: #e4e4e7;
   --text-secondary: #a1a1aa;
@@ -18,7 +18,7 @@
   --error: #ef4444;
   --radius-lg: 12px;
   /* ifconfig-rs-specific token */
-  --bg-card-hover: #232538;
+  --bg-card-hover: #232350;
 }
 
 [data-theme="light"] {

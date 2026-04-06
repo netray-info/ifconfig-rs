@@ -17,6 +17,8 @@
   </p>
 </div>
 
+Part of the [netray.info](https://netray.info) network intelligence suite.
+
 ---
 
 _ifconfig-rs_ is a fast, self-hostable IP enrichment API written in [Rust](https://www.rust-lang.org), powered by [Axum](https://github.com/tokio-rs/axum), with a [SolidJS](https://www.solidjs.com) SPA. Beyond "what's my IP", it classifies IPs by network type (cloud, VPN, Tor, bot, hosting, residential), detects cloud providers (AWS, GCP, Azure, Cloudflare), and supports batch lookups and arbitrary IP queries. It serves a clean browser UI to humans and plain text to scripts — no configuration needed on the client side. Currently powering [ip.netray.info](https://ip.netray.info).
