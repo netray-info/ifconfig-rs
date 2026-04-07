@@ -3,6 +3,8 @@ export interface SiteMeta {
   version: string;
   base_url: string;
   site_name: string;
+  dns_base_url?: string;
+  tls_base_url?: string;
 }
 
 export interface Ifconfig {

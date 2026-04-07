@@ -131,7 +131,7 @@ export default function App() {
         </Show>
 
         <Show when={data()}>
-          <IpDisplay data={data()!} />
+          <IpDisplay data={data()!} meta={meta()} />
           <InfoCards data={data()!} />
           <IpLookupForm
             onLookup={(ip) => loadData(ip)}

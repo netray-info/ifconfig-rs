@@ -1,9 +1,10 @@
 import { Show } from "solid-js";
-import type { Ifconfig } from "../lib/types";
+import type { Ifconfig, SiteMeta } from "../lib/types";
 import { showToast } from "../lib/toast";
 
 interface Props {
   data: Ifconfig;
+  meta?: SiteMeta | null;
 }
 
 function ClipboardIcon() {
@@ -59,6 +60,24 @@ export default function IpDisplay(props: Props) {
           >
             <ClipboardIcon />
           </button>
+          <Show when={props.meta?.dns_base_url && props.data.ip.hostname}>
+            <a
+              class="eco-link eco-link--badge"
+              href={`${props.meta!.dns_base_url}/?q=${encodeURIComponent(props.data.ip.hostname!)}&ref=ifconfig`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Check DNS for ${props.data.ip.hostname}`}
+            >DNS</a>
+          </Show>
+          <Show when={props.meta?.tls_base_url && props.data.ip.hostname}>
+            <a
+              class="eco-link eco-link--badge"
+              href={`${props.meta!.tls_base_url}/?h=${encodeURIComponent(props.data.ip.hostname!)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Inspect TLS for ${props.data.ip.hostname}`}
+            >TLS</a>
+          </Show>
         </div>
       </Show>
     </div>

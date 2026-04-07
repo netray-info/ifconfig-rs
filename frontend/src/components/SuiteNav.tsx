@@ -32,6 +32,9 @@ export default function SuiteNav(props: SuiteNavProps) {
           padding: 0.2rem 0.5rem 0.2rem 0;
           letter-spacing: -0.01em;
           white-space: nowrap;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
         }
 
         .suite-nav__brand:hover {
@@ -52,6 +55,9 @@ export default function SuiteNav(props: SuiteNavProps) {
           border-radius: 4px;
           white-space: nowrap;
           transition: color 0.15s ease;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
         }
 
         .suite-nav__link:hover {

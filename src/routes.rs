@@ -1396,6 +1396,10 @@ struct MetaResponse<'a> {
     /// ISO 8601 date of the loaded GeoIP City database build, or `null` if not loaded.
     geoip_database_date: Option<String>,
     build: &'a crate::state::BuildInfo,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dns_base_url: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tls_base_url: Option<&'a str>,
 }
 
 #[utoipa::path(
@@ -1445,6 +1449,8 @@ async fn meta_handler(State(state): State<AppState>) -> Response {
         },
         geoip_database_date: ctx.geoip_city_build_epoch.map(epoch_to_iso_date),
         build: &info.build,
+        dns_base_url: state.config.dns_base_url.as_deref(),
+        tls_base_url: state.config.tls_base_url.as_deref(),
     };
     (StatusCode::OK, axum::Json(response)).into_response()
 }

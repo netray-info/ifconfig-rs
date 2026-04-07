@@ -53,6 +53,14 @@ pub struct Config {
     pub cache: CacheConfig,
     #[serde(default, skip_serializing)]
     pub telemetry: TelemetryConfig,
+    /// Base URL of the DNS inspection tool (e.g. `https://dns.netray.info`).
+    /// Exposed in `/meta` for cross-tool deep links.
+    #[serde(default)]
+    pub dns_base_url: Option<String>,
+    /// Base URL of the TLS inspection tool (e.g. `https://tls.netray.info`).
+    /// Exposed in `/meta` for cross-tool deep links.
+    #[serde(default)]
+    pub tls_base_url: Option<String>,
 }
 
 impl Config {
