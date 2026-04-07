@@ -127,6 +127,85 @@ See `docs/enrichment.md` for the full reference. Key points:
 - `is_c2` (Feodo Tracker): the IP is an active botnet C2 node — block immediately.
 - `is_spamhaus` (Spamhaus DROP/EDROP): the entire netblock is hijacked — whole-prefix ingress filtering.
 
+## Frontend Rules
+
+Full spec: [`specs/frontend-rules.md`](../specs/frontend-rules.md) in the netray.info meta repo.
+
+### Directory & Tooling
+- Mirror structure from tlsight: `src/{index.tsx,App.tsx,components/,lib/,styles/global.css}` + `vite.config.ts`, `vitest.config.ts`, `tsconfig.json`, `package.json`, `.npmrc`
+- No barrel `index.ts` files — import directly
+- tsconfig: `strict: true`, `jsx: "preserve"`, `jsxImportSource: "solid-js"`, `moduleResolution: "bundler"`
+- Build: `tsc && vite build`; dev proxy: `/api` → `http://127.0.0.1:808x` (next port after 8081)
+- Separate `vitest.config.ts`: `happy-dom` for component tests, `node` for utility tests
+- CI `npm ci` steps must set `NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`
+
+### Common-Frontend — Mandatory
+- Import all four shared stylesheets in `global.css`: `theme.css`, `reset.css`, `layout.css`, `components.css`
+- Theme: `createTheme('toolname_theme', 'system')` + `<ThemeToggle>` — never custom
+- Footer: `<SiteFooter>` with aboutText, links (GitHub, `/docs`, Author), version from `/api/meta`
+- Modals: always `<Modal>` (includes focus trap); localStorage: always `storageGet/storageSet`
+- Keyboard shortcuts: `createKeyboardShortcuts()` — handles editor exclusions automatically
+
+### Suite Navigation
+- Use `<SuiteNav>` from `netray-common-frontend` (BEM: `suite-nav`, `suite-nav__brand`, `suite-nav__sep`, `suite-nav__link`, `suite-nav__link--current`)
+- Labels uppercase: IP, DNS, TLS, LENS. Current tool: `suite-nav__link--current` + `aria-current="page"`
+- All URLs from `meta.ecosystem.*_base_url` — no hardcoded production URLs. Fall back to `https://*.netray.info`
+
+### Meta Endpoint
+- Fetch `/api/meta` on mount; set `document.title` from `meta.site_name`; failure must never block the tool
+- Cross-tool deep links: always `meta().ecosystem.*_base_url` + `encodeURIComponent()`
+
+### Page Structure
+- `<h1>` = tool name; tagline as adjacent `<span>` — not in the h1
+- Required landmarks: `<nav>`, `<main>`, `<footer>`
+- Skip link ("Skip to results"), visually hidden, revealed on `:focus`
+- `?` help button (min 32×32px) in toolbar → `<Modal>`
+- Example usage cards on idle state when tool has distinct modes or non-obvious inputs
+
+### Input UX
+- Placeholder: real example, not generic text
+- Input must have `aria-label` (not just placeholder)
+- `×` clear button inside input when non-empty (`type="button"`, `aria-label="Clear"`, `tabIndex={-1}`)
+- Combobox with history: `role="combobox"`, `aria-expanded`, `aria-autocomplete="list"`, `aria-controls`
+- History: max 20 entries, deduplicated on insert, stored as `toolname_history` via `storageSet`
+- Preset chips (if applicable): ghost/outline style below input
+
+### Results & Errors
+- Errors: inline red-border box in results area, `role="alert"` — not toast, not modal
+- Validation summary: pass/fail/warn/skip chip row at top of results
+- Loading: `role="status"` `aria-live="polite"`
+- Toasts: ephemeral actions only (copy, export), 2s, `role="status"` `aria-live="polite"`
+
+### API Client
+- All fetches via `fetchWithTimeout(url, init, timeoutMs=5000)`
+- Extract backend error: `body?.error?.message ?? \`HTTP ${res.status}\``
+- `fetchMeta()` returns `null` on failure — never throws
+
+### SolidJS Patterns
+- No prop destructuring; access via `props.field`
+- `export default` only — no named component exports
+- `<Show>` for conditionals, `<For>` for lists — no ternary JSX
+- Async data: `createSignal` + `onMount` + try/catch/finally — not `createResource`
+- `ErrorBoundary` wraps `<App>` in `index.tsx`
+- Component-scoped styles: inline `<style>` tag inside the component
+
+### Styling
+- CSS custom properties only — no Tailwind, no utility classes, no CSS-in-JS
+- Dark-mode default; `[data-theme="light"]` on `:root`. Light mode must remap ALL color tokens:
+  `--accent: #0077cc`, `--pass: #008800`, `--fail: #cc0000`, `--warn: #b86e00`, `--skip: #4a5568`
+- Tool-specific semantic tokens in `:root` (e.g. `--pass`, `--fail`) — never raw hex in component CSS
+
+### Accessibility
+- Primary buttons: min 37px tall; secondary/toolbar: min 32×32px; nav links: 44px touch target on mobile
+- Icon-only buttons: `aria-label` required; query input: `aria-label` required (not just placeholder)
+- Keyboard shortcuts skip `INPUT`, `TEXTAREA`, `contenteditable`, `.cm-editor`
+
+### Testing
+- Test all non-trivial `lib/` utilities: history, parsers, formatters, domain logic (`node` environment)
+- Test components with real interaction logic: `happy-dom` + `@solidjs/testing-library`
+- Mock `fetch` via `vi.stubGlobal`; mock `localStorage` in `src/test-setup.ts`
+- Test files co-located: `lib/foo.test.ts` next to `lib/foo.ts`
+
 ## Frontend
 
 SolidJS 1.9 SPA in `frontend/`:
