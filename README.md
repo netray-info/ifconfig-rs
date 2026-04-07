@@ -317,6 +317,22 @@ curl -H "Accept: text/csv"         ip.netray.info/all
 }
 ```
 
+### CI / Pipeline Integration
+
+Use in GitHub Actions or any CI system to validate IP reputation:
+
+```yaml
+# Check IP reputation
+- run: |
+    curl -sf "https://ip.netray.info/network/json?ip=$IP" \
+      | jq -e '.type == "residential"'
+
+# Verify an IP is not on threat lists
+- run: |
+    curl -sf "https://ip.netray.info/network/json?ip=$IP" \
+      | jq -e '.is_c2 == false and .is_spamhaus == false'
+```
+
 ---
 
 ## Self-Hosting

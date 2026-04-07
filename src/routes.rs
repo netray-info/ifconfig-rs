@@ -41,7 +41,9 @@ fn check_target_rate_limit(state: &AppState, target_ip: IpAddr) -> Option<Respon
             - `Retry-After` — seconds until a new token is available\n\
             - `X-RateLimit-Reset` — Unix timestamp when the limit resets\n\n\
             ## Cross-Origin Requests\n\
-            Cross-origin requests from browsers are not supported. Use server-side calls or curl for API integration.",
+            Cross-origin requests from browsers are not supported. Use server-side calls or curl for API integration.\n\n\
+            ## Human-Readable Docs\n\
+            See also: [IP API reference](https://netray.info/api/ip) — curl-focused documentation with examples.",
         version = "0.8.0",
         license(name = "MIT"),
     ),
