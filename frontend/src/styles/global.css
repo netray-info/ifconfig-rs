@@ -1,6 +1,7 @@
 @import '@netray-info/common-frontend/styles/theme.css';
 @import '@netray-info/common-frontend/styles/reset.css';
 @import '@netray-info/common-frontend/styles/layout.css';
+@import '@netray-info/common-frontend/styles/components.css';
 
 :root {
   /* ifconfig-rs-specific tokens */
