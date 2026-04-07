@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2026-04-07
+
+### Added
+- DNS/TLS deep links, mobile UX, bump netray-common to 0.5 (f7d05bd)
+
+### Changed
+- Frontend: use shared SuiteNav and fetchWithTimeout from common-frontend (46d006b, 3c06e2d)
+- Frontend: bump @netray-info/common-frontend to ^0.3.0 (3c06e2d)
+- Add human-readable docs link to OpenAPI description; CI integration examples in README (94ed68b)
+
 ## [0.17.6] - 2026-04-07
 
 ### Fixed
