@@ -11,7 +11,7 @@ import RequestHeaders from "./components/RequestHeaders";
 import ApiExplorer from "./components/ApiExplorer";
 import Faq from "./components/Faq";
 import IpLookupForm from "./components/IpLookupForm";
-import SuiteNav from "./components/SuiteNav";
+import SuiteNav from '@netray-info/common-frontend/components/SuiteNav';
 
 export default function App() {
   const themeResult = createTheme('theme', 'system');
@@ -64,7 +64,7 @@ export default function App() {
 
   return (
     <>
-      <SuiteNav current="ip" />
+      <SuiteNav current="ip" meta={meta() ?? undefined} />
       <ThemeToggle theme={themeResult} />
       <div class="container">
         <header class="site-header">

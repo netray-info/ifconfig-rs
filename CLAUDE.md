@@ -147,8 +147,8 @@ Full spec: [`specs/frontend-rules.md`](../specs/frontend-rules.md) in the netray
 - Keyboard shortcuts: `createKeyboardShortcuts()` — handles editor exclusions automatically
 
 ### Suite Navigation
-- Use `<SuiteNav>` from `netray-common-frontend` (BEM: `suite-nav`, `suite-nav__brand`, `suite-nav__sep`, `suite-nav__link`, `suite-nav__link--current`)
-- Labels uppercase: IP, DNS, TLS, LENS. Current tool: `suite-nav__link--current` + `aria-current="page"`
+- Use `<SuiteNav>` from `netray-common-frontend` (BEM: `suite-nav`, `suite-nav__brand`, `suite-nav__sep`, `suite-nav__link`, `suite-nav__link--active`)
+- Labels uppercase: IP, DNS, TLS, LENS. Current tool: `suite-nav__link--active` + `aria-current="page"`
 - All URLs from `meta.ecosystem.*_base_url` — no hardcoded production URLs. Fall back to `https://*.netray.info`
 
 ### Meta Endpoint
