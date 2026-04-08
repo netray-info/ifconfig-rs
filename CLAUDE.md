@@ -274,7 +274,9 @@ Data files live in `data/`. See `data/README.md` for sources and acquisition ins
 
 ## CI/CD
 
-GitHub Actions: check → clippy → fmt → build/test → Docker integration tests. All CI jobs (except fmt) build the frontend before cargo operations. Pushing to `prod` branch auto-builds and pushes Docker image to GHCR (`ghcr.io/lukaspustina/ifconfig-rs:latest`).
+Workflow rules: [`specs/workflow-rules.md`](../specs/workflow-rules.md) in the netray.info meta repo. Follow those rules when creating or modifying any `.github/workflows/*.yml` file.
+
+Workflows: `ci.yml` (PR gate: fmt, clippy, test, frontend, audit, integration-test, e2e-test), `release.yml` (tag-push: test → build → merge), `deploy.yml` (fires after release via webhook).
 
 **GitHub Packages auth**: Any CI step that runs `npm ci` for the frontend must set `NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` as an env var on that step. The project `.npmrc` uses `${NODE_AUTH_TOKEN}` as a placeholder (not a hardcoded token) so the token must be injected at runtime. This applies to the `clippy`, `test`, and `frontend` jobs. Missing this env var causes E401 from `https://npm.pkg.github.com`.
 

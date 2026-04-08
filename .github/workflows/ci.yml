@@ -3,9 +3,8 @@ name: CI
 
 on:
   push:
-    branches: ["master"]
+    branches: [main]
   pull_request:
-    branches: ["master"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -77,6 +76,9 @@ jobs:
         working-directory: frontend
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: frontend lint
+        run: npm run lint
+        working-directory: frontend
       - name: frontend test
         run: npm test
         working-directory: frontend
@@ -107,14 +109,17 @@ jobs:
     needs: [test]
     name: Integration Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Log into registry GHCR
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           registry: ghcr.io
-          username: lukaspustina
-          password: ${{ secrets.LP_GHCR_TOKEN }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build Docker Image and Run Tests
         uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
         with:
@@ -128,14 +133,17 @@ jobs:
     needs: [test]
     name: E2E Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Log into registry GHCR
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           registry: ghcr.io
-          username: lukaspustina
-          password: ${{ secrets.LP_GHCR_TOKEN }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build Docker image
         uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
         with:
