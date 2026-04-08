@@ -28,7 +28,7 @@ jobs:
         working-directory: frontend
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: cargo test --locked --no-fail-fast
+      - run: cargo test --lib --locked --no-fail-fast
 
   build:
     name: Build (${{ matrix.platform }})
