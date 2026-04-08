@@ -264,13 +264,18 @@ max_entries = 1024
 `watch_data_files = true` enables filesystem watcher for auto-reload of data files (alternative to SIGHUP).
 
 Env var examples: `IFCONFIG_SERVER__BIND=0.0.0.0:8080`, `IFCONFIG_BASE_URL=ip.netray.info`, `IFCONFIG_SERVER__ADMIN_TOKEN=secret`.
-Structured JSON logging: `IFCONFIG_LOG_FORMAT=json`.
 Print effective config and exit: `--print-config` flag.
 Validate all configured data files and exit: `--check` flag (exit 0 = all files ok, exit 1 = one or more failed). Useful in deploy scripts and container startup checks.
 
 Config is validated at load time (`Config::validate()`) — zero rate-limit values are rejected with a descriptive error before the server starts.
 
 Data files live in `data/`. See `data/README.md` for sources and acquisition instructions (`make -C data get_all`).
+
+## Logging & Telemetry
+
+Rules: [`specs/logging-rules.md`](../specs/logging-rules.md) in the netray.info meta repo. Follow those rules when modifying tracing init, log filters, or `[telemetry]` config.
+
+Default filter: `info,ifconfig_rs=debug,hyper=warn,h2=warn,mhost=warn`. Telemetry config via `[telemetry]` section or `IFCONFIG_TELEMETRY__*` env vars. Production uses `log_format = "json"` and `service_name = "ifconfig"`.
 
 ## CI/CD
 
