@@ -79,6 +79,7 @@ impl Config {
 pub struct ServerConfig {
     #[serde(default = "ServerConfig::default_bind")]
     pub bind: String,
+    #[serde(default = "ServerConfig::default_admin_bind_option")]
     pub admin_bind: Option<String>,
     /// Bearer token required for admin endpoints. If set, all requests to the
     /// admin port must include `Authorization: Bearer <token>`.
@@ -93,7 +94,7 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             bind: Self::default_bind(),
-            admin_bind: None,
+            admin_bind: Some(Self::default_admin_bind()),
             admin_token: None,
             trusted_proxies: Vec::new(),
             cors_allowed_origins: Self::default_cors_allowed_origins(),
@@ -104,6 +105,12 @@ impl Default for ServerConfig {
 impl ServerConfig {
     fn default_bind() -> String {
         "127.0.0.1:8080".to_string()
+    }
+    fn default_admin_bind() -> String {
+        "127.0.0.1:9090".to_string()
+    }
+    fn default_admin_bind_option() -> Option<String> {
+        Some(Self::default_admin_bind())
     }
     fn default_cors_allowed_origins() -> Vec<String> {
         vec!["*".to_string()]
@@ -294,7 +301,7 @@ mod tests {
     fn server_config_default() {
         let server = ServerConfig::default();
         assert_eq!(server.bind, "127.0.0.1:8080");
-        assert!(server.admin_bind.is_none());
+        assert_eq!(server.admin_bind.as_deref(), Some("127.0.0.1:9090"));
         assert!(server.trusted_proxies.is_empty());
         assert_eq!(server.cors_allowed_origins, vec!["*"]);
     }

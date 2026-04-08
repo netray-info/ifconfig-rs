@@ -38,6 +38,11 @@ async fn main() {
 
     let bind_addr: SocketAddr = config.server.bind.parse().expect("Invalid bind address");
     info!("Starting server on {}", bind_addr);
+    info!(
+        enabled = config.batch.enabled,
+        max_size = config.batch.max_size,
+        "Batch endpoint"
+    );
 
     let config = Arc::new(config);
     let bundle = build_app(&config).await;

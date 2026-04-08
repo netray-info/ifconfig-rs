@@ -106,8 +106,8 @@ base_url = "ip.netray.info"
 # Default: "127.0.0.1:8080"
 bind = "0.0.0.0:8080"
 
-# Optional admin port serving Prometheus /metrics and /health.
-# Disabled by default. Not rate-limited — protect via network policy or bind to loopback.
+# Admin port serving Prometheus /metrics and /health.
+# Default: "127.0.0.1:9090". Not rate-limited — protect via network policy or bind to loopback.
 # admin_bind = "127.0.0.1:9090"
 
 # Bearer token required for all admin port requests.

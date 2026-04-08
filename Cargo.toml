@@ -33,7 +33,7 @@ metrics-exporter-prometheus = "0.18"
 config = "0.15"
 mhost = { version = "0.11", default-features = false }
 governor = "0.10"
-netray-common = { version = "0.5", features = ["schema", "middleware", "server", "spa", "otel"] }
+netray-common = { version = "0.5.3", features = ["schema", "middleware", "server", "spa", "otel"] }
 httpdate = "1"
 ip_network = "0.4"
 ip_network_table = "0.2"

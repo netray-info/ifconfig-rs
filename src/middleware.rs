@@ -4,6 +4,8 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use governor::clock::{Clock, DefaultClock};
 
+use tracing::warn;
+
 use crate::error::AppError;
 use crate::extractors::RequesterInfo;
 use crate::state::AppState;
@@ -40,6 +42,7 @@ pub async fn rate_limit(State(state): State<AppState>, req: Request<axum::body::
             response
         }
         Err(not_until) => {
+            warn!(client_ip = %ip, scope = "per_ip", "Rate limit exceeded");
             let wait = not_until.wait_time_from(DefaultClock::default().now());
             let retry_after = wait.as_secs().saturating_add(1);
             let reset_unix = std::time::SystemTime::now()

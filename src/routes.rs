@@ -21,6 +21,7 @@ use crate::state::AppState;
 
 fn check_target_rate_limit(state: &AppState, target_ip: IpAddr) -> Option<Response> {
     if state.target_rate_limiter.check_key(&target_ip).is_err() {
+        tracing::warn!(client_ip = %target_ip, scope = "per_target", "Rate limit exceeded");
         Some(AppError::RateLimited { retry_after_secs: 1 }.into_response())
     } else {
         None
@@ -303,6 +304,7 @@ where
     let (target_addr, skip_dns) = match ip_param {
         Some(ip) => {
             if !state.config.internal_mode && !is_global_ip(ip) {
+                tracing::debug!(input = %ip, "Rejected private/loopback IP");
                 return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "private/loopback IP not allowed");
             }
             let skip_dns = parse_dns_param(&req_info.uri).map(|v| !v).unwrap_or(false);
@@ -1060,6 +1062,7 @@ async fn batch_dispatch(
         };
 
         if !state.config.internal_mode && !is_global_ip(ip) {
+            tracing::debug!(input = %ip, index = i, "Rejected private/loopback IP in batch");
             results[i] =
                 json!({"error": {"code": "INVALID_IP", "message": "private/loopback IP not allowed"}, "index": i});
             continue;
@@ -1263,6 +1266,7 @@ async fn ip_version_dispatch(
     let (target_addr, skip_dns) = match parse_ip_param(&req_info.uri) {
         Some(ip) => {
             if !state.config.internal_mode && !is_global_ip(ip) {
+                tracing::debug!(input = %ip, "Rejected private/loopback IP");
                 return error_response(StatusCode::BAD_REQUEST, "INVALID_IP", "private/loopback IP not allowed");
             }
             let skip_dns = parse_dns_param(&req_info.uri).map(|v| !v).unwrap_or(false);
