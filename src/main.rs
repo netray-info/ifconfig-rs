@@ -16,7 +16,10 @@ async fn main() {
     let config_path = args.iter().find(|a| !a.starts_with("--")).cloned();
     let config = Config::load(config_path.as_deref()).expect("Failed to load config");
 
-    netray_common::telemetry::init_subscriber(&config.telemetry, "info,mhost=warn");
+    netray_common::telemetry::init_subscriber(
+        &config.telemetry,
+        "info,ifconfig_rs=debug,hyper=warn,h2=warn,mhost=warn",
+    );
 
     if print_config {
         println!(
