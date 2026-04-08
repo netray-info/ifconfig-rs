@@ -108,6 +108,40 @@ jobs:
         run: npm audit --audit-level=high --omit=dev
         working-directory: frontend
 
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build frontend
+        run: npm ci && npm run build
+        working-directory: frontend
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract data files
+        run: |
+          docker create --name data-tmp ghcr.io/lukaspustina/ifconfig-rs-data:latest
+          docker cp data-tmp:/data ./data
+          docker rm data-tmp
+      - name: cargo test
+        run: cargo test --locked --no-fail-fast
+
   e2e-audit:
     name: E2E Dependency Audit
     runs-on: ubuntu-latest
