@@ -5,8 +5,38 @@
 
 :root {
   /* ifconfig-rs-specific tokens */
-  --accent-dim: #0099bb;
   --radius-lg: 12px;
+
+  /* Badge colors — dark defaults */
+  --badge-vpn:         #60a5fa;
+  --badge-bot:         #fb923c;
+  --badge-threat:      #f87171;
+  --badge-c2:          #ef4444;
+  --badge-spamhaus:    #f97316;
+  --badge-hosting:     #a78bfa;
+  --badge-datacenter:  #2dd4bf;
+  --badge-cloud:       #38bdf8;
+  --badge-business:    #94a3b8;
+  --badge-education:   #22c55e;
+  --badge-government:  #3b82f6;
+  --badge-role:        #a855f7;
+  --badge-eu:          #60a5fa;
+}
+
+[data-theme="light"] {
+  --badge-vpn:         #1d4ed8;
+  --badge-bot:         #c2410c;
+  --badge-threat:      #b91c1c;
+  --badge-c2:          #991b1b;
+  --badge-spamhaus:    #c2410c;
+  --badge-hosting:     #6d28d9;
+  --badge-datacenter:  #0f766e;
+  --badge-cloud:       #0369a1;
+  --badge-business:    #475569;
+  --badge-education:   #15803d;
+  --badge-government:  #1d4ed8;
+  --badge-role:        #7c3aed;
+  --badge-eu:          #1d4ed8;
 }
 
 html {
@@ -270,97 +300,24 @@ button:focus-visible {
   font-family: var(--font-mono);
 }
 
-.net-badge--vpn {
-  background: rgba(96, 165, 250, 0.15);
-  color: #60a5fa; /* blue — informational/neutral */
-}
-
-.net-badge--tor {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--warning); /* amber — privacy tool, use with caution */
-}
-
-.net-badge--bot {
-  background: rgba(251, 146, 60, 0.15);
-  color: #fb923c; /* orange — automated/suspicious */
-}
-
-.net-badge--threat {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171; /* red — known malicious (legacy) */
-}
-
-.net-badge--c2 {
-  background: rgba(239, 68, 68, 0.20);
-  color: #ef4444; /* bright red — active C2 botnet node */
-  font-weight: 700;
-}
-
-.net-badge--spamhaus {
-  background: rgba(249, 115, 22, 0.15);
-  color: #f97316; /* orange — hijacked netblock */
-}
-
-.net-badge--residential {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--text-muted); /* gray — normal residential */
-}
-
-.net-badge--hosting {
-  background: rgba(139, 92, 246, 0.15);
-  color: #a78bfa; /* violet — commercial hosting */
-}
-
-.net-badge--datacenter {
-  background: rgba(20, 184, 166, 0.15);
-  color: #2dd4bf; /* teal — datacenter infrastructure */
-}
-
-.net-badge--internal {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--text-muted); /* gray — private/RFC1918 */
-}
-
-.net-badge--cloud {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8; /* sky blue — cloud provider */
-}
-
-.net-badge--business {
-  background: rgba(148, 163, 184, 0.15);
-  color: #94a3b8; /* slate — business network */
-}
-
-.net-badge--education {
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e; /* green — education/research */
-}
-
-.net-badge--government {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6; /* blue — government/admin */
-}
-
-.net-badge--role {
-  background: rgba(168, 85, 247, 0.12);
-  color: #a855f7; /* purple — network role */
-  font-style: italic;
-}
-
-.net-badge--version {
-  background: var(--accent-glow);
-  color: var(--accent); /* accent — IP protocol version */
-}
-
-.net-badge--eu {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa; /* blue — EU jurisdiction */
-}
-
-.net-badge--non-eu {
-  background: rgba(148, 163, 184, 0.08);
-  color: var(--text-muted); /* muted — outside EU */
-}
+.net-badge--vpn        { background: color-mix(in srgb, var(--badge-vpn)        15%, transparent); color: var(--badge-vpn); }
+.net-badge--tor        { background: color-mix(in srgb, var(--warning)           15%, transparent); color: var(--warning); }
+.net-badge--bot        { background: color-mix(in srgb, var(--badge-bot)         15%, transparent); color: var(--badge-bot); }
+.net-badge--threat     { background: color-mix(in srgb, var(--badge-threat)      15%, transparent); color: var(--badge-threat); }
+.net-badge--c2         { background: color-mix(in srgb, var(--badge-c2)          20%, transparent); color: var(--badge-c2); font-weight: 700; }
+.net-badge--spamhaus   { background: color-mix(in srgb, var(--badge-spamhaus)    15%, transparent); color: var(--badge-spamhaus); }
+.net-badge--residential{ background: color-mix(in srgb, var(--text-muted)        12%, transparent); color: var(--text-muted); }
+.net-badge--hosting    { background: color-mix(in srgb, var(--badge-hosting)     15%, transparent); color: var(--badge-hosting); }
+.net-badge--datacenter { background: color-mix(in srgb, var(--badge-datacenter)  15%, transparent); color: var(--badge-datacenter); }
+.net-badge--internal   { background: color-mix(in srgb, var(--text-muted)        12%, transparent); color: var(--text-muted); }
+.net-badge--cloud      { background: color-mix(in srgb, var(--badge-cloud)       15%, transparent); color: var(--badge-cloud); }
+.net-badge--business   { background: color-mix(in srgb, var(--badge-business)    15%, transparent); color: var(--badge-business); }
+.net-badge--education  { background: color-mix(in srgb, var(--badge-education)   15%, transparent); color: var(--badge-education); }
+.net-badge--government { background: color-mix(in srgb, var(--badge-government)  15%, transparent); color: var(--badge-government); }
+.net-badge--role       { background: color-mix(in srgb, var(--badge-role)        12%, transparent); color: var(--badge-role); font-style: italic; }
+.net-badge--version    { background: var(--accent-glow); color: var(--accent); }
+.net-badge--eu         { background: color-mix(in srgb, var(--badge-eu)          15%, transparent); color: var(--badge-eu); }
+.net-badge--non-eu     { background: color-mix(in srgb, var(--text-muted)         8%, transparent); color: var(--text-muted); }
 
 .badge-bar {
   display: flex;
@@ -754,6 +711,7 @@ button:focus-visible {
   font-family: var(--font-mono);
   font-size: 0.8rem;
   padding: 0.5rem 0.75rem;
+  min-height: 32px;
   background: none;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -766,7 +724,7 @@ button:focus-visible {
 
 .lookup-reset:hover {
   color: var(--accent);
-  border-color: var(--accent-dim);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 /* ---- Skeleton loading ---- */
@@ -872,6 +830,7 @@ button:focus-visible {
   border-radius: var(--radius);
   color: var(--error);
   padding: 0.25rem 0.75rem;
+  min-height: 32px;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.15s ease;

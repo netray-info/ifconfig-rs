@@ -22,7 +22,7 @@ export default function IpDisplay(props: Props) {
       await navigator.clipboard.writeText(props.data.ip.addr);
       showToast("Copied!");
     } catch {
-      // Clipboard API not available
+      showToast("Copy failed — clipboard unavailable");
     }
   };
 
@@ -31,7 +31,7 @@ export default function IpDisplay(props: Props) {
       await navigator.clipboard.writeText(props.data.ip.hostname!);
       showToast("Copied!");
     } catch {
-      // Clipboard API not available
+      showToast("Copy failed — clipboard unavailable");
     }
   };
 

@@ -66,6 +66,7 @@ export default function App() {
 
   return (
     <>
+      <a href="#main-content" class="skip-link">Skip to results</a>
       <SuiteNav current="ip" meta={meta() ?? undefined} />
       <div class="header-actions">
         <ThemeToggle theme={themeResult} class="header-btn" />
@@ -76,7 +77,7 @@ export default function App() {
           title="Help"
         >?</button>
       </div>
-      <div class="container">
+      <div class="container" id="main-content">
         <header class="site-header">
           <h1 class="site-title">
             {siteName()}
