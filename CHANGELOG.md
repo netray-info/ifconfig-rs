@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-04-08
+
+### Fixed
+- Frontend: reduce IPv6 address font size to fit on one line (8e2865c)
+- Frontend: a11y and CSS correctness fixes (be62408)
+- CI: use docker cp /data/. to extract into existing data/ dir (a336109)
+- CI: add dummy command to docker create for scratch data image (b148b84)
+- CI: use netray-info/ifconfig-rs-data image (c527010)
+
+### Changed
+- CI: add integration-test job (16a3827)
+- CI: remove integration-test and e2e-test jobs from CI (2cde1a0)
+- CI: restore --lib in test job (a06d327)
+- CI: add frontend lint script with tsc --noEmit (05b9225)
+- CI: fix cargo test scope and normalize npm working-directory (397ff1b)
+- CI: align workflows with netray.info workflow-rules spec (a582dcb)
+
 ## [0.19.0] - 2026-04-08
 
 ### Added
