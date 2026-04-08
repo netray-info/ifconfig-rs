@@ -39,7 +39,7 @@ export default function IpDisplay(props: Props) {
     <div class="hero">
       <div class="ip-row">
         <span class="version-badge">IPv{props.data.ip.version}</span>
-        <span class="ip-display">{props.data.ip.addr}</span>
+        <span class={`ip-display${props.data.ip.version === '6' ? ' ip-display--v6' : ''}`}>{props.data.ip.addr}</span>
         <button
           class="copy-icon"
           onClick={copyIp}

@@ -149,6 +149,10 @@ button:focus-visible {
   word-break: break-all;
 }
 
+.ip-display--v6 {
+  font-size: clamp(1.1rem, 3vw, 1.8rem);
+}
+
 .version-badge {
   font-family: var(--font-mono);
   font-size: 0.7rem;
