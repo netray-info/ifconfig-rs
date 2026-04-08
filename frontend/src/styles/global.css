@@ -696,29 +696,15 @@ button:focus-visible {
   font-size: 0.75rem;
 }
 
-/* ---- Theme Toggle ---- */
+/* ---- Header Actions (fixed toolbar) ---- */
 
-.theme-toggle {
+.header-actions {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  padding: 0.5rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  line-height: 1;
-  transition: all 0.15s ease;
   z-index: 10;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-}
-
-.theme-toggle:hover {
-  color: var(--accent);
-  border-color: var(--accent-dim);
 }
 
 /* ---- IP Lookup Form ---- */
@@ -763,28 +749,6 @@ button:focus-visible {
   cursor: not-allowed;
 }
 
-.lookup-btn {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.5rem 1.25rem;
-  background: var(--accent);
-  border: none;
-  border-radius: var(--radius);
-  color: #fff;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-}
-
-.lookup-btn:hover:not(:disabled) {
-  background: var(--accent-dim);
-}
-
-.lookup-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
 .lookup-reset {
   font-family: var(--font-mono);
@@ -918,6 +882,33 @@ button:focus-visible {
   background: rgba(239, 68, 68, 0.1);
 }
 
+/* ---- Help Modal ---- */
+
+.help-section + .help-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.help-section__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.help-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.help-desc + .help-desc {
+  margin-top: 8px;
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 768px) and (min-width: 481px) {
@@ -946,11 +937,9 @@ button:focus-visible {
   .skeleton-cards {
     grid-template-columns: 1fr;
   }
-  .theme-toggle {
+  .header-actions {
     top: 0.5rem;
     right: 0.5rem;
-    padding: 0.4rem;
-    font-size: 1rem;
   }
   .site-title {
     font-size: 1.2rem;

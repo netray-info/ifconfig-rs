@@ -5,6 +5,7 @@ import { showToast, toastMessage } from "./lib/toast";
 import { createTheme } from "@netray-info/common-frontend/theme";
 import ThemeToggle from "@netray-info/common-frontend/components/ThemeToggle";
 import SiteFooter from "@netray-info/common-frontend/components/SiteFooter";
+import Modal from "@netray-info/common-frontend/components/Modal";
 import IpDisplay from "./components/IpDisplay";
 import InfoCards from "./components/InfoCards";
 import RequestHeaders from "./components/RequestHeaders";
@@ -14,7 +15,8 @@ import IpLookupForm from "./components/IpLookupForm";
 import SuiteNav from '@netray-info/common-frontend/components/SuiteNav';
 
 export default function App() {
-  const themeResult = createTheme('theme', 'system');
+  const themeResult = createTheme('ifconfig_theme', 'system');
+  const [showHelp, setShowHelp] = createSignal(false);
 
   const [data, setData] = createSignal<Ifconfig | null>(null);
   const [meta, setMeta] = createSignal<SiteMeta | null>(null);
@@ -65,7 +67,15 @@ export default function App() {
   return (
     <>
       <SuiteNav current="ip" meta={meta() ?? undefined} />
-      <ThemeToggle theme={themeResult} />
+      <div class="header-actions">
+        <ThemeToggle theme={themeResult} class="header-btn" />
+        <button
+          class="header-btn"
+          onClick={() => setShowHelp(true)}
+          aria-label="Open help"
+          title="Help"
+        >?</button>
+      </div>
       <div class="container">
         <header class="site-header">
           <h1 class="site-title">
@@ -165,6 +175,20 @@ export default function App() {
           version={meta()?.version}
         />
       </div>
+
+      <Modal open={showHelp()} onClose={() => setShowHelp(false)} title="Help">
+        <div class="help-section">
+          <div class="help-section__title">About</div>
+          <p class="help-desc">
+            {siteName()} shows your public IP address along with geolocation, ASN, network type, and user agent details.
+            You can look up any IP address using the lookup form.
+          </p>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title">IP Lookup</div>
+          <p class="help-desc">Enter any IPv4 or IPv6 address in the lookup form to see its enrichment data. The URL updates so you can bookmark or share the result.</p>
+        </div>
+      </Modal>
 
       <Show when={toastMessage()}>
         <div class="toast" role="status" aria-live="polite">

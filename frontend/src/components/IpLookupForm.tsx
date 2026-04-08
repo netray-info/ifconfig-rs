@@ -41,8 +41,8 @@ export default function IpLookupForm(props: Props) {
           autocomplete="off"
           spellcheck={false}
         />
-        <button class="lookup-btn" type="submit" disabled={props.loading || !input().trim()}>
-          Look up
+        <button class="btn-primary" type="submit" disabled={props.loading || !input().trim()}>
+          {props.loading ? "Looking up\u2026" : "Look up"}
         </button>
       </form>
     </div>
