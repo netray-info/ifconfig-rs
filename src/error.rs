@@ -68,7 +68,17 @@ impl ApiError for AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        netray_common::error::into_error_response(&self)
+        match &self {
+            Self::RateLimited { .. } => {
+                tracing::warn!(error = %self, "rate limited");
+            }
+            Self::InvalidIp(_) | Self::InvalidFormat(_) | Self::BatchTooMany { .. } => {
+                tracing::debug!(error = %self, "client error");
+            }
+            Self::BatchDisabled | Self::NotFound => {}
+        }
+
+        netray_common::error::build_error_response(&self)
     }
 }
 
