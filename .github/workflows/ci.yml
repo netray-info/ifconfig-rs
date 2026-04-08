@@ -136,7 +136,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract data files
         run: |
-          docker create --name data-tmp ghcr.io/lukaspustina/ifconfig-rs-data:latest
+          docker create --name data-tmp ghcr.io/netray-info/ifconfig-rs-data:latest
           docker cp data-tmp:/data ./data
           docker rm data-tmp
       - name: cargo test
