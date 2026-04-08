@@ -15,7 +15,7 @@ const mockFetch = vi.fn().mockResolvedValue({
   ok: true,
   text: () => Promise.resolve('{"ip":"1.2.3.4"}'),
 });
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch as typeof fetch;
 
 describe("ApiExplorer", () => {
   beforeEach(() => {
@@ -28,20 +28,20 @@ describe("ApiExplorer", () => {
   });
 
   it("renders collapsed by default", () => {
-    const { queryByRole } = render(() => <ApiExplorer />);
+    const { queryByRole } = render(() => <ApiExplorer lookupIp={null} />);
     // The endpoint tabs should not be visible before expanding
     expect(queryByRole("tablist")).toBeNull();
   });
 
   it("expands when the header button is clicked", async () => {
-    const { getByText, findByRole } = render(() => <ApiExplorer />);
+    const { getByText, findByRole } = render(() => <ApiExplorer lookupIp={null} />);
     fireEvent.click(getByText("API Explorer"));
     const tablist = await findByRole("tablist");
     expect(tablist).toBeInTheDocument();
   });
 
   it("uses cached response on second visit to same endpoint+format", async () => {
-    const { getByText, findByRole } = render(() => <ApiExplorer />);
+    const { getByText, findByRole } = render(() => <ApiExplorer lookupIp={null} />);
     fireEvent.click(getByText("API Explorer"));
     await findByRole("tablist");
 
@@ -73,7 +73,7 @@ describe("ApiExplorer", () => {
   });
 
   it("copy button toggles to copied state on click", async () => {
-    const { getByText, findByLabelText } = render(() => <ApiExplorer />);
+    const { getByText, findByLabelText } = render(() => <ApiExplorer lookupIp={null} />);
     fireEvent.click(getByText("API Explorer"));
 
     const copyBtn = await findByLabelText("Copy curl command");
@@ -88,7 +88,7 @@ describe("ApiExplorer", () => {
   });
 
   it("endpoint tabs support arrow-key navigation", async () => {
-    const { getByText, findByRole } = render(() => <ApiExplorer />);
+    const { getByText, findByRole } = render(() => <ApiExplorer lookupIp={null} />);
     fireEvent.click(getByText("API Explorer"));
     await findByRole("tablist");
 
