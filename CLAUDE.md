@@ -2,27 +2,18 @@
 
 ## Rules
 
-- Do NOT add a `Co-Authored-By` line for Claude in commit messages.
-- Don't add heavy dependencies for minor convenience — check if existing deps already cover the need.
-- Don't mix formatting-only changes with functional changes in the same commit.
-- Don't modify unrelated modules "while you're in there" — keep changes scoped.
-- Don't add speculative flags, config options, or abstractions without a current caller.
-- Don't bypass failing checks (`--no-verify`, `#[allow(...)]`) without explaining why.
-- Don't hide behavior changes inside refactor commits — separate them.
-- Don't include PII, real email addresses, or real domains (other than example.com) in test data, docs, or commits.
-- If uncertain about an implementation detail, leave a concrete `TODO("reason")` rather than a hidden guess.
+- No Co-Authored-By for Claude in commits
+- Scoped changes only: no formatting mixed with functional changes, no unrelated modifications
+- No heavy deps for minor convenience; no speculative flags/config/abstractions without a caller
+- Don't bypass failing checks (`--no-verify`, `#[allow(...)]`) without explaining why
+- No PII, real emails, or real domains (use example.com) in test data, docs, commits
+- `TODO("reason")` over hidden guesses; conventional commits (`feat:`, `fix:`, `refactor:`, etc.)
 
 ## Engineering Principles
 
-- **Performance**: Prioritize efficient algorithms and data structures. Avoid unnecessary allocations and copies.
-- **Rust patterns**: Use idiomatic Rust constructs (enums, traits, iterators) for clarity and safety. Leverage type system to prevent invalid states.
-- **KISS**: Simplest solution that works. Three similar lines beat a premature abstraction.
-- **YAGNI**: Don't build for hypothetical future requirements — solve the current problem.
-- **DRY + Rule of Three**: Tolerate duplication until the third occurrence, then extract.
-- **SRP**: Each module/struct has one reason to change. Split when responsibilities diverge.
-- **Fail Fast**: Validate at boundaries, return errors early, don't silently swallow failures.
-- **Secure by Default**: Sanitize external input, no PII in logs, prefer safe APIs.
-- **Reversibility**: Prefer changes that are easy to undo. Small commits over monolithic ones.
+KISS · YAGNI · DRY (rule of three) · SRP · Fail Fast · Secure by Default · Reversibility · Performance
+
+- **Rust patterns**: Use idiomatic Rust (enums, traits, iterators). Leverage the type system to prevent invalid states.
 
 ## Project Overview
 
