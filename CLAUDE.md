@@ -187,6 +187,10 @@ Config is validated at load time (`Config::validate()`) — zero rate-limit valu
 
 Data files live in `data/`. See `data/README.md` for sources and acquisition instructions (`make -C data get_all`).
 
+## Architecture Rules
+
+Rules: [`specs/rules/architecture-rules.md`](../specs/rules/architecture-rules.md) in the netray.info meta repo. Apply when modifying health probes or readiness checks.
+
 ## Logging & Telemetry
 
 Rules: [`specs/rules/logging-rules.md`](../specs/rules/logging-rules.md) in the netray.info meta repo. Follow those rules when modifying tracing init, log filters, or `[telemetry]` config.
