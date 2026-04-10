@@ -24,6 +24,9 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: dtolnay/rust-toolchain@stable
@@ -35,6 +38,7 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+          registry-url: https://npm.pkg.github.com
       - name: Build frontend
         run: npm ci && npm run build
         working-directory: frontend
@@ -46,6 +50,9 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: dtolnay/rust-toolchain@stable
@@ -55,6 +62,7 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+          registry-url: https://npm.pkg.github.com
       - name: Build frontend
         run: npm ci && npm run build
         working-directory: frontend
@@ -66,6 +74,9 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -73,6 +84,7 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+          registry-url: https://npm.pkg.github.com
       - name: frontend build
         run: npm ci && npm run build
         working-directory: frontend
@@ -123,6 +135,7 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+          registry-url: https://npm.pkg.github.com
       - name: Build frontend
         run: npm ci && npm run build
         working-directory: frontend
