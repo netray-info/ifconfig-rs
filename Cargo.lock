@@ -1434,7 +1434,7 @@ dependencies = [
 
 [[package]]
 name = "ifconfig-rs"
-version = "0.20.4"
+version = "0.21.0"
 dependencies = [
  "arc-swap",
  "axum",
