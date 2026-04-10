@@ -1,8 +1,9 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createSignal, onMount, onCleanup, Show } from "solid-js";
 import type { Ifconfig, SiteMeta } from "./lib/types";
 import { fetchIfconfig, fetchIfconfigForIp, fetchMeta } from "./lib/api";
 import { showToast, toastMessage } from "./lib/toast";
 import { createTheme } from "@netray-info/common-frontend/theme";
+import { createKeyboardShortcuts } from "@netray-info/common-frontend/keyboard";
 import ThemeToggle from "@netray-info/common-frontend/components/ThemeToggle";
 import SiteFooter from "@netray-info/common-frontend/components/SiteFooter";
 import Modal from "@netray-info/common-frontend/components/Modal";
@@ -62,6 +63,18 @@ export default function App() {
       const ip = (e.state as { ip?: string | null } | null)?.ip ?? undefined;
       loadData(ip, false);
     });
+
+    const cleanupShortcuts = createKeyboardShortcuts({
+      '?': (e) => { e.preventDefault(); setShowHelp(v => !v); },
+      '/': (e) => {
+        e.preventDefault();
+        const input = document.querySelector<HTMLInputElement>('.lookup-input');
+        input?.focus();
+      },
+      'Escape': () => setShowHelp(false),
+    });
+
+    onCleanup(cleanupShortcuts);
   });
 
   return (
@@ -181,13 +194,30 @@ export default function App() {
         <div class="help-section">
           <div class="help-section__title">About</div>
           <p class="help-desc">
-            {siteName()} shows your public IP address along with geolocation, ASN, network type, and user agent details.
-            You can look up any IP address using the lookup form.
+            {siteName()} shows your public IP address with geolocation, ASN, network type, and
+            user-agent details. Look up any IPv4 or IPv6 address — the URL updates for bookmarking.{' '}
+            <a href="https://netray.info/guide/ip-enrichment.html" target="_blank" rel="noopener noreferrer">IP enrichment guide ↗</a>
           </p>
         </div>
+
         <div class="help-section">
-          <div class="help-section__title">IP Lookup</div>
-          <p class="help-desc">Enter any IPv4 or IPv6 address in the lookup form to see its enrichment data. The URL updates so you can bookmark or share the result.</p>
+          <div class="help-section__title">Lookup</div>
+          <code class="help-syntax">1.2.3.4 &nbsp;or&nbsp; 2001:db8::1</code>
+          <p class="help-desc">Enter any global IPv4 or IPv6 address in the lookup form. The URL updates so you can bookmark or share results. The plain API also accepts <code>curl ip.netray.info</code>.</p>
+        </div>
+
+        <div class="help-section">
+          <div class="help-section__title">Keyboard shortcuts</div>
+          <table class="shortcuts-table">
+            <thead>
+              <tr><th>Key</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="shortcut-key">/</td><td>Focus lookup input</td></tr>
+              <tr><td class="shortcut-key">Escape</td><td>Close help</td></tr>
+              <tr><td class="shortcut-key">?</td><td>Toggle this help</td></tr>
+            </tbody>
+          </table>
         </div>
       </Modal>
 
