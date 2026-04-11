@@ -4,6 +4,8 @@
 @import '@netray-info/common-frontend/styles/components.css';
 
 :root {
+  /* Alias for common-frontend components that use var(--mono) */
+  --mono: var(--font-mono);
   /* ifconfig-rs-specific tokens */
   --radius-lg: 12px;
 
@@ -80,29 +82,21 @@ button:focus-visible {
   font-family: var(--font-mono);
 }
 
-.container {
+.app {
   max-width: 960px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: 1.5rem 1rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ---- Site Header ---- */
-
-.site-header {
-  text-align: center;
-  padding: 2.5rem 0 0;
+.container {
+  flex: 1;
+  padding: 0;
 }
 
-.site-title {
-  font-family: var(--font-mono);
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
+/* ---- Share Icon ---- */
 
 .share-icon {
   display: inline-flex;
@@ -121,16 +115,12 @@ button:focus-visible {
   color: var(--accent);
 }
 
-.tagline {
-  display: block;
-  margin-top: 0.25rem;
-}
 
 /* ---- Hero / IP Display ---- */
 
 .hero {
   text-align: center;
-  padding: 1.5rem 0 2rem;
+  padding: 0.75rem 0 2rem;
 }
 
 .ip-row {
@@ -274,6 +264,12 @@ button:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.card-empty {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 0.5rem 0;
+}
+
 .tor-badge {
   display: inline-block;
   padding: 0.15rem 0.5rem;
@@ -334,9 +330,10 @@ button:focus-visible {
 /* ---- Sections (collapsible) ---- */
 
 .section {
-  margin: 1.5rem 0;
-  border-top: 1px solid var(--border);
-  padding-top: 0.25rem;
+  margin: 0.75rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .section-header {
@@ -344,14 +341,16 @@ button:focus-visible {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  padding: 0.75rem 0;
-  font-size: 0.85rem;
+  padding: 0.75rem 1rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
   border: none;
-  background: none;
+  background: var(--bg-secondary);
   width: 100%;
   text-align: left;
+  transition: color var(--transition);
 }
 
 .section-header:hover {
@@ -360,21 +359,26 @@ button:focus-visible {
 
 .section-header .chevron {
   transition: transform 0.2s ease;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-left: auto;
 }
 
 .section-header .chevron.open {
   transform: rotate(90deg);
 }
 
+[data-card-active] {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-radius: var(--radius);
+}
+
 /* ---- Request Headers ---- */
 
 .headers-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem;
-  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
 }
 
 .header-row {
@@ -421,11 +425,8 @@ button:focus-visible {
 /* ---- API Explorer ---- */
 
 .api-explorer {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  margin-top: 0.5rem;
+  padding: 1rem;
+  border-top: 1px solid var(--border);
 }
 
 .endpoint-tabs-wrapper {
@@ -598,11 +599,8 @@ button:focus-visible {
 /* ---- FAQ ---- */
 
 .faq {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem;
-  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
 }
 
 .faq-item {
@@ -657,16 +655,6 @@ button:focus-visible {
   font-size: 0.75rem;
 }
 
-/* ---- Header Actions (fixed toolbar) ---- */
-
-.header-actions {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 10;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
 
 /* ---- IP Lookup Form ---- */
 
@@ -845,6 +833,40 @@ button:focus-visible {
   background: rgba(239, 68, 68, 0.1);
 }
 
+/* ---- Modal ---- */
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal-header h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
 /* ---- Help Modal ---- */
 
 .help-section + .help-section {
@@ -921,11 +943,8 @@ button:focus-visible {
 }
 
 @media (max-width: 480px) {
-  .container {
-    padding: 1rem;
-  }
-  .site-header {
-    padding: 1.5rem 0 0;
+  .app {
+    padding: 1rem 0.75rem;
   }
   .tagline { display: none; }
   .hero {
@@ -936,13 +955,6 @@ button:focus-visible {
   }
   .skeleton-cards {
     grid-template-columns: 1fr;
-  }
-  .header-actions {
-    top: 0.5rem;
-    right: 0.5rem;
-  }
-  .site-title {
-    font-size: 1.2rem;
   }
   .lookup-row {
     flex-wrap: wrap;

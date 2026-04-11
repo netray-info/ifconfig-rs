@@ -46,10 +46,10 @@ export default function Faq(props: Props) {
   const items = () => buildFaqItems(props.siteName);
 
   return (
-    <div class="section">
+    <div class="section" data-card>
       <button class="section-header" onClick={() => setOpen(!open())} aria-expanded={open()} aria-controls="faq-panel">
-        <span class={`chevron ${open() ? "open" : ""}`}>&#9654;</span>
         FAQ
+        <span class={`chevron ${open() ? "open" : ""}`}>&#9654;</span>
       </button>
       <Show when={open()}>
         <div class="faq" id="faq-panel">

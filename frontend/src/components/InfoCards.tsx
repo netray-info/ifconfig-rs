@@ -237,6 +237,9 @@ export default function InfoCards(props: Props) {
         <div class="card-title">
           Location
         </div>
+        <Show when={!known(loc().city) && loc().latitude == null && !known(loc().country)}>
+          <div class="card-empty">No geolocation data available</div>
+        </Show>
         <Show when={known(loc().city)}>
           <div class="card-row">
             <span class="card-label">City</span>

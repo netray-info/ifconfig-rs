@@ -34,10 +34,10 @@ export default function RequestHeaders() {
   });
 
   return (
-    <div class="section">
+    <div class="section" data-card>
       <button class="section-header" onClick={() => setOpen(!open())} aria-expanded={open()} aria-controls="request-headers-panel">
-        <span class={`chevron ${open() ? "open" : ""}`}>&#9654;</span>
         Request Headers
+        <span class={`chevron ${open() ? "open" : ""}`}>&#9654;</span>
       </button>
       <Show when={open()}>
         <div class="headers-card" id="request-headers-panel">

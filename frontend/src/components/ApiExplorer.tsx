@@ -114,10 +114,10 @@ export default function ApiExplorer(props: Props) {
   );
 
   return (
-    <div class="section">
+    <div class="section" data-card>
       <button class="section-header" onClick={() => setOpen(!open())} aria-expanded={open()} aria-controls="api-explorer-panel">
-        <span class={`chevron ${open() ? "open" : ""}`}>&#9654;</span>
         API Explorer
+        <span class={`chevron ${open() ? "open" : ""}`}>&#9654;</span>
       </button>
       <Show when={open()}>
         <div class="api-explorer" id="api-explorer-panel">

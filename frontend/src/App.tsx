@@ -64,61 +64,114 @@ export default function App() {
       loadData(ip, false);
     });
 
+    // Ctrl+L / Cmd+L — focus input (not filtered by createKeyboardShortcuts)
+    const ctrlLHandler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('.lookup-input')?.focus();
+      }
+    };
+    document.addEventListener('keydown', ctrlLHandler);
+
+    function clearCardActive() {
+      document.querySelector('[data-card-active]')?.removeAttribute('data-card-active');
+    }
+
+    function navigateCards(e: KeyboardEvent) {
+      const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-card]'));
+      if (cards.length === 0) return;
+      e.preventDefault();
+      const cur = document.querySelector<HTMLElement>('[data-card-active]');
+      let idx = cur ? cards.indexOf(cur) : -1;
+      if (idx === -1) {
+        idx = e.key === 'j' ? 0 : cards.length - 1;
+      } else {
+        cur!.removeAttribute('data-card-active');
+        idx += e.key === 'j' ? 1 : -1;
+      }
+      idx = Math.max(0, Math.min(idx, cards.length - 1));
+      cards[idx].setAttribute('data-card-active', '');
+      cards[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function expandActiveCard(e: KeyboardEvent) {
+      const active = document.querySelector<HTMLElement>('[data-card-active]');
+      if (active) {
+        e.preventDefault();
+        active.querySelector<HTMLElement>('.section-header')?.click();
+      }
+    }
+
+    document.addEventListener('mousedown', clearCardActive);
+
     const cleanupShortcuts = createKeyboardShortcuts({
       '?': (e) => { e.preventDefault(); setShowHelp(v => !v); },
       '/': (e) => {
         e.preventDefault();
-        const input = document.querySelector<HTMLInputElement>('.lookup-input');
-        input?.focus();
+        document.querySelector<HTMLInputElement>('.lookup-input')?.focus();
       },
-      'Escape': () => setShowHelp(false),
+      'r': (e) => {
+        const ip = lookupIp();
+        if (ip && !loading()) { e.preventDefault(); loadData(ip); }
+      },
+      'j': navigateCards,
+      'k': navigateCards,
+      'Enter': expandActiveCard,
+      'Escape': (e) => {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('.lookup-input')?.blur();
+        setShowHelp(false);
+        clearCardActive();
+      },
     });
 
-    onCleanup(cleanupShortcuts);
+    onCleanup(() => {
+      cleanupShortcuts();
+      document.removeEventListener('keydown', ctrlLHandler);
+      document.removeEventListener('mousedown', clearCardActive);
+    });
   });
 
   return (
-    <>
-      <a href="#main-content" class="skip-link">Skip to results</a>
+    <div class="app">
       <SuiteNav current="ip" meta={meta() ?? undefined} />
-      <div class="header-actions">
-        <ThemeToggle theme={themeResult} class="header-btn" />
-        <button
-          class="header-btn"
-          onClick={() => setShowHelp(true)}
-          aria-label="Open help"
-          title="Help"
-        >?</button>
-      </div>
-      <div class="container" id="main-content">
-        <header class="site-header">
-          <h1 class="site-title">
-            {siteName()}
-            <button
-              class="share-icon"
-              title="Share this IP lookup"
-              onClick={async () => {
-                const url = lookupIp()
-                  ? `${location.origin}/?ip=${lookupIp()}`
-                  : location.href;
-                if (navigator.share) {
-                  try {
-                    await navigator.share({ url });
-                  } catch {
-                    // user cancelled — ignore
-                  }
-                } else {
-                  await navigator.clipboard.writeText(url);
-                  showToast("Link copied to clipboard");
+      <a href="#main-content" class="skip-link">Skip to results</a>
+      <header class="header">
+        <h1 class="logo">ifconfig</h1>
+        <span class="tagline">IP, decoded</span>
+        <div class="header-actions">
+          <button
+            class="header-btn"
+            title="Share this IP lookup"
+            aria-label="Share this IP lookup"
+            onClick={async () => {
+              const url = lookupIp()
+                ? `${location.origin}/?ip=${lookupIp()}`
+                : location.href;
+              if (navigator.share) {
+                try {
+                  await navigator.share({ url });
+                } catch {
+                  // user cancelled — ignore
                 }
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            </button>
-          </h1>
-          <span class="tagline">IP, decoded</span>
-        </header>
-
+              } else {
+                await navigator.clipboard.writeText(url);
+                showToast("Link copied to clipboard");
+              }
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          </button>
+          <ThemeToggle theme={themeResult} class="header-btn" />
+          <button
+            class="header-btn"
+            onClick={() => setShowHelp(true)}
+            aria-label="Open help"
+            title="Help"
+          >?</button>
+        </div>
+      </header>
+      <div class="container" id="main-content">
         <Show when={loading() && !data()}>
           <div role="status" aria-label="Loading your IP information">
             <div class="skeleton-hero skeleton-block" />
@@ -214,7 +267,11 @@ export default function App() {
             </thead>
             <tbody>
               <tr><td class="shortcut-key">/</td><td>Focus lookup input</td></tr>
-              <tr><td class="shortcut-key">Escape</td><td>Close help</td></tr>
+              <tr><td class="shortcut-key">Ctrl+L</td><td>Focus lookup input</td></tr>
+              <tr><td class="shortcut-key">r</td><td>Re-run last lookup</td></tr>
+              <tr><td class="shortcut-key">j / k</td><td>Navigate sections</td></tr>
+              <tr><td class="shortcut-key">Enter</td><td>Expand / collapse active section</td></tr>
+              <tr><td class="shortcut-key">Escape</td><td>Blur input / close help / deselect</td></tr>
               <tr><td class="shortcut-key">?</td><td>Toggle this help</td></tr>
             </tbody>
           </table>
@@ -226,6 +283,6 @@ export default function App() {
           {toastMessage()}
         </div>
       </Show>
-    </>
+    </div>
   );
 }
