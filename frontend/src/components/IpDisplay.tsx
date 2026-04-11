@@ -1,4 +1,5 @@
 import { Show } from "solid-js";
+import CrossLink from "@netray-info/common-frontend/components/CrossLink";
 import type { Ifconfig, SiteMeta } from "../lib/types";
 import { showToast } from "../lib/toast";
 
@@ -61,22 +62,16 @@ export default function IpDisplay(props: Props) {
             <ClipboardIcon />
           </button>
           <Show when={props.meta?.dns_base_url && props.data.ip.hostname}>
-            <a
-              class="eco-link eco-link--badge"
+            <CrossLink
               href={`${props.meta!.dns_base_url}/?q=${encodeURIComponent(props.data.ip.hostname!)}&ref=ifconfig`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`Check DNS for ${props.data.ip.hostname}`}
-            >DNS</a>
+              label={`Check DNS for ${props.data.ip.hostname}`}
+            />
           </Show>
           <Show when={props.meta?.tls_base_url && props.data.ip.hostname}>
-            <a
-              class="eco-link eco-link--badge"
+            <CrossLink
               href={`${props.meta!.tls_base_url}/?h=${encodeURIComponent(props.data.ip.hostname!)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`Inspect TLS for ${props.data.ip.hostname}`}
-            >TLS</a>
+              label={`Inspect TLS for ${props.data.ip.hostname}`}
+            />
           </Show>
         </div>
       </Show>
