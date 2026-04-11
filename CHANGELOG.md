@@ -5,12 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.21.0] - 2026-04-10
+## [0.21.0] - 2026-04-11
 
 ### Added
+- Frontend: align layout with suite blueprint, add keyboard navigation (58832d9)
 - Rewrite help modal, add keyboard shortcuts (a670460)
 
 ### Changed
+- Frontend: use CrossLink component for DNS/TLS links in IpDisplay (679c7b9)
+- Add SDD for rename ifconfig-rs to iris (7ac7700)
 - Bump netray-common to 0.6.0 (9227ca1)
 
 ## [0.20.4] - 2026-04-09
