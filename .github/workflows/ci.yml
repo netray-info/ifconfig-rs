@@ -97,28 +97,20 @@ jobs:
         run: npm test
         working-directory: frontend
 
-  audit:
-    name: Dependency Audit
+  # Deterministic supply-chain checks only — bans, licenses, sources.
+  # Advisory scans (RUSTSEC, npm audit) live in audit.yml on a daily cron so
+  # a newly-published advisory in an unrelated transitive dep cannot block
+  # an unrelated PR or hotfix merge.
+  deny:
+    name: Cargo Deny (bans/licenses/sources)
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      checks: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          command: check
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: npm audit (frontend)
-        run: npm audit --audit-level=high --omit=dev
-        working-directory: frontend
+          command: check bans licenses sources
 
   integration-test:
     name: Integration Tests
@@ -154,14 +146,3 @@ jobs:
           docker rm data-tmp
       - name: cargo test
         run: cargo test --locked --no-fail-fast
-
-  e2e-audit:
-    name: E2E Dependency Audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "22"
-      - name: npm audit (e2e)
-        run: cd tests/e2e && npm audit --audit-level=high
