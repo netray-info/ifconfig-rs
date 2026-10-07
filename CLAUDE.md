@@ -188,7 +188,7 @@ Default filter: `info,ifconfig_rs=debug,hyper=warn,h2=warn,mhost=warn`. Telemetr
 
 Workflow rules: [`specs/rules/workflow-rules.md`](../specs/rules/workflow-rules.md) in the netray.info meta repo. Follow those rules when creating or modifying any `.github/workflows/*.yml` file.
 
-Workflows: `ci.yml` (PR gate: fmt, clippy, test, frontend, audit, integration-test, e2e-test), `release.yml` (tag-push: test → build → merge), `deploy.yml` (fires after release via webhook).
+Workflows: `ci.yml` (PR gate: fmt, clippy, test, frontend, deny, integration-test), `audit.yml` (daily advisory scans: RUSTSEC, npm audit for frontend and tests/e2e), `release.yml` (tag-push: test → build → merge), `deploy.yml` (fires after release via webhook).
 
 GitHub Packages auth (`NODE_AUTH_TOKEN`) requirement: see workflow-rules R-J3.
 
